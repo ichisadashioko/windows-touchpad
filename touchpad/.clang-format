@@ -1,3 +1,4 @@
 BreakBeforeBraces: Attach
 ColumnLimit: 255
 IndentWidth: 4
+AlignConsecutiveAssignments: true
