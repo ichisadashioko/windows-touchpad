@@ -101,8 +101,10 @@ LRESULT CALLBACK WndProc(_In_ HWND hWnd, _In_ UINT message, _In_ WPARAM wParam, 
 
                 if (!RegisterRawInputDevices(&rid, 1, sizeof(RAWINPUTDEVICE))) {
                     isTouchpadRegistered = FALSE;
+                    printTimestamp();
                     debugf("Failed to register touchpad!\n");
                 } else {
+                    printTimestamp();
                     debugf("Successfully register touchpad!\n");
                     isTouchpadRegistered = TRUE;
                 }
@@ -134,9 +136,16 @@ LRESULT CALLBACK WndProc(_In_ HWND hWnd, _In_ UINT message, _In_ WPARAM wParam, 
     return 0;
 }
 
+void printTimestamp() {
+    SYSTEMTIME ts;
+    GetSystemTime(&ts);
+    debugf("[%04d-%02d-%02d-%02d-%02d-%02d.%03d] ", ts.wYear, ts.wMonth, ts.wDay, ts.wHour, ts.wMinute, ts.wSecond, ts.wMilliseconds);
+}
+
 void debugf(const char *fmt, ...) {
     va_list args;
     va_start(args, fmt);
+
     FILE *fp = fopen(DEBUG_FILE, "a+");
 
     if (fp != NULL) {
