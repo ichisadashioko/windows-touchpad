@@ -1,4 +1,7 @@
+Language: Cpp
 BreakBeforeBraces: Attach
 ColumnLimit: 255
 IndentWidth: 4
 AlignConsecutiveAssignments: true
+MaxEmptyLinesToKeep: 1
+IndentCaseLabels: true
