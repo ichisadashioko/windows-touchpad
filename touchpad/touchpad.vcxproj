@@ -89,7 +89,7 @@
       <ConformanceMode>true</ConformanceMode>
     </ClCompile>
     <Link>
-      <SubSystem>Windows</SubSystem>
+      <SubSystem>Console</SubSystem>
       <GenerateDebugInformation>true</GenerateDebugInformation>
     </Link>
   </ItemDefinitionGroup>
@@ -138,10 +138,7 @@
     </Link>
   </ItemDefinitionGroup>
   <ItemGroup>
-    <ClCompile Include="src\touchpad.c" />
-  </ItemGroup>
-  <ItemGroup>
-    <ClInclude Include="src\touchpad.h" />
+    <ClCompile Include="src\touchpad.cc" />
   </ItemGroup>
   <ItemGroup>
     <None Include=".clang-format" />
