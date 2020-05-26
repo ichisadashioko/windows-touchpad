@@ -18,4 +18,4 @@ jobs:
       run: msbuild windows-touchpad.sln
 
     - name: Show build directory structure
-      run: tree .
+      run: tree . /a /f
