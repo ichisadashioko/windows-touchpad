@@ -1,13 +1,22 @@
 // Following guide: https://docs.microsoft.com/en-us/cpp/windows/walkthrough-creating-windows-desktop-applications-cpp?view=vs-2019
-#pragma once
+// clang-format off
 #define _CRT_SECURE_NO_WARNINGS
 #include <Windows.h>
-#include <hidusage.h>
 #include <iostream>
-#include <stdio.h>
-#include <stdlib.h>
 #include <string.h>
 #include <tchar.h>
+#include <stdio.h>
+#include <stdlib.h>
+// Windows Driver Kit headers
+// include order matters because these headers does not include their required headers
+// these are not C++ headers
+extern "C" {
+#include <hidclass.h>
+#include <hidusage.h>
+#include <hidpi.h>
+}
+// End Windows Driver Kit
+// clang-format on
 
 // Global variables:
 HINSTANCE hInst; // current instance
@@ -20,7 +29,7 @@ static BOOL showedConnectedTouchpads = FALSE;
 int main();
 void printTimestamp();
 void printLastError();
-LRESULT CALLBACK WndProc(_In_ HWND hWnd, _In_ UINT message, _In_ WPARAM wParam, _In_ LPARAM lParam);
+LRESULT CALLBACK WndProc(HWND, UINT, WPARAM, LPARAM);
 int CALLBACK WinMain(_In_ HINSTANCE hInstance, _In_opt_ HINSTANCE hPrevInstance, _In_ LPSTR lpCmdLine, _In_ int nCmdShow);
 
 int CALLBACK WinMain(_In_ HINSTANCE hInstance, _In_opt_ HINSTANCE hPrevInstance, _In_ LPSTR lpCmdLine, _In_ int nCmdShow) {
@@ -89,7 +98,7 @@ LRESULT CALLBACK WndProc(_In_ HWND hWnd, _In_ UINT message, _In_ WPARAM wParam, 
   PAINTSTRUCT ps;
   HDC hdc;
   TCHAR greeting[] = _T("Hello, Windows desktop!");
-  UINT winReturnCode;
+  UINT winReturnCode; // return code from windows API call
 
   switch (message) {
     case WM_CREATE: {
@@ -110,15 +119,15 @@ LRESULT CALLBACK WndProc(_In_ HWND hWnd, _In_ UINT message, _In_ WPARAM wParam, 
           std::unique_ptr<RAWINPUTDEVICELIST[]> rawInputDeviceList(new RAWINPUTDEVICELIST[numDevices]);
 
           // as we have to pass a PUINT to GetRawInputDeviceList the value might be changed.
-          const UINT recordedNumDevices = numDevices;
-          winReturnCode                 = GetRawInputDeviceList(rawInputDeviceList.get(), &numDevices, sizeof(RAWINPUTDEVICELIST));
+          const UINT _numDevices = numDevices;
+          winReturnCode          = GetRawInputDeviceList(rawInputDeviceList.get(), &numDevices, sizeof(RAWINPUTDEVICELIST));
 
           if (winReturnCode == (UINT)-1) {
             std::cout << "Failed to call GetRawInputDeviceList at " << __FILE__ << ":" << __LINE__ << std::endl;
             printLastError();
           } else {
             std::cout << "numDevices: " << numDevices << std::endl;
-            for (UINT i = 0; i < recordedNumDevices; i++) {
+            for (UINT i = 0; i < _numDevices; i++) {
               RAWINPUTDEVICELIST rawInputDevice = rawInputDeviceList.get()[i];
               std::cout << i << " - dwType: " << rawInputDevice.dwType << " - hDevice:" << rawInputDevice.hDevice << std::endl;
 
@@ -146,21 +155,21 @@ LRESULT CALLBACK WndProc(_In_ HWND hWnd, _In_ UINT message, _In_ WPARAM wParam, 
                 printLastError();
               } else {
                 std::cout << "  deviceNameLength: " << deviceNameBufferSize << std::endl;
-                const UINT recordedDeviceNameBufferSize = deviceNameBufferSize;
+                const UINT _deviceNameBufferSize = deviceNameBufferSize;
 
-                std::unique_ptr<TCHAR[]> deviceNameBuffer(new TCHAR[recordedDeviceNameBufferSize + 1]);
+                std::unique_ptr<TCHAR[]> deviceNameBuffer(new TCHAR[_deviceNameBufferSize + 1]);
 
                 // set string terminator
                 // if we don't do this, bad thing will happen
                 // the runtime will give all sort of exceptions that does not point to our code
-                deviceNameBuffer.get()[recordedDeviceNameBufferSize] = 0;
+                deviceNameBuffer.get()[_deviceNameBufferSize] = 0;
 
                 winReturnCode = GetRawInputDeviceInfo(rawInputDevice.hDevice, RIDI_DEVICENAME, deviceNameBuffer.get(), &deviceNameBufferSize);
                 if (winReturnCode == (UINT)-1) {
-                  printf("Failed to get device name at %s:%d\n", __FILE__, __LINE__);
+                  std::cout << "Failed to get device name at " << __FILE__ << ":" << __LINE__ << std::endl;
                   printLastError();
-                } else if (winReturnCode != recordedDeviceNameBufferSize) {
-                  printf("GetRawInputDeviceInfo does not return the expected size %d (actual) vs %d (expected)\n at %s:%d\n", winReturnCode, recordedDeviceNameBufferSize, __FILE__, __LINE__);
+                } else if (winReturnCode != _deviceNameBufferSize) {
+                  std::cout << "GetRawInputDeviceInfo does not return the expected size " << winReturnCode << " (actual) vs " << _deviceNameBufferSize << " at " << __FILE__ << ":" << __LINE__ << std::endl;
                 } else {
                   TCHAR *deviceName = deviceNameBuffer.get();
                   std::cout << "  device name: ";
@@ -185,11 +194,11 @@ LRESULT CALLBACK WndProc(_In_ HWND hWnd, _In_ UINT message, _In_ WPARAM wParam, 
         if (!RegisterRawInputDevices(&rid, 1, sizeof(RAWINPUTDEVICE))) {
           isTouchpadRegistered = FALSE;
           printTimestamp();
-          printf("Failed to register touchpad at %s:%d!\n", __FILE__, __LINE__);
+          std::cout << "Failed to register touchpad at " << __FILE__ << ":" << __LINE__ << std::endl;
           printLastError();
         } else {
           printTimestamp();
-          printf("Successfully register touchpad!\n");
+          std::cout << "Successfully register touchpad!" << std::endl;
           isTouchpadRegistered = TRUE;
         }
       }
@@ -198,16 +207,16 @@ LRESULT CALLBACK WndProc(_In_ HWND hWnd, _In_ UINT message, _In_ WPARAM wParam, 
       if (isTouchpadRegistered) {
         // Following guide: https://docs.microsoft.com/en-us/windows/win32/inputdev/using-raw-input#performing-a-standard-read-of-raw-input
 
-        // Got our HID input message. This is to filter RIM_TYPEMOUSE and RIM_TYPEKEYBOARD.
-        // rawInputHeader.hDevice;
-
+        // TODO should we only read RID_HEADER first to filter device types for RIM_TYPEHID only to save bandwidth and improve performance
         // Get the size of RAWINPUT by calling GetRawInputData() with pData = NULL
 
         UINT rawInputSize = 0;
-        if (GetRawInputData((HRAWINPUT)lParam, RID_INPUT, NULL, &rawInputSize, sizeof(RAWINPUTHEADER)) == (UINT)-1) {
+
+        winReturnCode = GetRawInputData((HRAWINPUT)lParam, RID_INPUT, NULL, &rawInputSize, sizeof(RAWINPUTHEADER));
+        if (winReturnCode == (UINT)-1) {
           // handle error
           printTimestamp();
-          printf("Retrieving RAWINPUT size. GetRawInputData() failed at %s:%d!\n", __FILE__, __LINE__);
+          std::cout << "Retrieving RAWINPUT size. GetRawInputData() failed at " << __FILE__ << ":" << __LINE__ << std::endl;
           printLastError();
         } else {
           // rawInputSize will be modified to 0 after calling GetRawInputData() the second time
@@ -218,15 +227,14 @@ LRESULT CALLBACK WndProc(_In_ HWND hWnd, _In_ UINT message, _In_ WPARAM wParam, 
             printLastError();
           } else {
             winReturnCode = GetRawInputData((HRAWINPUT)lParam, RID_INPUT, lpb, &rawInputSize, sizeof(RAWINPUTHEADER));
-
             if (winReturnCode == (UINT)-1) {
               // handle error
               printTimestamp();
-              printf("Coping RAWINPUT data. GetRawInputData() failed at %s:%d!\n", __FILE__, __LINE__);
+              std::cout << "Coping RAWINPUT data. GetRawInputData() failed at " << __FILE__ << ":" << __LINE__ << std::endl;
               printLastError();
             } else if (winReturnCode != _rawInputSize) {
               printTimestamp();
-              printf("Coping RAWINPUT data. The RAWINPUT size does not match! %s:%d\n", __FILE__, __LINE__);
+              std::cout << "Coping RAWINPUT data. The RAWINPUT size does not match! at " << __FILE__ << ":" << __LINE__ << std::endl;
             } else {
               // Parse the RAWINPUT data.
               RAWINPUT *raw = (RAWINPUT *)lpb;
@@ -236,6 +244,51 @@ LRESULT CALLBACK WndProc(_In_ HWND hWnd, _In_ UINT message, _In_ WPARAM wParam, 
                 BYTE *rawData = raw->data.hid.bRawData;
 
                 if (count != 0) {
+                  // TODO parse raw data
+
+                  // https://stackoverflow.com/a/27012730/8364403
+                  // ULONG numTouchContacts;
+                  // clang-format off
+                  //NTSTATUS hidpReturnCode = HidP_GetUsageValue(
+                  //  HidP_Input, // ReportType
+                  //  HID_USAGE_PAGE_DIGITIZER, // UsagePage
+                  //  // LinkCollection
+                  //);
+                  // clang-format on
+
+                  // get preparsed data for HidP
+                  UINT prepasedDataSize = 0;
+                  winReturnCode         = GetRawInputDeviceInfo(raw->header.hDevice, RIDI_PREPARSEDDATA, NULL, &prepasedDataSize);
+                  if (winReturnCode == (UINT)-1) {
+                    std::cout << "Failed to call GetRawInputDeviceInfo to get prepased data size at " << __FILE__ ":" << __LINE__ << std::endl;
+                    printLastError();
+                  } else {
+                    std::cout << "Prepased data size: " << prepasedDataSize << std::endl;
+                    const UINT _prepasedDataSize = prepasedDataSize;
+                    lpb                          = new BYTE[_prepasedDataSize];
+
+                    winReturnCode = GetRawInputDeviceInfo(raw->header.hDevice, RIDI_PREPARSEDDATA, lpb, &prepasedDataSize);
+                    if (winReturnCode == (UINT)-1) {
+                      std::cout << "Failed to call GetRawInputDeviceInfo to get prepased data at " << __FILE__ << ":" << __LINE__ << std::endl;
+                      printLastError();
+                    } else {
+                      PHIDP_PREPARSED_DATA preparsedData = (PHIDP_PREPARSED_DATA)lpb;
+
+                      NTSTATUS hidpReturnCode;
+
+                      // find HID capabilities
+                      HIDP_CAPS caps;
+                      hidpReturnCode = HidP_GetCaps(preparsedData, &caps);
+
+                      if (hidpReturnCode == HIDP_STATUS_SUCCESS) {
+                        // TODO continue parse raw input data
+                      } else if (hidpReturnCode == HIDP_STATUS_INVALID_PREPARSED_DATA) {
+                        std::cout << "The specified prepased data is invalid at " << __FILE__ << ":" << __LINE__ << std::endl;
+                      } else {
+                        std::cout << "Failed to call HidP_GetCaps! Unknown status code: " << hidpReturnCode << " at " << __FILE__ << ":" << __LINE__ << std::endl;
+                      }
+                    }
+                  }
                 }
               }
             }
@@ -290,8 +343,4 @@ void printLastError() {
   printf("Error code: %d. Error message: %s", errorCode, messageBuffer);
 }
 
-int main() {
-  auto ulongSize = sizeof(ULONG);
-  printf("ULONG size: %d\n", ulongSize);
-  return WinMain(GetModuleHandle(NULL), NULL, GetCommandLineA(), SW_SHOWNORMAL);
-};
+int main() { return WinMain(GetModuleHandle(NULL), NULL, GetCommandLineA(), SW_SHOWNORMAL); };
