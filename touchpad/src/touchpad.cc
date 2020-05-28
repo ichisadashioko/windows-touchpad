@@ -84,12 +84,6 @@ int CALLBACK WinMain(_In_ HINSTANCE hInstance, _In_opt_ HINSTANCE hPrevInstance,
   return (int)msg.wParam;
 }
 
-// FUNCTION: WndProc(HWND, UINT, WPARAM, LPARAM)
-//
-// PURPPOSE: Processes messages for the main window.
-//
-// WM_PAINT   - Paint the main window
-// WM_DESTROY - Post a quit message and return
 LRESULT CALLBACK WndProc(_In_ HWND hWnd, _In_ UINT message, _In_ WPARAM wParam, _In_ LPARAM lParam) {
   PAINTSTRUCT ps;
   HDC hdc;
@@ -177,7 +171,6 @@ LRESULT CALLBACK WndProc(_In_ HWND hWnd, _In_ UINT message, _In_ WPARAM wParam, 
         }
       }
 
-      // TODO RegisterRawInputDevices
       if (!isTouchpadRegistered) {
         // register Windows Precision Touchpad top-level HID collection
         RAWINPUTDEVICE rid;
@@ -278,6 +271,25 @@ LRESULT CALLBACK WndProc(_In_ HWND hWnd, _In_ UINT message, _In_ WPARAM wParam, 
 
                       if (hidpReturnCode == HIDP_STATUS_SUCCESS) {
                         // TODO continue parse raw input data
+                        std::cout << "=== HIDP_CAPS ===" << std::endl;
+
+                        std::cout << "Usage: " << caps.Usage << std::endl;
+                        std::cout << "UsagePage: " << caps.UsagePage << std::endl;
+                        std::cout << "InputReportByteLength: " << caps.InputReportByteLength << std::endl;
+                        std::cout << "OutputReportByteLength: " << caps.OutputReportByteLength << std::endl;
+                        std::cout << "FeatureReportByteLength: " << caps.FeatureReportByteLength << std::endl;
+
+                        std::cout << "NumberLinkCollectionNodes: " << caps.NumberLinkCollectionNodes << std::endl;
+
+                        std::cout << "NumberInputButtonCaps: " << caps.NumberInputButtonCaps << std::endl;
+                        std::cout << "NumberInputValueCaps: " << caps.NumberInputValueCaps << std::endl;
+                        std::cout << "NumberOutputDataIndices: " << caps.NumberOutputDataIndices << std::endl;
+
+                        std::cout << "NumberFeatureButtonCaps: " << caps.NumberFeatureButtonCaps << std::endl;
+                        std::cout << "NumberFeatureValueCaps: " << caps.NumberFeatureValueCaps << std::endl;
+                        std::cout << "NumberFeatureDataIndices: " << caps.NumberFeatureDataIndices << std::endl;
+
+                        std::cout << "=================" << std::endl;
                       } else if (hidpReturnCode == HIDP_STATUS_INVALID_PREPARSED_DATA) {
                         std::cout << "The specified prepased data is invalid at " << __FILE__ << ":" << __LINE__ << std::endl;
                       } else {
