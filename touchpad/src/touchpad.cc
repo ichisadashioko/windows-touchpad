@@ -1,6 +1,5 @@
 // Following guide: https://docs.microsoft.com/en-us/cpp/windows/walkthrough-creating-windows-desktop-applications-cpp?view=vs-2019
 // clang-format off
-#define _CRT_SECURE_NO_WARNINGS
 #include <Windows.h>
 #include <iostream>
 #include <string.h>
@@ -10,11 +9,8 @@
 // Windows Driver Kit headers
 // include order matters because these headers does not include their required headers
 // these are not C++ headers
-extern "C" {
-#include <hidclass.h>
 #include <hidusage.h>
 #include <hidpi.h>
-}
 // End Windows Driver Kit
 // clang-format on
 
