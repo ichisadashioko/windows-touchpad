@@ -1,18 +1,16 @@
-// Following guide: https://docs.microsoft.com/en-us/cpp/windows/walkthrough-creating-windows-desktop-applications-cpp?view=vs-2019
 // clang-format off
 #include <Windows.h>
-#include <iostream>
-#include <string.h>
-#include <tchar.h>
-#include <stdio.h>
-#include <stdlib.h>
-// Windows Driver Kit headers
-// include order matters because these headers does not include their required headers
-// these are not C++ headers
 #include <hidusage.h>
 #include <hidpi.h>
-// End Windows Driver Kit
 // clang-format on
+#include <iostream>
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+#include <tchar.h>
+#include "termcolor.h"
+#include <vector>
+#include "hid-utils.h"
 
 // Global variables:
 HINSTANCE hInst; // current instance
@@ -21,12 +19,24 @@ static TCHAR szWindowClass[]         = _T("DesktopApp");                        
 static TCHAR szTitle[]               = _T("Windows Desktop Guided Tour Application"); // the application's title bar
 static BOOL showedConnectedTouchpads = FALSE;
 
+struct COLLECTION_INFO {
+  USHORT LinkCollection;
+  RECT PhysicalRect;
+};
+
+struct TOUCHPAD_INFO {
+  TCHAR *Name;
+  COLLECTION_INFO *Collections;
+};
+
+static UINT numTouchpads        = 0;
+static TOUCHPAD_INFO *touchpads = NULL;
+
 // Forward declarations of functions included in this code module:
 int main();
-void printTimestamp();
-void printLastError();
 LRESULT CALLBACK WndProc(HWND, UINT, WPARAM, LPARAM);
-int CALLBACK WinMain(_In_ HINSTANCE hInstance, _In_opt_ HINSTANCE hPrevInstance, _In_ LPSTR lpCmdLine, _In_ int nCmdShow);
+int CALLBACK WinMain(HINSTANCE, HINSTANCE, LPSTR, int);
+void ParseHIDInfo(RAWINPUTDEVICELIST);
 
 int CALLBACK WinMain(_In_ HINSTANCE hInstance, _In_opt_ HINSTANCE hPrevInstance, _In_ LPSTR lpCmdLine, _In_ int nCmdShow) {
   WNDCLASSEX wcex;
@@ -95,16 +105,15 @@ LRESULT CALLBACK WndProc(_In_ HWND hWnd, _In_ UINT message, _In_ WPARAM wParam, 
       if (!showedConnectedTouchpads) {
         showedConnectedTouchpads = TRUE;
 
-        std::cout << "Retrieving all HID devices..." << std::endl;
+        std::cout << FG_BLUE << "Retrieving all HID devices..." << RESET_COLOR << std::endl;
 
         // find number of connected devices
 
-        UINT numDevices = 0;
-        winReturnCode   = GetRawInputDeviceList(NULL, &numDevices, sizeof(RAWINPUTDEVICELIST));
-        if (winReturnCode == (UINT)-1) {
-          std::cout << "Failed to get number of HID devices at " << __FILE__ << ":" << __LINE__ << std::endl;
-          printLastError();
-        } else {
+        GET_NUM_DEVICES_RETURN getNumDevicesReturnValue = GetNumberOfDevices();
+
+        if (getNumDevicesReturnValue.ErrorCode == 0) {
+          UINT numDevices = getNumDevicesReturnValue.NumDevices;
+
           std::cout << "Detect " << numDevices << " device(s)!" << std::endl;
           std::unique_ptr<RAWINPUTDEVICELIST[]> rawInputDeviceList(new RAWINPUTDEVICELIST[numDevices]);
 
@@ -119,25 +128,14 @@ LRESULT CALLBACK WndProc(_In_ HWND hWnd, _In_ UINT message, _In_ WPARAM wParam, 
             std::cout << "numDevices: " << numDevices << std::endl;
             for (UINT i = 0; i < _numDevices; i++) {
               RAWINPUTDEVICELIST rawInputDevice = rawInputDeviceList.get()[i];
-              std::cout << i << " - dwType: " << rawInputDevice.dwType << " - hDevice:" << rawInputDevice.hDevice << std::endl;
-
-              // check device type
-              switch (rawInputDevice.dwType) {
-                case RIM_TYPEMOUSE: {
-                  std::cout << "  Device type: mouse" << std::endl;
-                } break;
-                case RIM_TYPEKEYBOARD: {
-                  std::cout << "  Device type: keyboard" << std::endl;
-                } break;
-                case RIM_TYPEHID: {
-                  std::cout << "  Device type: a HID device (not mouse or keyboard)" << std::endl;
-                } break;
-                default: {
-                  std::cout << "  Unknown device type: " << rawInputDevice.dwType << std::endl;
-                } break;
+              if (rawInputDevice.dwType != RIM_TYPEHID) {
+                // skip other device types
+                continue;
               }
 
-              // GetRawInputDeviceInfo (RIDI_DEVICENAME)
+              std::cout << i << " - dwType: " << rawInputDevice.dwType << " - hDevice:" << rawInputDevice.hDevice << std::endl;
+
+              // x GetRawInputDeviceInfo (RIDI_DEVICENAME)
               UINT deviceNameBufferSize = 0;
               winReturnCode             = GetRawInputDeviceInfo(rawInputDevice.hDevice, RIDI_DEVICENAME, NULL, &deviceNameBufferSize);
               if (winReturnCode == (UINT)-1) {
@@ -145,25 +143,122 @@ LRESULT CALLBACK WndProc(_In_ HWND hWnd, _In_ UINT message, _In_ WPARAM wParam, 
                 printLastError();
               } else {
                 std::cout << "  deviceNameLength: " << deviceNameBufferSize << std::endl;
-                const UINT _deviceNameBufferSize = deviceNameBufferSize;
+                // the return value is the number of characters for the device name
+                // it is NOT the number of bytes for holding the device name
+                const UINT deviceNameLength = deviceNameBufferSize;
 
-                std::unique_ptr<TCHAR[]> deviceNameBuffer(new TCHAR[_deviceNameBufferSize + 1]);
+                std::unique_ptr<TCHAR[]> deviceNameBuffer(new TCHAR[deviceNameLength + 1]);
 
                 // set string terminator
                 // if we don't do this, bad thing will happen
                 // the runtime will give all sort of exceptions that does not point to our code
-                deviceNameBuffer.get()[_deviceNameBufferSize] = 0;
+                deviceNameBuffer.get()[deviceNameLength] = 0;
 
                 winReturnCode = GetRawInputDeviceInfo(rawInputDevice.hDevice, RIDI_DEVICENAME, deviceNameBuffer.get(), &deviceNameBufferSize);
                 if (winReturnCode == (UINT)-1) {
                   std::cout << "Failed to get device name at " << __FILE__ << ":" << __LINE__ << std::endl;
                   printLastError();
-                } else if (winReturnCode != _deviceNameBufferSize) {
-                  std::cout << "GetRawInputDeviceInfo does not return the expected size " << winReturnCode << " (actual) vs " << _deviceNameBufferSize << " at " << __FILE__ << ":" << __LINE__ << std::endl;
+                } else if (winReturnCode != deviceNameLength) {
+                  std::cout << "GetRawInputDeviceInfo does not return the expected size " << winReturnCode << " (actual) vs " << deviceNameLength << " at " << __FILE__ << ":" << __LINE__ << std::endl;
                 } else {
                   TCHAR *deviceName = deviceNameBuffer.get();
                   std::cout << "  device name: ";
                   std::wcout << deviceName << std::endl;
+
+                  // get preparsed data for HidP
+                  UINT prepasedDataSize = 0;
+                  winReturnCode         = GetRawInputDeviceInfo(rawInputDevice.hDevice, RIDI_PREPARSEDDATA, NULL, &prepasedDataSize);
+                  if (winReturnCode == (UINT)-1) {
+                    std::cout << "Failed to call GetRawInputDeviceInfo to get prepased data size at " << __FILE__ ":" << __LINE__ << std::endl;
+                    printLastError();
+                  } else {
+                    std::cout << "Prepased data size: " << prepasedDataSize << std::endl;
+                    const UINT _prepasedDataSize = prepasedDataSize;
+                    LPBYTE lpb                   = new BYTE[_prepasedDataSize];
+
+                    if (lpb == NULL) {
+                      std::cout << "Failed to allocate memory at " << __FILE__ << ":" << __LINE__ << std::endl;
+                    } else {
+                      winReturnCode = GetRawInputDeviceInfo(rawInputDevice.hDevice, RIDI_PREPARSEDDATA, lpb, &prepasedDataSize);
+                      if (winReturnCode == (UINT)-1) {
+                        std::cout << "Failed to call GetRawInputDeviceInfo to get prepased data at " << __FILE__ << ":" << __LINE__ << std::endl;
+                        printLastError();
+                      } else {
+                        PHIDP_PREPARSED_DATA preparsedData = (PHIDP_PREPARSED_DATA)lpb;
+
+                        NTSTATUS hidpReturnCode;
+
+                        // find HID capabilities
+                        HIDP_CAPS caps;
+                        hidpReturnCode = HidP_GetCaps(preparsedData, &caps);
+
+                        if (hidpReturnCode == HIDP_STATUS_SUCCESS) {
+                          // TODO continue parse raw input data
+
+                          USHORT numInputValueCaps        = caps.NumberInputValueCaps;
+                          const USHORT _numInputValueCaps = numInputValueCaps;
+
+                          // HIDP_VALUE_CAPS valueCaps;
+                          PHIDP_VALUE_CAPS valueCaps = new HIDP_VALUE_CAPS[numInputValueCaps];
+                          hidpReturnCode             = HidP_GetValueCaps(HidP_Input, valueCaps, &numInputValueCaps, preparsedData);
+
+                          if (hidpReturnCode == HIDP_STATUS_SUCCESS) {
+                            // x check if numInputValueCaps value has been changed
+                            std::cout << "NumberInputValueCaps: " << _numInputValueCaps << " (old) vs " << numInputValueCaps << " (new)" << std::endl;
+
+                            for (USHORT i = 0; i < _numInputValueCaps; i++) {
+                              // TODO I don't know what are we doing here
+
+                              HIDP_VALUE_CAPS cap = valueCaps[i];
+
+                              if (cap.IsRange || !cap.IsAbsolute) {
+                                continue;
+                              }
+
+                              if (cap.UsagePage == HID_USAGE_PAGE_GENERIC) {
+                                std::cout << "LinkCollection: " << cap.LinkCollection << std::endl;
+
+                                if (cap.NotRange.Usage == HID_USAGE_GENERIC_X) {
+                                  std::cout << "  Left: " << cap.PhysicalMin << std::endl;
+                                  std::cout << "  Right: " << cap.PhysicalMax << std::endl;
+
+                                  if ((numTouchpads == (UINT)0) || (touchpads == NULL)) {
+                                    // empty touchpad list
+                                    delete[] touchpads;
+
+                                    numTouchpads      = 1;
+                                    touchpads         = new TOUCHPAD_INFO[1];
+                                    touchpads[0].Name = deviceName;
+                                  } else {
+                                    UINT foundIndex = (UINT)-1;
+                                    // find touchpad by name
+                                    for (UINT idx = 0; idx < numTouchpads; idx++) {
+                                      TOUCHPAD_INFO touchpad = touchpads[idx];
+                                    }
+                                  }
+                                } else if (cap.NotRange.Usage == HID_USAGE_GENERIC_Y) {
+                                  std::cout << "  Top: " << cap.PhysicalMin << std::endl;
+                                  std::cout << "  Bottom: " << cap.PhysicalMax << std::endl;
+                                }
+                              }
+                            }
+                          } else if (hidpReturnCode == HIDP_STATUS_INVALID_PREPARSED_DATA) {
+                            std::cout << "The specified prepased data is invalid at " << __FILE__ << ":" << __LINE__ << std::endl;
+                          } else {
+                            std::cout << "Failed to call HidP_GetValueCaps! Unknown status code: " << hidpReturnCode << " at " << __FILE__ << ":" << __LINE__ << std::endl;
+                          }
+
+                          delete[] valueCaps;
+                        } else if (hidpReturnCode == HIDP_STATUS_INVALID_PREPARSED_DATA) {
+                          std::cout << "The specified prepased data is invalid at " << __FILE__ << ":" << __LINE__ << std::endl;
+                        } else {
+                          std::cout << "Failed to call HidP_GetCaps! Unknown status code: " << hidpReturnCode << " at " << __FILE__ << ":" << __LINE__ << std::endl;
+                        }
+                      }
+                    }
+
+                    delete[] lpb;
+                  }
                 }
               }
             }
@@ -196,7 +291,7 @@ LRESULT CALLBACK WndProc(_In_ HWND hWnd, _In_ UINT message, _In_ WPARAM wParam, 
       if (isTouchpadRegistered) {
         // Following guide: https://docs.microsoft.com/en-us/windows/win32/inputdev/using-raw-input#performing-a-standard-read-of-raw-input
 
-        // TODO should we only read RID_HEADER first to filter device types for RIM_TYPEHID only to save bandwidth and improve performance
+        // x should we only read RID_HEADER first to filter device types for RIM_TYPEHID only to save bandwidth and improve performance
         // Get the size of RAWINPUT by calling GetRawInputData() with pData = NULL
 
         UINT rawInputSize = 0;
@@ -244,59 +339,6 @@ LRESULT CALLBACK WndProc(_In_ HWND hWnd, _In_ UINT message, _In_ WPARAM wParam, 
                   //  // LinkCollection
                   //);
                   // clang-format on
-
-                  // get preparsed data for HidP
-                  UINT prepasedDataSize = 0;
-                  winReturnCode         = GetRawInputDeviceInfo(raw->header.hDevice, RIDI_PREPARSEDDATA, NULL, &prepasedDataSize);
-                  if (winReturnCode == (UINT)-1) {
-                    std::cout << "Failed to call GetRawInputDeviceInfo to get prepased data size at " << __FILE__ ":" << __LINE__ << std::endl;
-                    printLastError();
-                  } else {
-                    std::cout << "Prepased data size: " << prepasedDataSize << std::endl;
-                    const UINT _prepasedDataSize = prepasedDataSize;
-                    lpb                          = new BYTE[_prepasedDataSize];
-
-                    winReturnCode = GetRawInputDeviceInfo(raw->header.hDevice, RIDI_PREPARSEDDATA, lpb, &prepasedDataSize);
-                    if (winReturnCode == (UINT)-1) {
-                      std::cout << "Failed to call GetRawInputDeviceInfo to get prepased data at " << __FILE__ << ":" << __LINE__ << std::endl;
-                      printLastError();
-                    } else {
-                      PHIDP_PREPARSED_DATA preparsedData = (PHIDP_PREPARSED_DATA)lpb;
-
-                      NTSTATUS hidpReturnCode;
-
-                      // find HID capabilities
-                      HIDP_CAPS caps;
-                      hidpReturnCode = HidP_GetCaps(preparsedData, &caps);
-
-                      if (hidpReturnCode == HIDP_STATUS_SUCCESS) {
-                        // TODO continue parse raw input data
-                        std::cout << "=== HIDP_CAPS ===" << std::endl;
-
-                        std::cout << "Usage: " << caps.Usage << std::endl;
-                        std::cout << "UsagePage: " << caps.UsagePage << std::endl;
-                        std::cout << "InputReportByteLength: " << caps.InputReportByteLength << std::endl;
-                        std::cout << "OutputReportByteLength: " << caps.OutputReportByteLength << std::endl;
-                        std::cout << "FeatureReportByteLength: " << caps.FeatureReportByteLength << std::endl;
-
-                        std::cout << "NumberLinkCollectionNodes: " << caps.NumberLinkCollectionNodes << std::endl;
-
-                        std::cout << "NumberInputButtonCaps: " << caps.NumberInputButtonCaps << std::endl;
-                        std::cout << "NumberInputValueCaps: " << caps.NumberInputValueCaps << std::endl;
-                        std::cout << "NumberOutputDataIndices: " << caps.NumberOutputDataIndices << std::endl;
-
-                        std::cout << "NumberFeatureButtonCaps: " << caps.NumberFeatureButtonCaps << std::endl;
-                        std::cout << "NumberFeatureValueCaps: " << caps.NumberFeatureValueCaps << std::endl;
-                        std::cout << "NumberFeatureDataIndices: " << caps.NumberFeatureDataIndices << std::endl;
-
-                        std::cout << "=================" << std::endl;
-                      } else if (hidpReturnCode == HIDP_STATUS_INVALID_PREPARSED_DATA) {
-                        std::cout << "The specified prepased data is invalid at " << __FILE__ << ":" << __LINE__ << std::endl;
-                      } else {
-                        std::cout << "Failed to call HidP_GetCaps! Unknown status code: " << hidpReturnCode << " at " << __FILE__ << ":" << __LINE__ << std::endl;
-                      }
-                    }
-                  }
                 }
               }
             }
@@ -327,28 +369,13 @@ LRESULT CALLBACK WndProc(_In_ HWND hWnd, _In_ UINT message, _In_ WPARAM wParam, 
   return 0;
 }
 
-void printTimestamp() {
-  SYSTEMTIME ts;
-  GetSystemTime(&ts);
-  printf("[%04d-%02d-%02d-%02d-%02d-%02d.%03d] ", ts.wYear, ts.wMonth, ts.wDay, ts.wHour, ts.wMinute, ts.wSecond, ts.wMilliseconds);
-}
-
-void printLastError() {
-  DWORD errorCode     = GetLastError();
-  LPSTR messageBuffer = nullptr;
-  size_t size         = FormatMessageA(
-      // clang-format off
-        FORMAT_MESSAGE_ALLOCATE_BUFFER | FORMAT_MESSAGE_FROM_SYSTEM | FORMAT_MESSAGE_IGNORE_INSERTS,
-        NULL,
-        errorCode,
-        MAKELANGID(LANG_NEUTRAL, SUBLANG_DEFAULT),
-        (LPSTR)&messageBuffer,
-        0,
-        NULL
-    );
-  // clang-format on
-
-  printf("Error code: %d. Error message: %s", errorCode, messageBuffer);
-}
-
 int main() { return WinMain(GetModuleHandle(NULL), NULL, GetCommandLineA(), SW_SHOWNORMAL); };
+
+void ParseHIDInfo(RAWINPUTDEVICELIST rid) {
+  // parse device name
+  UINT deviceNameLength = 0;
+  UINT winReturnCode    = GetRawInputDeviceInfo(rid.hDevice, RIDI_DEVICENAME, NULL, &deviceNameLength);
+  if (winReturnCode == (UINT)-1) {
+    // handle error
+  }
+}

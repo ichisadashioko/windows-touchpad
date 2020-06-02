@@ -21,5 +21,16 @@
     <ClCompile Include="src\touchpad.cc">
       <Filter>Source Files</Filter>
     </ClCompile>
+    <ClCompile Include="src\termcolor.h">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="src\hid-utils.cc">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+  </ItemGroup>
+  <ItemGroup>
+    <ClInclude Include="src\hid-utils.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
   </ItemGroup>
 </Project>
