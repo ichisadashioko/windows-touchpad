@@ -141,7 +141,7 @@
   <ItemGroup>
     <ClCompile Include="src\hid-utils.cc" />
     <ClCompile Include="src\termcolor.h" />
-    <ClCompile Include="src\touchpad.cc" />
+    <ClCompile Include="src\gui.cc" />
   </ItemGroup>
   <ItemGroup>
     <None Include=".clang-format" />

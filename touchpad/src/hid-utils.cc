@@ -16,34 +16,7 @@ void printTimestamp() {
 void printLastError() {
   DWORD errorCode     = GetLastError();
   LPSTR messageBuffer = nullptr;
-  size_t size         = FormatMessageA(
-      // clang-format off
-        FORMAT_MESSAGE_ALLOCATE_BUFFER | FORMAT_MESSAGE_FROM_SYSTEM | FORMAT_MESSAGE_IGNORE_INSERTS,
-        NULL,
-        errorCode,
-        MAKELANGID(LANG_NEUTRAL, SUBLANG_DEFAULT),
-        (LPSTR)&messageBuffer,
-        0,
-        NULL
-    );
-  // clang-format on
+  size_t size         = FormatMessageA(FORMAT_MESSAGE_ALLOCATE_BUFFER | FORMAT_MESSAGE_FROM_SYSTEM | FORMAT_MESSAGE_IGNORE_INSERTS, NULL, errorCode, MAKELANGID(LANG_NEUTRAL, SUBLANG_DEFAULT), (LPSTR)&messageBuffer, 0, NULL);
 
   printf("Error code: %d. Error message: %s%s%s", errorCode, FG_RED, messageBuffer, RESET_COLOR);
-}
-
-GET_NUM_DEVICES_RETURN GetNumberOfDevices() {
-  GET_NUM_DEVICES_RETURN retval;
-  UINT numDevices    = 0;
-  UINT winReturnCode = GetRawInputDeviceList(NULL, &numDevices, sizeof(RAWINPUTDEVICELIST));
-
-  if (winReturnCode == (UINT)-1) {
-    std::cout << FG_RED << "Failed to get number of HID devices at " << __FILE__ << ":" << __LINE__ << RESET_COLOR << std::endl;
-    printLastError();
-
-    retval = {numDevices, winReturnCode};
-  } else {
-    retval = {numDevices, (UINT)0};
-  }
-
-  return retval;
 }
