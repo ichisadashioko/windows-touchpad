@@ -4,6 +4,7 @@
 #include <hidpi.h>
 // clang-format on
 #include <iostream>
+#include <time.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -252,72 +253,137 @@ void WM_CREATE_handle(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam) {
                                                     }
 
                                                     if (cap.UsagePage == HID_USAGE_PAGE_GENERIC) {
+                                                        std::cout << "=================================================" << std::endl;
                                                         std::cout << "LinkCollection: " << cap.LinkCollection << std::endl;
 
+                                                        std::cout << FG_GREEN << "Finding device in global list..." << RESET_COLOR << std::endl;
+                                                        unsigned int foundTouchpadIndex = (unsigned int)-1;
+
+                                                        bool isTouchpadsNull              = (touchpads == NULL);
+                                                        bool isTouchpadsRecordedSizeEmpty = (numTouchpads == 0);
+                                                        if (isTouchpadsNull || isTouchpadsRecordedSizeEmpty) {
+                                                            // the array/list/dictionary is empty
+                                                            // allocate memory for the first entry
+                                                            numTouchpads       = 1;
+                                                            foundTouchpadIndex = 0;
+
+                                                            // TODO recursive free pointers inside struct
+                                                            // but we can't know the size of array pointer here
+                                                            // because the size is recorded as 0
+
+                                                            // shallow free memory in case if it has been assigned before
+                                                            free(touchpads);
+                                                            touchpads = (HID_TOUCHPAD_INFO *)malloc(sizeof(HID_TOUCHPAD_INFO));
+                                                            if (touchpads == NULL) {
+                                                                std::cout << FG_RED << "malloc failed at " << __FILE__ << ":" << __LINE__ << RESET_COLOR << std::endl;
+                                                                exit(-1);
+                                                            }
+
+                                                            touchpads[foundTouchpadIndex].Name           = deviceName;
+                                                            touchpads[foundTouchpadIndex].Collections    = NULL;
+                                                            touchpads[foundTouchpadIndex].NumCollections = 0;
+                                                        } else {
+                                                            for (unsigned int touchpadIndex = 0; touchpadIndex < numTouchpads; touchpadIndex++) {
+                                                                int compareNameResult = _tcscmp(deviceName, touchpads[touchpadIndex].Name);
+                                                                if (compareNameResult == 0) {
+                                                                    foundTouchpadIndex = touchpadIndex;
+                                                                    break;
+                                                                }
+                                                            }
+                                                        }
+
+                                                        if (foundTouchpadIndex == (unsigned int)-1) {
+                                                            // the array/list/dictionary is not empty
+                                                            // but we cannot find any entry with the same name
+
+                                                            // allocate memory and create a new entry at the end of array
+                                                            foundTouchpadIndex = numTouchpads;
+                                                            numTouchpads       = foundTouchpadIndex + 1;
+
+                                                            // copy entries to new array
+                                                            HID_TOUCHPAD_INFO *tmpTouchpadInfoArray = (HID_TOUCHPAD_INFO *)malloc(sizeof(HID_TOUCHPAD_INFO) * numTouchpads);
+                                                            if (tmpTouchpadInfoArray == NULL) {
+                                                                std::cout << FG_RED << "malloc failed at " << __FILE__ << ":" << __LINE__ << RESET_COLOR << std::endl;
+                                                                exit(-1);
+                                                            }
+
+                                                            for (unsigned int touchpadIndex = 0; touchpadIndex < foundTouchpadIndex; touchpadIndex++) {
+                                                                tmpTouchpadInfoArray[touchpadIndex] = touchpads[touchpadIndex];
+                                                            }
+
+                                                            free(touchpads);
+                                                            touchpads                          = tmpTouchpadInfoArray;
+                                                            touchpads[foundTouchpadIndex].Name = deviceName;
+                                                        }
+
+                                                        std::cout << FG_GREEN << "foundTouchpadIndex: " << RESET_COLOR << foundTouchpadIndex << std::endl;
+
+                                                        std::cout << FG_BRIGHT_BLUE << "found device name:   " << RESET_COLOR;
+                                                        std::wcout << touchpads[foundTouchpadIndex].Name << std::endl;
+
+                                                        std::cout << FG_BRIGHT_RED << "current device name: " << RESET_COLOR;
+                                                        std::wcout << deviceName << std::endl;
+
+                                                        long findLinkCollectionStartTime = clock();
+
+                                                        unsigned int foundLinkCollectionIndex = (unsigned int)-1;
+                                                        bool isCollectionNull                 = (touchpads[foundTouchpadIndex].Collections == NULL);
+                                                        bool isCollectionRecordedSizeEmpty    = (touchpads[foundTouchpadIndex].NumCollections == 0);
+
+                                                        if (isCollectionNull || isCollectionRecordedSizeEmpty) {
+                                                            foundLinkCollectionIndex                     = 0;
+                                                            touchpads[foundTouchpadIndex].NumCollections = (unsigned int)1;
+
+                                                            free(touchpads[foundTouchpadIndex].Collections);
+                                                            touchpads[foundTouchpadIndex].Collections = (COLLECTION_INFO *)malloc(sizeof(COLLECTION_INFO));
+
+                                                            if (touchpads[foundTouchpadIndex].Collections == NULL) {
+                                                                std::cout << FG_RED << "malloc failed at " << __FILE__ << ":" << __LINE__ << RESET_COLOR << std::endl;
+                                                                exit(-1);
+                                                            }
+
+                                                            touchpads[foundTouchpadIndex].Collections[0].LinkCollection = cap.LinkCollection;
+                                                        } else {
+                                                            std::cout << BG_BLUE << "NumCollections: " << touchpads[foundTouchpadIndex].NumCollections << RESET_COLOR << std::endl;
+                                                            for (unsigned int linkCollectionIndex = 0; linkCollectionIndex < touchpads[foundTouchpadIndex].NumCollections; linkCollectionIndex++) {
+                                                                if (touchpads[foundTouchpadIndex].Collections[linkCollectionIndex].LinkCollection == cap.LinkCollection) {
+                                                                    foundLinkCollectionIndex = linkCollectionIndex;
+                                                                    break;
+                                                                }
+                                                            }
+                                                        }
+
+                                                        if (foundLinkCollectionIndex == (unsigned int)-1) {
+                                                            foundLinkCollectionIndex                     = touchpads[foundTouchpadIndex].NumCollections;
+                                                            touchpads[foundTouchpadIndex].NumCollections = foundLinkCollectionIndex + 1;
+
+                                                            COLLECTION_INFO *tmpCollectionArray = (COLLECTION_INFO *)malloc(sizeof(COLLECTION_INFO) * touchpads[foundTouchpadIndex].NumCollections);
+                                                            if (tmpCollectionArray == NULL) {
+                                                                std::cout << FG_RED << "malloc failed at " << __FILE__ << ":" << __LINE__ << RESET_COLOR << std::endl;
+                                                                exit(-1);
+                                                            }
+
+                                                            for (unsigned int linkCollectionIndex = 0; linkCollectionIndex < foundLinkCollectionIndex; linkCollectionIndex++) {
+                                                                tmpCollectionArray[linkCollectionIndex] = touchpads[foundTouchpadIndex].Collections[linkCollectionIndex];
+                                                            }
+
+                                                            free(touchpads[foundTouchpadIndex].Collections);
+                                                            touchpads[foundTouchpadIndex].Collections                                          = tmpCollectionArray;
+                                                            touchpads[foundTouchpadIndex].Collections[foundLinkCollectionIndex].LinkCollection = cap.LinkCollection;
+                                                        }
+
+                                                        long findLinkCollectionEndTime = clock();
+                                                        long findLinkCollectionTime    = findLinkCollectionEndTime - findLinkCollectionStartTime;
+                                                        std::cout << FG_GREEN << "findLinkCollectionTime: " << RESET_COLOR << findLinkCollectionTime << std::endl;
+
                                                         if (cap.NotRange.Usage == HID_USAGE_GENERIC_X) {
+                                                            touchpads[foundTouchpadIndex].Collections[foundLinkCollectionIndex].PhysicalRect.left  = cap.PhysicalMin;
+                                                            touchpads[foundTouchpadIndex].Collections[foundLinkCollectionIndex].PhysicalRect.right = cap.PhysicalMax;
                                                             std::cout << "  Left: " << cap.PhysicalMin << std::endl;
                                                             std::cout << "  Right: " << cap.PhysicalMax << std::endl;
-
-                                                            std::cout << FG_GREEN << "Finding device in global list..." << RESET_COLOR << std::endl;
-                                                            unsigned int foundTouchpadIndex = (unsigned int)-1;
-
-                                                            bool isTouchpadsNull              = (touchpads == NULL);
-                                                            bool isTouchpadsRecordedSizeEmpty = (numTouchpads == 0);
-                                                            if (isTouchpadsNull || isTouchpadsRecordedSizeEmpty) {
-                                                                // the array/list/dictionary is empty
-                                                                // allocate memory for the first entry
-                                                                numTouchpads       = 1;
-                                                                foundTouchpadIndex = 0;
-
-                                                                // TODO recursive free pointers inside struct
-                                                                // but we can't know the size of array pointer here
-                                                                // because the size is recorded as 0
-
-                                                                // shallow free memory in case if it has been assigned before
-                                                                free(touchpads);
-                                                                touchpads                          = (HID_TOUCHPAD_INFO *)malloc(sizeof(HID_TOUCHPAD_INFO));
-                                                                touchpads[foundTouchpadIndex].Name = deviceName;
-                                                            } else {
-                                                                for (unsigned int touchpadIndex = 0; touchpadIndex < numTouchpads; touchpadIndex++) {
-                                                                    int compareNameResult = _tcscmp(deviceName, touchpads[touchpadIndex].Name);
-                                                                    if (compareNameResult == 0) {
-                                                                        foundTouchpadIndex = touchpadIndex;
-                                                                        break;
-                                                                    }
-                                                                }
-                                                            }
-
-                                                            if (foundTouchpadIndex == (unsigned int)-1) {
-                                                                // the array/list/dictionary is not empty
-                                                                // but we cannot find any entry with the same name
-
-                                                                // allocate memory and create a new entry at the end of array
-                                                                foundTouchpadIndex = numTouchpads;
-                                                                numTouchpads       = numTouchpads + 1;
-
-                                                                // copy entries to new array
-                                                                HID_TOUCHPAD_INFO *tmpTouchpadInfoArray = (HID_TOUCHPAD_INFO *)malloc(sizeof(HID_TOUCHPAD_INFO) * numTouchpads);
-                                                                for (unsigned int touchpadIndex = 0; touchpadIndex < foundTouchpadIndex; touchpadIndex++) {
-                                                                    tmpTouchpadInfoArray[touchpadIndex] = touchpads[touchpadIndex];
-                                                                }
-
-                                                                free(touchpads);
-                                                                touchpads                          = tmpTouchpadInfoArray;
-                                                                touchpads[foundTouchpadIndex].Name = deviceName;
-                                                            }
-
-                                                            std::cout << FG_GREEN << "foundTouchpadIndex: " << RESET_COLOR << foundTouchpadIndex << std::endl;
-
-                                                            std::cout << FG_BRIGHT_BLUE << "found device name:   " << RESET_COLOR;
-                                                            std::wcout << touchpads[foundTouchpadIndex].Name << std::endl;
-
-                                                            std::cout << FG_BRIGHT_RED << "current device name: " << RESET_COLOR;
-                                                            std::wcout << deviceName << std::endl;
-
-                                                            unsigned int linkCollectionIndex   = (unsigned int)-1;
-                                                            bool isCollectionNull              = (touchpads[foundTouchpadIndex].Collections == NULL);
-                                                            bool isCollectionRecordedSizeEmpty = (touchpads[foundTouchpadIndex].NumCollections == 0);
                                                         } else if (cap.NotRange.Usage == HID_USAGE_GENERIC_Y) {
+                                                            touchpads[foundTouchpadIndex].Collections[foundLinkCollectionIndex].PhysicalRect.top    = cap.PhysicalMin;
+                                                            touchpads[foundTouchpadIndex].Collections[foundLinkCollectionIndex].PhysicalRect.bottom = cap.PhysicalMax;
                                                             std::cout << "  Top: " << cap.PhysicalMin << std::endl;
                                                             std::cout << "  Bottom: " << cap.PhysicalMax << std::endl;
                                                         }
