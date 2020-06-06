@@ -29,3 +29,5 @@ rid.hwndTarget  = hWnd;
 - However, we may still need to handle multiple devices.
 - The raw HID input data will be availabled with the `WM_INPUT` message (event).
 - We can call [`GetRawInputData(HRAWINPUT, UINT, LPVOID, PUINT, UINT)`](https://docs.microsoft.com/en-us/windows/win32/api/winuser/nf-winuser-getrawinputdata) to get either header or raw input data of the device.
+- After getting raw input data, it will be in form of a `byte` pointer. In order to parse the raw input data, we need to do some processing with the preparsed data first.
+- The preparsed data can be retrieved with the [`GetRawInputDeviceInfo(HANDLE, UINT, LPVOID, PUINT)`](https://docs.microsoft.com/en-us/windows/win32/api/winuser/nf-winuser-getrawinputdeviceinfoa) call.
