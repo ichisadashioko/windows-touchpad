@@ -313,6 +313,10 @@ void WM_CREATE_handle(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam) {
 
                                                             std::cout << FG_BRIGHT_RED << "current device name: " << RESET_COLOR;
                                                             std::wcout << deviceName << std::endl;
+
+                                                            unsigned int linkCollectionIndex   = (unsigned int)-1;
+                                                            bool isCollectionNull              = (touchpads[foundTouchpadIndex].Collections == NULL);
+                                                            bool isCollectionRecordedSizeEmpty = (touchpads[foundTouchpadIndex].NumCollections == 0);
                                                         } else if (cap.NotRange.Usage == HID_USAGE_GENERIC_Y) {
                                                             std::cout << "  Top: " << cap.PhysicalMin << std::endl;
                                                             std::cout << "  Bottom: " << cap.PhysicalMax << std::endl;
