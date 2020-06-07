@@ -12,47 +12,15 @@
 #include "termcolor.h"
 #include <vector>
 #include "hid-utils.h"
-#include <map>
-
-// https://docs.microsoft.com/en-us/windows-hardware/design/component-guidelines/supporting-usages-in-multitouch-digitizer-drivers
-struct HID_USAGE {
-    int UsagePage;
-    int Usage;
-};
-
-const HID_USAGE MULTI_TOUCH_DIGITIZER_X                  = {0x01, 0x30};
-const HID_USAGE MULTI_TOUCH_DIGITIZER_Y                  = {0x01, 0x31};
-const HID_USAGE MULTI_TOUCH_DIGITIZER_CONTACT_IDENTIFIER = {0x0D, 0x51};
-const HID_USAGE MULTI_TOUCH_DIGITIZER_TIP_SWITCH         = {0x0D, 0x41};
-const HID_USAGE MULTI_TOUCH_DIGITIZER_IN_RANGE           = {0x0D, 0x32};
-const HID_USAGE MULTI_TOUCH_CONTACT_COUNT_MAXIMUM        = {0x0D, 0x55};
-const HID_USAGE MULTI_TOUCH_CONFIDENCE                   = {0x0D, 0x47};
-const HID_USAGE MULTI_TOUCH_WIDTH                        = {0x0D, 0x48};
-const HID_USAGE MULTI_TOUCH_HEIGHT                       = {0x0D, 0x30};
-const HID_USAGE MULTI_TOUCH_PRESSURE                     = {0x0D, 0x30};
 
 // Global variables:
 HINSTANCE hInst; // current instance
-BOOL isTouchpadRegistered            = FALSE;
-static TCHAR szWindowClass[]         = _T("DesktopApp");                              // the main window class name
-static TCHAR szTitle[]               = _T("Windows Desktop Guided Tour Application"); // the application's title bar
-static BOOL showedConnectedTouchpads = FALSE;
+BOOL isTouchpadRegistered          = FALSE;
+static TCHAR szWindowClass[]       = _T("DesktopApp");                              // the main window class name
+static TCHAR szTitle[]             = _T("Windows Desktop Guided Tour Application"); // the application's title bar
+static BOOL showedConnectedDevices = FALSE;
 
-struct COLLECTION_INFO {
-    USHORT LinkCollection;
-    RECT PhysicalRect;
-};
-
-// C doesn't have map or dictionary so we are going to use array of struct to replace that
-struct HID_TOUCHPAD_INFO {
-    TCHAR *Name                       = NULL;
-    COLLECTION_INFO *Collections      = NULL;
-    unsigned int NumCollections       = 0;
-    PHIDP_PREPARSED_DATA PreparedData = NULL;
-};
-
-static unsigned int numTouchpads            = 0;
-static HID_TOUCHPAD_INFO *touchpadInfoArray = NULL;
+static HID_DEVICE_INFO_LIST g_deviceInfoList = {NULL, 0};
 
 // Forward declarations of functions included in this code module:
 int main();
@@ -155,8 +123,8 @@ int main() { return WinMain(GetModuleHandle(NULL), NULL, GetCommandLineA(), SW_S
 void WM_CREATE_handle(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam) {
     UINT winReturnCode;
 
-    if (!showedConnectedTouchpads) {
-        showedConnectedTouchpads = TRUE;
+    if (!showedConnectedDevices) {
+        showedConnectedDevices = TRUE;
 
         std::cout << FG_BLUE << "Retrieving all HID devices..." << RESET_COLOR << std::endl;
 
@@ -181,29 +149,70 @@ void WM_CREATE_handle(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam) {
                 printLastError();
             } else {
                 std::cout << "numDevices: " << numDevices << std::endl;
-                for (UINT i = 0; i < _numDevices; i++) {
-                    RAWINPUTDEVICELIST rawInputDevice = rawInputDeviceList.get()[i];
+                for (UINT deviceIndex = 0; deviceIndex < _numDevices; deviceIndex++) {
+                    std::cout << BG_GREEN << "===== Device #" << deviceIndex << " =====" << RESET_COLOR << std::endl;
+                    RAWINPUTDEVICELIST rawInputDevice = rawInputDeviceList.get()[deviceIndex];
                     if (rawInputDevice.dwType != RIM_TYPEHID) {
-                        // skip other device types
+                        // skip keyboards and mouses
                         continue;
                     }
 
-                    std::cout << i << " - dwType: " << rawInputDevice.dwType << " - hDevice:" << rawInputDevice.hDevice << std::endl;
-
-                    // x GetRawInputDeviceInfo (RIDI_DEVICENAME)
-                    UINT deviceNameBufferSize = 0;
-                    winReturnCode             = GetRawInputDeviceInfo(rawInputDevice.hDevice, RIDI_DEVICENAME, NULL, &deviceNameBufferSize);
+                    // get preparsed data for HidP
+                    UINT prepasedDataSize = 0;
+                    winReturnCode         = GetRawInputDeviceInfo(rawInputDevice.hDevice, RIDI_PREPARSEDDATA, NULL, &prepasedDataSize);
                     if (winReturnCode == (UINT)-1) {
-                        std::cout << "Failed to call GetRawInputDeviceInfo for getting device name size at " << __FILE__ << ":" << __LINE__ << std::endl;
+                        std::cout << "Failed to call GetRawInputDeviceInfo to get prepased data size at " << __FILE__ ":" << __LINE__ << std::endl;
                         printLastError();
-                    } else {
+                        exit(-1);
+                    }
+
+                    std::cout << "Prepased data size: " << prepasedDataSize << std::endl;
+                    const UINT _prepasedDataSize       = prepasedDataSize;
+                    PHIDP_PREPARSED_DATA preparsedData = (PHIDP_PREPARSED_DATA)malloc(_prepasedDataSize);
+                    if (preparsedData == NULL) {
+                        std::cout << "malloc failed at " << __FILE__ << ":" << __LINE__ << std::endl;
+                        exit(-1);
+                    }
+
+                    winReturnCode = GetRawInputDeviceInfo(rawInputDevice.hDevice, RIDI_PREPARSEDDATA, preparsedData, &prepasedDataSize);
+                    if (winReturnCode == (UINT)-1) {
+                        std::cout << "Failed to call GetRawInputDeviceInfo to get prepased data at " << __FILE__ << ":" << __LINE__ << std::endl;
+                        printLastError();
+                        exit(-1);
+                    }
+
+                    NTSTATUS hidpReturnCode;
+
+                    // find HID capabilities
+                    HIDP_CAPS caps;
+                    hidpReturnCode = HidP_GetCaps(preparsedData, &caps);
+                    if (hidpReturnCode != HIDP_STATUS_SUCCESS) {
+                        print_HidP_errors(hidpReturnCode, __FILE__, __LINE__);
+                        exit(-1);
+                    }
+
+                    std::cout << "NumberInputValueCaps: " << caps.NumberInputValueCaps << std::endl;
+                    std::cout << "NumberInputButtonCaps: " << caps.NumberInputButtonCaps << std::endl;
+
+                    // bool isValueCapsEmpty  = (caps.NumberInputValueCaps == 0);
+                    bool isButtonCapsEmpty = (caps.NumberInputButtonCaps == 0);
+
+                    if (!isButtonCapsEmpty) {
+                        UINT deviceNameBufferSize = 0;
+                        winReturnCode             = GetRawInputDeviceInfo(rawInputDevice.hDevice, RIDI_DEVICENAME, NULL, &deviceNameBufferSize);
+                        if (winReturnCode == (UINT)-1) {
+                            std::cout << "Failed to call GetRawInputDeviceInfo for getting device name size at " << __FILE__ << ":" << __LINE__ << std::endl;
+                            printLastError();
+                            exit(-1);
+                        }
+
                         std::cout << "  deviceNameLength: " << deviceNameBufferSize << std::endl;
                         // the return value is the number of characters for the device name
                         // it is NOT the number of bytes for holding the device name
                         const UINT deviceNameLength = deviceNameBufferSize;
 
-                        TCHAR *deviceName       = (TCHAR *)malloc(sizeof(TCHAR) * (deviceNameLength + 1));
-                        bool isDeviceNameStored = false;
+                        const unsigned int deviceNameSizeInBytes = sizeof(TCHAR) * (deviceNameLength + 1);
+                        TCHAR *deviceName                        = (TCHAR *)malloc(deviceNameSizeInBytes);
 
                         // set string terminator
                         // if we don't do this, bad thing will happen
@@ -214,232 +223,139 @@ void WM_CREATE_handle(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam) {
                         if (winReturnCode == (UINT)-1) {
                             std::cout << "Failed to get device name at " << __FILE__ << ":" << __LINE__ << std::endl;
                             printLastError();
+                            exit(-1);
                         } else if (winReturnCode != deviceNameLength) {
                             std::cout << "GetRawInputDeviceInfo does not return the expected size " << winReturnCode << " (actual) vs " << deviceNameLength << " at " << __FILE__ << ":" << __LINE__ << std::endl;
-                        } else {
-                            std::cout << "  device name: ";
-                            std::wcout << deviceName << std::endl;
+                            exit(-1);
+                        }
 
-                            // get preparsed data for HidP
-                            UINT prepasedDataSize = 0;
-                            winReturnCode         = GetRawInputDeviceInfo(rawInputDevice.hDevice, RIDI_PREPARSEDDATA, NULL, &prepasedDataSize);
-                            if (winReturnCode == (UINT)-1) {
-                                std::cout << "Failed to call GetRawInputDeviceInfo to get prepased data size at " << __FILE__ ":" << __LINE__ << std::endl;
-                                printLastError();
-                            } else {
-                                std::cout << "Prepased data size: " << prepasedDataSize << std::endl;
-                                const UINT _prepasedDataSize       = prepasedDataSize;
-                                PHIDP_PREPARSED_DATA preparsedData = (PHIDP_PREPARSED_DATA)malloc(_prepasedDataSize);
-                                bool isPreparsedDataStored         = false;
+                        std::cout << "Device name: ";
+                        std::wcout << deviceName << std::endl;
 
-                                if (preparsedData == NULL) {
-                                    std::cout << "Failed to allocate memory at " << __FILE__ << ":" << __LINE__ << std::endl;
-                                } else {
-                                    winReturnCode = GetRawInputDeviceInfo(rawInputDevice.hDevice, RIDI_PREPARSEDDATA, preparsedData, &prepasedDataSize);
-                                    if (winReturnCode == (UINT)-1) {
-                                        std::cout << "Failed to call GetRawInputDeviceInfo to get prepased data at " << __FILE__ << ":" << __LINE__ << std::endl;
-                                        printLastError();
-                                    } else {
-                                        NTSTATUS hidpReturnCode;
+                        std::cout << FG_GREEN << "Finding device in global list..." << RESET_COLOR << std::endl;
+                        findOrCreateTouchpadInfo_RETVAL findOrCreateTouchpadInfoRetval = findOrCreateTouchpadInfo(g_deviceInfoList, deviceName, deviceNameSizeInBytes, preparsedData, _prepasedDataSize);
+                        unsigned int foundTouchpadIndex                                = findOrCreateTouchpadInfoRetval.FoundIndex;
+                        g_deviceInfoList                                               = findOrCreateTouchpadInfoRetval.ModifiedList;
 
-                                        // find HID capabilities
-                                        HIDP_CAPS caps;
-                                        hidpReturnCode = HidP_GetCaps(preparsedData, &caps);
+                        std::cout << FG_GREEN << "foundTouchpadIndex: " << RESET_COLOR << foundTouchpadIndex << std::endl;
 
-                                        if (hidpReturnCode == HIDP_STATUS_SUCCESS) {
-                                            // TODO continue parse raw input data
+                        std::cout << FG_BRIGHT_BLUE << "found device name:   " << RESET_COLOR;
+                        std::wcout << g_deviceInfoList.Entries[foundTouchpadIndex].Name << std::endl;
 
-                                            USHORT numInputValueCaps        = caps.NumberInputValueCaps;
-                                            const USHORT _numInputValueCaps = numInputValueCaps;
+                        std::cout << FG_BRIGHT_RED << "current device name: " << RESET_COLOR;
+                        std::wcout << deviceName << std::endl;
 
-                                            // HIDP_VALUE_CAPS valueCaps;
-                                            PHIDP_VALUE_CAPS valueCaps = new HIDP_VALUE_CAPS[numInputValueCaps];
-                                            hidpReturnCode             = HidP_GetValueCaps(HidP_Input, valueCaps, &numInputValueCaps, preparsedData);
+                        if (caps.NumberInputValueCaps != 0) {
+                            const USHORT numValueCaps = caps.NumberInputValueCaps;
+                            USHORT _numValueCaps      = numValueCaps;
 
-                                            if (hidpReturnCode == HIDP_STATUS_SUCCESS) {
-                                                // x check if numInputValueCaps value has been changed
-                                                std::cout << "NumberInputValueCaps: " << _numInputValueCaps << " (old) vs " << numInputValueCaps << " (new)" << std::endl;
+                            PHIDP_VALUE_CAPS valueCaps = (PHIDP_VALUE_CAPS)malloc(sizeof(HIDP_VALUE_CAPS) * numValueCaps);
+                            if (valueCaps == NULL) {
+                                std::cout << "malloc failed at " << __FILE__ << ":" << __LINE__ << std::endl;
+                                exit(-1);
+                            }
 
-                                                for (USHORT i = 0; i < _numInputValueCaps; i++) {
-                                                    // TODO I don't know what are we doing here
+                            hidpReturnCode = HidP_GetValueCaps(HidP_Input, valueCaps, &_numValueCaps, preparsedData);
+                            if (hidpReturnCode != HIDP_STATUS_SUCCESS) {
+                                print_HidP_errors(hidpReturnCode, __FILE__, __LINE__);
+                            }
 
-                                                    HIDP_VALUE_CAPS cap = valueCaps[i];
+                            // x check if numValueCaps value has been changed
+                            std::cout << "NumberInputValueCaps: " << numValueCaps << " (old) vs " << _numValueCaps << " (new)" << std::endl;
 
-                                                    if (cap.IsRange || !cap.IsAbsolute) {
-                                                        continue;
-                                                    }
+                            for (USHORT valueCapIndex = 0; valueCapIndex < numValueCaps; valueCapIndex++) {
+                                // TODO I don't know what are we doing here
 
-                                                    if (cap.UsagePage == HID_USAGE_PAGE_GENERIC) {
-                                                        std::cout << "=================================================" << std::endl;
-                                                        std::cout << "LinkCollection: " << cap.LinkCollection << std::endl;
+                                HIDP_VALUE_CAPS cap = valueCaps[valueCapIndex];
 
-                                                        std::cout << FG_GREEN << "Finding device in global list..." << RESET_COLOR << std::endl;
-                                                        unsigned int foundTouchpadIndex = (unsigned int)-1;
+                                if (cap.IsRange || !cap.IsAbsolute) {
+                                    continue;
+                                }
 
-                                                        bool isTouchpadsNull              = (touchpadInfoArray == NULL);
-                                                        bool isTouchpadsRecordedSizeEmpty = (numTouchpads == 0);
-                                                        if (isTouchpadsNull || isTouchpadsRecordedSizeEmpty) {
-                                                            // the array/list/dictionary is empty
-                                                            // allocate memory for the first entry
-                                                            numTouchpads       = 1;
-                                                            foundTouchpadIndex = 0;
+                                findOrCreateLinkCollectionInfo_RETVAL findOrCreateLinkCollectionInfoRetval = findOrCreateLinkCollectionInfo(g_deviceInfoList.Entries[foundTouchpadIndex].LinkCollectionInfoList, cap.LinkCollection);
+                                g_deviceInfoList.Entries[foundTouchpadIndex].LinkCollectionInfoList        = findOrCreateLinkCollectionInfoRetval.ModifiedList;
+                                const unsigned int foundLinkCollectionIndex                                = findOrCreateLinkCollectionInfoRetval.FoundIndex;
 
-                                                            // TODO recursive free pointers inside struct
-                                                            // but we can't know the size of array pointer here
-                                                            // because the size is recorded as 0
+                                std::cout << FG_GREEN << "[ValueCaps] foundLinkCollectionIndex: " << foundLinkCollectionIndex << RESET_COLOR << std::endl;
 
-                                                            // shallow free memory in case if it has been assigned before
-                                                            free(touchpadInfoArray);
-                                                            touchpadInfoArray = (HID_TOUCHPAD_INFO *)malloc(sizeof(HID_TOUCHPAD_INFO));
-                                                            if (touchpadInfoArray == NULL) {
-                                                                std::cout << FG_RED << "malloc failed at " << __FILE__ << ":" << __LINE__ << RESET_COLOR << std::endl;
-                                                                exit(-1);
-                                                            }
+                                if (cap.UsagePage == HID_USAGE_PAGE_GENERIC) {
+                                    std::cout << "=================================================" << std::endl;
+                                    std::cout << "LinkCollection: " << cap.LinkCollection << std::endl;
 
-                                                            touchpadInfoArray[foundTouchpadIndex].Name           = deviceName;
-                                                            touchpadInfoArray[foundTouchpadIndex].Collections    = NULL;
-                                                            touchpadInfoArray[foundTouchpadIndex].NumCollections = 0;
-                                                            touchpadInfoArray[foundTouchpadIndex].PreparedData   = preparsedData;
-                                                            isPreparsedDataStored                                = true;
-                                                            isDeviceNameStored                                   = true;
-                                                        } else {
-                                                            for (unsigned int touchpadIndex = 0; touchpadIndex < numTouchpads; touchpadIndex++) {
-                                                                int compareNameResult = _tcscmp(deviceName, touchpadInfoArray[touchpadIndex].Name);
-                                                                if (compareNameResult == 0) {
-                                                                    foundTouchpadIndex = touchpadIndex;
-                                                                    break;
-                                                                }
-                                                            }
-                                                        }
-
-                                                        if (foundTouchpadIndex == (unsigned int)-1) {
-                                                            // the array/list/dictionary is not empty
-                                                            // but we cannot find any entry with the same name
-
-                                                            // allocate memory and create a new entry at the end of array
-                                                            foundTouchpadIndex = numTouchpads;
-                                                            numTouchpads       = foundTouchpadIndex + 1;
-
-                                                            // copy entries to new array
-                                                            HID_TOUCHPAD_INFO *tmpTouchpadInfoArray = (HID_TOUCHPAD_INFO *)malloc(sizeof(HID_TOUCHPAD_INFO) * numTouchpads);
-                                                            if (tmpTouchpadInfoArray == NULL) {
-                                                                std::cout << FG_RED << "malloc failed at " << __FILE__ << ":" << __LINE__ << RESET_COLOR << std::endl;
-                                                                exit(-1);
-                                                            }
-
-                                                            for (unsigned int touchpadIndex = 0; touchpadIndex < foundTouchpadIndex; touchpadIndex++) {
-                                                                tmpTouchpadInfoArray[touchpadIndex] = touchpadInfoArray[touchpadIndex];
-                                                            }
-
-                                                            free(touchpadInfoArray);
-                                                            touchpadInfoArray = tmpTouchpadInfoArray;
-
-                                                            touchpadInfoArray[foundTouchpadIndex].Name           = deviceName;
-                                                            touchpadInfoArray[foundTouchpadIndex].Collections    = NULL;
-                                                            touchpadInfoArray[foundTouchpadIndex].NumCollections = 0;
-                                                            touchpadInfoArray[foundTouchpadIndex].PreparedData   = preparsedData;
-                                                            isDeviceNameStored                                   = true;
-                                                            isPreparsedDataStored                                = true;
-                                                        }
-
-                                                        std::cout << FG_GREEN << "foundTouchpadIndex: " << RESET_COLOR << foundTouchpadIndex << std::endl;
-
-                                                        std::cout << FG_BRIGHT_BLUE << "found device name:   " << RESET_COLOR;
-                                                        std::wcout << touchpadInfoArray[foundTouchpadIndex].Name << std::endl;
-
-                                                        std::cout << FG_BRIGHT_RED << "current device name: " << RESET_COLOR;
-                                                        std::wcout << deviceName << std::endl;
-
-                                                        long findLinkCollectionStartTime = clock();
-
-                                                        unsigned int foundLinkCollectionIndex = (unsigned int)-1;
-                                                        bool isCollectionNull                 = (touchpadInfoArray[foundTouchpadIndex].Collections == NULL);
-                                                        bool isCollectionRecordedSizeEmpty    = (touchpadInfoArray[foundTouchpadIndex].NumCollections == 0);
-
-                                                        if (isCollectionNull || isCollectionRecordedSizeEmpty) {
-                                                            foundLinkCollectionIndex                             = 0;
-                                                            touchpadInfoArray[foundTouchpadIndex].NumCollections = (unsigned int)1;
-
-                                                            free(touchpadInfoArray[foundTouchpadIndex].Collections);
-                                                            touchpadInfoArray[foundTouchpadIndex].Collections = (COLLECTION_INFO *)malloc(sizeof(COLLECTION_INFO));
-
-                                                            if (touchpadInfoArray[foundTouchpadIndex].Collections == NULL) {
-                                                                std::cout << FG_RED << "malloc failed at " << __FILE__ << ":" << __LINE__ << RESET_COLOR << std::endl;
-                                                                exit(-1);
-                                                            }
-
-                                                            touchpadInfoArray[foundTouchpadIndex].Collections[0].LinkCollection = cap.LinkCollection;
-                                                        } else {
-                                                            std::cout << BG_BLUE << "NumCollections: " << touchpadInfoArray[foundTouchpadIndex].NumCollections << RESET_COLOR << std::endl;
-                                                            for (unsigned int linkCollectionIndex = 0; linkCollectionIndex < touchpadInfoArray[foundTouchpadIndex].NumCollections; linkCollectionIndex++) {
-                                                                if (touchpadInfoArray[foundTouchpadIndex].Collections[linkCollectionIndex].LinkCollection == cap.LinkCollection) {
-                                                                    foundLinkCollectionIndex = linkCollectionIndex;
-                                                                    break;
-                                                                }
-                                                            }
-                                                        }
-
-                                                        if (foundLinkCollectionIndex == (unsigned int)-1) {
-                                                            foundLinkCollectionIndex                             = touchpadInfoArray[foundTouchpadIndex].NumCollections;
-                                                            touchpadInfoArray[foundTouchpadIndex].NumCollections = foundLinkCollectionIndex + 1;
-
-                                                            COLLECTION_INFO *tmpCollectionArray = (COLLECTION_INFO *)malloc(sizeof(COLLECTION_INFO) * touchpadInfoArray[foundTouchpadIndex].NumCollections);
-                                                            if (tmpCollectionArray == NULL) {
-                                                                std::cout << FG_RED << "malloc failed at " << __FILE__ << ":" << __LINE__ << RESET_COLOR << std::endl;
-                                                                exit(-1);
-                                                            }
-
-                                                            for (unsigned int linkCollectionIndex = 0; linkCollectionIndex < foundLinkCollectionIndex; linkCollectionIndex++) {
-                                                                tmpCollectionArray[linkCollectionIndex] = touchpadInfoArray[foundTouchpadIndex].Collections[linkCollectionIndex];
-                                                            }
-
-                                                            free(touchpadInfoArray[foundTouchpadIndex].Collections);
-                                                            touchpadInfoArray[foundTouchpadIndex].Collections                                          = tmpCollectionArray;
-                                                            touchpadInfoArray[foundTouchpadIndex].Collections[foundLinkCollectionIndex].LinkCollection = cap.LinkCollection;
-                                                        }
-
-                                                        long findLinkCollectionEndTime = clock();
-                                                        long findLinkCollectionTime    = findLinkCollectionEndTime - findLinkCollectionStartTime;
-                                                        std::cout << FG_GREEN << "findLinkCollectionTime: " << RESET_COLOR << findLinkCollectionTime << std::endl;
-
-                                                        if (cap.NotRange.Usage == HID_USAGE_GENERIC_X) {
-                                                            touchpadInfoArray[foundTouchpadIndex].Collections[foundLinkCollectionIndex].PhysicalRect.left  = cap.PhysicalMin;
-                                                            touchpadInfoArray[foundTouchpadIndex].Collections[foundLinkCollectionIndex].PhysicalRect.right = cap.PhysicalMax;
-                                                            std::cout << "  Left: " << cap.PhysicalMin << std::endl;
-                                                            std::cout << "  Right: " << cap.PhysicalMax << std::endl;
-                                                        } else if (cap.NotRange.Usage == HID_USAGE_GENERIC_Y) {
-                                                            touchpadInfoArray[foundTouchpadIndex].Collections[foundLinkCollectionIndex].PhysicalRect.top    = cap.PhysicalMin;
-                                                            touchpadInfoArray[foundTouchpadIndex].Collections[foundLinkCollectionIndex].PhysicalRect.bottom = cap.PhysicalMax;
-                                                            std::cout << "  Top: " << cap.PhysicalMin << std::endl;
-                                                            std::cout << "  Bottom: " << cap.PhysicalMax << std::endl;
-                                                        }
-                                                    }
-                                                }
-                                            } else if (hidpReturnCode == HIDP_STATUS_INVALID_PREPARSED_DATA) {
-                                                std::cout << "The specified prepased data is invalid at " << __FILE__ << ":" << __LINE__ << std::endl;
-                                            } else {
-                                                std::cout << "Failed to call HidP_GetValueCaps! Unknown status code: " << hidpReturnCode << " at " << __FILE__ << ":" << __LINE__ << std::endl;
-                                            }
-
-                                            delete[] valueCaps;
-                                        } else if (hidpReturnCode == HIDP_STATUS_INVALID_PREPARSED_DATA) {
-                                            std::cout << "The specified prepased data is invalid at " << __FILE__ << ":" << __LINE__ << std::endl;
-                                        } else {
-                                            std::cout << "Failed to call HidP_GetCaps! Unknown status code: " << hidpReturnCode << " at " << __FILE__ << ":" << __LINE__ << std::endl;
-                                        }
+                                    if (cap.NotRange.Usage == HID_USAGE_GENERIC_X) {
+                                        g_deviceInfoList.Entries[foundTouchpadIndex].LinkCollectionInfoList.Entries[foundLinkCollectionIndex].HasX               = 1;
+                                        g_deviceInfoList.Entries[foundTouchpadIndex].LinkCollectionInfoList.Entries[foundLinkCollectionIndex].PhysicalRect.left  = cap.PhysicalMin;
+                                        g_deviceInfoList.Entries[foundTouchpadIndex].LinkCollectionInfoList.Entries[foundLinkCollectionIndex].PhysicalRect.right = cap.PhysicalMax;
+                                        std::cout << "  Left: " << cap.PhysicalMin << std::endl;
+                                        std::cout << "  Right: " << cap.PhysicalMax << std::endl;
+                                    } else if (cap.NotRange.Usage == HID_USAGE_GENERIC_Y) {
+                                        g_deviceInfoList.Entries[foundTouchpadIndex].LinkCollectionInfoList.Entries[foundLinkCollectionIndex].HasY                = 1;
+                                        g_deviceInfoList.Entries[foundTouchpadIndex].LinkCollectionInfoList.Entries[foundLinkCollectionIndex].PhysicalRect.top    = cap.PhysicalMin;
+                                        g_deviceInfoList.Entries[foundTouchpadIndex].LinkCollectionInfoList.Entries[foundLinkCollectionIndex].PhysicalRect.bottom = cap.PhysicalMax;
+                                        std::cout << "  Top: " << cap.PhysicalMin << std::endl;
+                                        std::cout << "  Bottom: " << cap.PhysicalMax << std::endl;
+                                    }
+                                } else if (cap.UsagePage == HID_USAGE_PAGE_DIGITIZER) {
+                                    if (cap.NotRange.Usage == MULTI_TOUCH_DIGITIZER_CONTACT_IDENTIFIER.Usage) {
+                                        g_deviceInfoList.Entries[foundTouchpadIndex].LinkCollectionInfoList.Entries[foundLinkCollectionIndex].HasContactIdentifier = 1;
+                                    } else if (cap.NotRange.Usage == MULTI_TOUCH_CONTACT_COUNT_MAXIMUM.Usage) {
+                                        g_deviceInfoList.Entries[foundTouchpadIndex].LinkCollectionInfoList.Entries[foundLinkCollectionIndex].HasContactCount = 1;
                                     }
                                 }
+                            }
 
-                                if (!isPreparsedDataStored) {
-                                    free(preparsedData);
+                            free(valueCaps);
+                        }
+
+                        if (caps.NumberInputButtonCaps != 0) {
+                            const USHORT numButtonCaps = caps.NumberInputButtonCaps;
+                            USHORT _numButtonCaps      = numButtonCaps;
+
+                            PHIDP_BUTTON_CAPS buttonCaps = (PHIDP_BUTTON_CAPS)malloc(sizeof(HIDP_BUTTON_CAPS) * numButtonCaps);
+                            if (buttonCaps == NULL) {
+                                std::cout << "malloc failed at " << __FILE__ << ":" << __LINE__ << std::endl;
+                                exit(-1);
+                            }
+
+                            hidpReturnCode = HidP_GetButtonCaps(HidP_Input, buttonCaps, &_numButtonCaps, preparsedData);
+                            if (hidpReturnCode != HIDP_STATUS_SUCCESS) {
+                                print_HidP_errors(hidpReturnCode, __FILE__, __LINE__);
+                                exit(-1);
+                            }
+
+                            for (USHORT buttonCapIndex = 0; buttonCapIndex < numButtonCaps; buttonCapIndex++) {
+                                HIDP_BUTTON_CAPS buttonCap = buttonCaps[buttonCapIndex];
+
+                                std::cout << FG_BLUE << "[ButtonCaps] Index: " << buttonCapIndex << ", UsagePage: " << buttonCap.UsagePage << " (DIGITIZER - " << HID_USAGE_PAGE_DIGITIZER << "), IsRange: ";
+                                printf("%d", buttonCap.IsRange);
+                                std::cout << RESET_COLOR << std::endl;
+
+                                if (buttonCap.IsRange) {
+                                    continue;
+                                }
+
+                                std::cout << BG_GREEN << "Usage: " << buttonCap.NotRange.Usage << RESET_COLOR << std::endl;
+
+                                if (buttonCap.UsagePage == HID_USAGE_PAGE_DIGITIZER) {
+                                    if (buttonCap.NotRange.Usage == MULTI_TOUCH_DIGITIZER_TIP_SWITCH.Usage) {
+                                        findOrCreateLinkCollectionInfo_RETVAL findOrCreateLinkCollectionInfoRetval = findOrCreateLinkCollectionInfo(g_deviceInfoList.Entries[foundTouchpadIndex].LinkCollectionInfoList, buttonCap.LinkCollection);
+                                        g_deviceInfoList.Entries[foundTouchpadIndex].LinkCollectionInfoList        = findOrCreateLinkCollectionInfoRetval.ModifiedList;
+                                        const unsigned int foundLinkCollectionIndex                                = findOrCreateLinkCollectionInfoRetval.FoundIndex;
+
+                                        std::cout << FG_GREEN << "[ButtonCaps] foundLinkCollectionIndex: " << foundLinkCollectionIndex << RESET_COLOR << std::endl;
+
+                                        g_deviceInfoList.Entries[foundTouchpadIndex].LinkCollectionInfoList.Entries[foundLinkCollectionIndex].HasTipSwitch = 1;
+                                    }
                                 }
                             }
+
+                            free(buttonCaps);
                         }
 
-                        if (!isDeviceNameStored) {
-                            free(deviceName);
-                        }
+                        free(deviceName);
                     }
+
+                    free(preparsedData);
                 }
             }
         }
@@ -532,19 +448,19 @@ void WM_INPUT_handle(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam) {
                                     } else if (winReturnCode != deviceNameLength) {
                                         std::cout << FG_RED << "GetRawInputDeviceInfo did not copy enough data " << winReturnCode << " (copied) vs " << deviceNameLength << " at " << __FILE__ << ":" << __LINE__ << RESET_COLOR << std::endl;
                                     } else {
-                                        printTimestamp();
-                                        std::cout << "deviceName: ";
-                                        std::wcout << deviceName << std::endl;
+                                        // printTimestamp();
+                                        // std::cout << "deviceName: ";
+                                        // std::wcout << deviceName << std::endl;
 
                                         unsigned int foundTouchpadIndex = (unsigned int)-1;
 
-                                        bool isTouchpadsNull              = (touchpadInfoArray == NULL);
-                                        bool isTouchpadsRecordedSizeEmpty = (numTouchpads == 0);
+                                        bool isTouchpadsNull              = (g_deviceInfoList.Entries == NULL);
+                                        bool isTouchpadsRecordedSizeEmpty = (g_deviceInfoList.Size == 0);
                                         if (isTouchpadsNull || isTouchpadsRecordedSizeEmpty) {
                                             // TODO parse new connected device data
                                         } else {
-                                            for (unsigned int touchpadIndex = 0; touchpadIndex < numTouchpads; touchpadIndex++) {
-                                                int compareNameResult = _tcscmp(deviceName, touchpadInfoArray[touchpadIndex].Name);
+                                            for (unsigned int touchpadIndex = 0; touchpadIndex < g_deviceInfoList.Size; touchpadIndex++) {
+                                                int compareNameResult = _tcscmp(deviceName, g_deviceInfoList.Entries[touchpadIndex].Name);
                                                 if (compareNameResult == 0) {
                                                     foundTouchpadIndex = touchpadIndex;
                                                     break;
@@ -552,42 +468,50 @@ void WM_INPUT_handle(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam) {
                                             }
                                         }
 
-                                        std::cout << FG_GREEN << "Device index in stored global array: " << foundTouchpadIndex << RESET_COLOR << std::endl;
+                                        // std::cout << FG_GREEN << "Device index in stored global array: " << foundTouchpadIndex << RESET_COLOR << std::endl;
 
                                         if (foundTouchpadIndex == (unsigned int)-1) {
                                             // TODO parse new connected device data
                                         } else {
-                                            bool isCollectionNull              = (touchpadInfoArray[foundTouchpadIndex].Collections == NULL);
-                                            bool isCollectionRecordedSizeEmpty = (touchpadInfoArray[foundTouchpadIndex].NumCollections == 0);
-                                            bool isPreparsedDataNull           = (touchpadInfoArray[foundTouchpadIndex].PreparedData == NULL);
+                                            bool isCollectionNull              = (g_deviceInfoList.Entries[foundTouchpadIndex].LinkCollectionInfoList.Entries == NULL);
+                                            bool isCollectionRecordedSizeEmpty = (g_deviceInfoList.Entries[foundTouchpadIndex].LinkCollectionInfoList.Size == 0);
+                                            bool isPreparsedDataNull           = (g_deviceInfoList.Entries[foundTouchpadIndex].PreparedData == NULL);
 
                                             if (isCollectionNull || isCollectionRecordedSizeEmpty) {
                                                 std::cout << FG_RED << "Cannot find any LinkCollection(s). Try parse the PREPARED_DATA may help. TODO" << RESET_COLOR << std::endl;
                                             } else if (isPreparsedDataNull) {
                                                 std::cout << FG_RED << "Cannot find PreparsedData at " << __FILE__ << ":" << __LINE__ << RESET_COLOR << std::endl;
                                             } else {
-                                                for (unsigned int linkCollectionIndex = 0; linkCollectionIndex < touchpadInfoArray[foundTouchpadIndex].NumCollections; linkCollectionIndex++) {
-                                                    ULONG usageValue        = 0;
-                                                    NTSTATUS hidpReturnCode = HidP_GetUsageValue(HidP_Input, MULTI_TOUCH_DIGITIZER_X.UsagePage, touchpadInfoArray[foundTouchpadIndex].Collections[linkCollectionIndex].LinkCollection,
-                                                                                                 MULTI_TOUCH_DIGITIZER_X.Usage, &usageValue, touchpadInfoArray[foundTouchpadIndex].PreparedData, (PCHAR)raw->data.hid.bRawData, raw->data.hid.dwSizeHid);
+                                                NTSTATUS hidpReturnCode;
+                                                for (unsigned int linkCollectionIndex = 0; linkCollectionIndex < g_deviceInfoList.Entries[foundTouchpadIndex].LinkCollectionInfoList.Size; linkCollectionIndex++) {
+                                                    HID_LINK_COLLECTION_INFO collectionInfo = g_deviceInfoList.Entries[foundTouchpadIndex].LinkCollectionInfoList.Entries[linkCollectionIndex];
 
-                                                    if (hidpReturnCode == HIDP_STATUS_SUCCESS) {
-                                                        std::cout << FG_GREEN << "LinkCollection: " << touchpadInfoArray[foundTouchpadIndex].Collections[linkCollectionIndex].LinkCollection << " value: " << usageValue << RESET_COLOR << std::endl;
-                                                    } else if (hidpReturnCode == HIDP_STATUS_INVALID_REPORT_LENGTH) {
-                                                        std::cout << FG_RED << "The report length is not valid. HidP_GetUsageValue failed at " << __FILE__ << ":" << __LINE__ << RESET_COLOR << std::endl;
-                                                    } else if (hidpReturnCode == HIDP_STATUS_INVALID_REPORT_TYPE) {
-                                                        std::cout << FG_RED << "The specified report type is not valid. HidP_GetUsageValue failed at " << __FILE__ << ":" << __LINE__ << RESET_COLOR << std::endl;
-                                                    } else if (hidpReturnCode == HIDP_STATUS_INCOMPATIBLE_REPORT_ID) {
-                                                        std::cout << FG_RED
-                                                                  << "The collection contains a value on the specified usage page in a report of the specified type, but there are no such usages in the specified report. HidP_GetUsageValue failed at "
-                                                                  << __FILE__ << ":" << __LINE__ << RESET_COLOR << std::endl;
-                                                    } else if (hidpReturnCode == HIDP_STATUS_INVALID_PREPARSED_DATA) {
-                                                        std::cout << FG_RED << "The preparsed data is not valid. HidP_GetUsageValue failed at " << __FILE__ << ":" << __LINE__ << RESET_COLOR << std::endl;
-                                                    } else if (hidpReturnCode == HIDP_STATUS_USAGE_NOT_FOUND) {
-                                                        std::cout << FG_RED << "The collection does not contain a value on the specified usage page in any report of the specified report type. HidP_GetUsageValue failed at " << __FILE__ << ":" << __LINE__
-                                                                  << RESET_COLOR << std::endl;
-                                                    } else {
-                                                        std::cout << FG_RED << "Unknown error code: " << hidpReturnCode << ". HidP_GetUsageValue failed at " __FILE__ << ":" << __LINE__ << RESET_COLOR << std::endl;
+                                                    if (collectionInfo.HasX && collectionInfo.HasY && collectionInfo.HasContactIdentifier && collectionInfo.HasTipSwitch) {
+                                                        ULONG xPos = 0;
+                                                        ULONG yPos = 0;
+                                                        ULONG usageValue;
+
+                                                        // std::cout << BG_BLUE << "LinkCollection: " << collectionInfo.LinkCollection << ", HasX: " << collectionInfo.HasX << ", HasY:" << collectionInfo.HasY << RESET_COLOR << std::endl;
+
+                                                        hidpReturnCode = HidP_GetUsageValue(HidP_Input, MULTI_TOUCH_DIGITIZER_X.UsagePage, collectionInfo.LinkCollection, MULTI_TOUCH_DIGITIZER_X.Usage, &usageValue,
+                                                                                            g_deviceInfoList.Entries[foundTouchpadIndex].PreparedData, (PCHAR)raw->data.hid.bRawData, raw->data.hid.dwSizeHid);
+
+                                                        if (hidpReturnCode != HIDP_STATUS_SUCCESS) {
+                                                            std::cout << FG_RED << "Failed to read x position!" << RESET_COLOR << std::endl;
+                                                        } else {
+                                                            xPos = usageValue;
+                                                        }
+
+                                                        hidpReturnCode = HidP_GetUsageValue(HidP_Input, MULTI_TOUCH_DIGITIZER_Y.UsagePage, collectionInfo.LinkCollection, MULTI_TOUCH_DIGITIZER_Y.Usage, &usageValue,
+                                                                                            g_deviceInfoList.Entries[foundTouchpadIndex].PreparedData, (PCHAR)raw->data.hid.bRawData, raw->data.hid.dwSizeHid);
+
+                                                        if (hidpReturnCode != HIDP_STATUS_SUCCESS) {
+                                                            std::cout << FG_RED << "Failed to read y position!" << RESET_COLOR << std::endl;
+                                                        } else {
+                                                            yPos = usageValue;
+                                                        }
+
+                                                        std::cout << FG_GREEN << "(" << xPos << ", " << yPos << ") LinkCollection: " << collectionInfo.LinkCollection << RESET_COLOR << std::endl;
                                                     }
                                                 }
                                             }
