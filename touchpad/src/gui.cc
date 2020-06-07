@@ -33,8 +33,8 @@ struct HID_TOUCHPAD_INFO {
     unsigned int NumCollections  = 0;
 };
 
-static unsigned int numTouchpads    = 0;
-static HID_TOUCHPAD_INFO *touchpads = NULL;
+static unsigned int numTouchpads            = 0;
+static HID_TOUCHPAD_INFO *touchpadInfoArray = NULL;
 
 // Forward declarations of functions included in this code module:
 int main();
@@ -184,21 +184,21 @@ void WM_CREATE_handle(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam) {
                         // it is NOT the number of bytes for holding the device name
                         const UINT deviceNameLength = deviceNameBufferSize;
 
-                        std::unique_ptr<TCHAR[]> deviceNameBuffer(new TCHAR[deviceNameLength + 1]);
+                        TCHAR *deviceName       = (TCHAR *)malloc(sizeof(TCHAR) * (deviceNameLength + 1));
+                        bool isDeviceNameStored = false;
 
                         // set string terminator
                         // if we don't do this, bad thing will happen
                         // the runtime will give all sort of exceptions that does not point to our code
-                        deviceNameBuffer.get()[deviceNameLength] = 0;
+                        deviceName[deviceNameLength] = 0;
 
-                        winReturnCode = GetRawInputDeviceInfo(rawInputDevice.hDevice, RIDI_DEVICENAME, deviceNameBuffer.get(), &deviceNameBufferSize);
+                        winReturnCode = GetRawInputDeviceInfo(rawInputDevice.hDevice, RIDI_DEVICENAME, deviceName, &deviceNameBufferSize);
                         if (winReturnCode == (UINT)-1) {
                             std::cout << "Failed to get device name at " << __FILE__ << ":" << __LINE__ << std::endl;
                             printLastError();
                         } else if (winReturnCode != deviceNameLength) {
                             std::cout << "GetRawInputDeviceInfo does not return the expected size " << winReturnCode << " (actual) vs " << deviceNameLength << " at " << __FILE__ << ":" << __LINE__ << std::endl;
                         } else {
-                            TCHAR *deviceName = deviceNameBuffer.get();
                             std::cout << "  device name: ";
                             std::wcout << deviceName << std::endl;
 
@@ -259,7 +259,7 @@ void WM_CREATE_handle(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam) {
                                                         std::cout << FG_GREEN << "Finding device in global list..." << RESET_COLOR << std::endl;
                                                         unsigned int foundTouchpadIndex = (unsigned int)-1;
 
-                                                        bool isTouchpadsNull              = (touchpads == NULL);
+                                                        bool isTouchpadsNull              = (touchpadInfoArray == NULL);
                                                         bool isTouchpadsRecordedSizeEmpty = (numTouchpads == 0);
                                                         if (isTouchpadsNull || isTouchpadsRecordedSizeEmpty) {
                                                             // the array/list/dictionary is empty
@@ -272,19 +272,20 @@ void WM_CREATE_handle(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam) {
                                                             // because the size is recorded as 0
 
                                                             // shallow free memory in case if it has been assigned before
-                                                            free(touchpads);
-                                                            touchpads = (HID_TOUCHPAD_INFO *)malloc(sizeof(HID_TOUCHPAD_INFO));
-                                                            if (touchpads == NULL) {
+                                                            free(touchpadInfoArray);
+                                                            touchpadInfoArray = (HID_TOUCHPAD_INFO *)malloc(sizeof(HID_TOUCHPAD_INFO));
+                                                            if (touchpadInfoArray == NULL) {
                                                                 std::cout << FG_RED << "malloc failed at " << __FILE__ << ":" << __LINE__ << RESET_COLOR << std::endl;
                                                                 exit(-1);
                                                             }
 
-                                                            touchpads[foundTouchpadIndex].Name           = deviceName;
-                                                            touchpads[foundTouchpadIndex].Collections    = NULL;
-                                                            touchpads[foundTouchpadIndex].NumCollections = 0;
+                                                            isDeviceNameStored                                   = true;
+                                                            touchpadInfoArray[foundTouchpadIndex].Name           = deviceName;
+                                                            touchpadInfoArray[foundTouchpadIndex].Collections    = NULL;
+                                                            touchpadInfoArray[foundTouchpadIndex].NumCollections = 0;
                                                         } else {
                                                             for (unsigned int touchpadIndex = 0; touchpadIndex < numTouchpads; touchpadIndex++) {
-                                                                int compareNameResult = _tcscmp(deviceName, touchpads[touchpadIndex].Name);
+                                                                int compareNameResult = _tcscmp(deviceName, touchpadInfoArray[touchpadIndex].Name);
                                                                 if (compareNameResult == 0) {
                                                                     foundTouchpadIndex = touchpadIndex;
                                                                     break;
@@ -308,18 +309,19 @@ void WM_CREATE_handle(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam) {
                                                             }
 
                                                             for (unsigned int touchpadIndex = 0; touchpadIndex < foundTouchpadIndex; touchpadIndex++) {
-                                                                tmpTouchpadInfoArray[touchpadIndex] = touchpads[touchpadIndex];
+                                                                tmpTouchpadInfoArray[touchpadIndex] = touchpadInfoArray[touchpadIndex];
                                                             }
 
-                                                            free(touchpads);
-                                                            touchpads                          = tmpTouchpadInfoArray;
-                                                            touchpads[foundTouchpadIndex].Name = deviceName;
+                                                            free(touchpadInfoArray);
+                                                            touchpadInfoArray                          = tmpTouchpadInfoArray;
+                                                            touchpadInfoArray[foundTouchpadIndex].Name = deviceName;
+                                                            isDeviceNameStored                         = true;
                                                         }
 
                                                         std::cout << FG_GREEN << "foundTouchpadIndex: " << RESET_COLOR << foundTouchpadIndex << std::endl;
 
                                                         std::cout << FG_BRIGHT_BLUE << "found device name:   " << RESET_COLOR;
-                                                        std::wcout << touchpads[foundTouchpadIndex].Name << std::endl;
+                                                        std::wcout << touchpadInfoArray[foundTouchpadIndex].Name << std::endl;
 
                                                         std::cout << FG_BRIGHT_RED << "current device name: " << RESET_COLOR;
                                                         std::wcout << deviceName << std::endl;
@@ -327,26 +329,26 @@ void WM_CREATE_handle(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam) {
                                                         long findLinkCollectionStartTime = clock();
 
                                                         unsigned int foundLinkCollectionIndex = (unsigned int)-1;
-                                                        bool isCollectionNull                 = (touchpads[foundTouchpadIndex].Collections == NULL);
-                                                        bool isCollectionRecordedSizeEmpty    = (touchpads[foundTouchpadIndex].NumCollections == 0);
+                                                        bool isCollectionNull                 = (touchpadInfoArray[foundTouchpadIndex].Collections == NULL);
+                                                        bool isCollectionRecordedSizeEmpty    = (touchpadInfoArray[foundTouchpadIndex].NumCollections == 0);
 
                                                         if (isCollectionNull || isCollectionRecordedSizeEmpty) {
-                                                            foundLinkCollectionIndex                     = 0;
-                                                            touchpads[foundTouchpadIndex].NumCollections = (unsigned int)1;
+                                                            foundLinkCollectionIndex                             = 0;
+                                                            touchpadInfoArray[foundTouchpadIndex].NumCollections = (unsigned int)1;
 
-                                                            free(touchpads[foundTouchpadIndex].Collections);
-                                                            touchpads[foundTouchpadIndex].Collections = (COLLECTION_INFO *)malloc(sizeof(COLLECTION_INFO));
+                                                            free(touchpadInfoArray[foundTouchpadIndex].Collections);
+                                                            touchpadInfoArray[foundTouchpadIndex].Collections = (COLLECTION_INFO *)malloc(sizeof(COLLECTION_INFO));
 
-                                                            if (touchpads[foundTouchpadIndex].Collections == NULL) {
+                                                            if (touchpadInfoArray[foundTouchpadIndex].Collections == NULL) {
                                                                 std::cout << FG_RED << "malloc failed at " << __FILE__ << ":" << __LINE__ << RESET_COLOR << std::endl;
                                                                 exit(-1);
                                                             }
 
-                                                            touchpads[foundTouchpadIndex].Collections[0].LinkCollection = cap.LinkCollection;
+                                                            touchpadInfoArray[foundTouchpadIndex].Collections[0].LinkCollection = cap.LinkCollection;
                                                         } else {
-                                                            std::cout << BG_BLUE << "NumCollections: " << touchpads[foundTouchpadIndex].NumCollections << RESET_COLOR << std::endl;
-                                                            for (unsigned int linkCollectionIndex = 0; linkCollectionIndex < touchpads[foundTouchpadIndex].NumCollections; linkCollectionIndex++) {
-                                                                if (touchpads[foundTouchpadIndex].Collections[linkCollectionIndex].LinkCollection == cap.LinkCollection) {
+                                                            std::cout << BG_BLUE << "NumCollections: " << touchpadInfoArray[foundTouchpadIndex].NumCollections << RESET_COLOR << std::endl;
+                                                            for (unsigned int linkCollectionIndex = 0; linkCollectionIndex < touchpadInfoArray[foundTouchpadIndex].NumCollections; linkCollectionIndex++) {
+                                                                if (touchpadInfoArray[foundTouchpadIndex].Collections[linkCollectionIndex].LinkCollection == cap.LinkCollection) {
                                                                     foundLinkCollectionIndex = linkCollectionIndex;
                                                                     break;
                                                                 }
@@ -354,22 +356,22 @@ void WM_CREATE_handle(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam) {
                                                         }
 
                                                         if (foundLinkCollectionIndex == (unsigned int)-1) {
-                                                            foundLinkCollectionIndex                     = touchpads[foundTouchpadIndex].NumCollections;
-                                                            touchpads[foundTouchpadIndex].NumCollections = foundLinkCollectionIndex + 1;
+                                                            foundLinkCollectionIndex                             = touchpadInfoArray[foundTouchpadIndex].NumCollections;
+                                                            touchpadInfoArray[foundTouchpadIndex].NumCollections = foundLinkCollectionIndex + 1;
 
-                                                            COLLECTION_INFO *tmpCollectionArray = (COLLECTION_INFO *)malloc(sizeof(COLLECTION_INFO) * touchpads[foundTouchpadIndex].NumCollections);
+                                                            COLLECTION_INFO *tmpCollectionArray = (COLLECTION_INFO *)malloc(sizeof(COLLECTION_INFO) * touchpadInfoArray[foundTouchpadIndex].NumCollections);
                                                             if (tmpCollectionArray == NULL) {
                                                                 std::cout << FG_RED << "malloc failed at " << __FILE__ << ":" << __LINE__ << RESET_COLOR << std::endl;
                                                                 exit(-1);
                                                             }
 
                                                             for (unsigned int linkCollectionIndex = 0; linkCollectionIndex < foundLinkCollectionIndex; linkCollectionIndex++) {
-                                                                tmpCollectionArray[linkCollectionIndex] = touchpads[foundTouchpadIndex].Collections[linkCollectionIndex];
+                                                                tmpCollectionArray[linkCollectionIndex] = touchpadInfoArray[foundTouchpadIndex].Collections[linkCollectionIndex];
                                                             }
 
-                                                            free(touchpads[foundTouchpadIndex].Collections);
-                                                            touchpads[foundTouchpadIndex].Collections                                          = tmpCollectionArray;
-                                                            touchpads[foundTouchpadIndex].Collections[foundLinkCollectionIndex].LinkCollection = cap.LinkCollection;
+                                                            free(touchpadInfoArray[foundTouchpadIndex].Collections);
+                                                            touchpadInfoArray[foundTouchpadIndex].Collections                                          = tmpCollectionArray;
+                                                            touchpadInfoArray[foundTouchpadIndex].Collections[foundLinkCollectionIndex].LinkCollection = cap.LinkCollection;
                                                         }
 
                                                         long findLinkCollectionEndTime = clock();
@@ -377,13 +379,13 @@ void WM_CREATE_handle(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam) {
                                                         std::cout << FG_GREEN << "findLinkCollectionTime: " << RESET_COLOR << findLinkCollectionTime << std::endl;
 
                                                         if (cap.NotRange.Usage == HID_USAGE_GENERIC_X) {
-                                                            touchpads[foundTouchpadIndex].Collections[foundLinkCollectionIndex].PhysicalRect.left  = cap.PhysicalMin;
-                                                            touchpads[foundTouchpadIndex].Collections[foundLinkCollectionIndex].PhysicalRect.right = cap.PhysicalMax;
+                                                            touchpadInfoArray[foundTouchpadIndex].Collections[foundLinkCollectionIndex].PhysicalRect.left  = cap.PhysicalMin;
+                                                            touchpadInfoArray[foundTouchpadIndex].Collections[foundLinkCollectionIndex].PhysicalRect.right = cap.PhysicalMax;
                                                             std::cout << "  Left: " << cap.PhysicalMin << std::endl;
                                                             std::cout << "  Right: " << cap.PhysicalMax << std::endl;
                                                         } else if (cap.NotRange.Usage == HID_USAGE_GENERIC_Y) {
-                                                            touchpads[foundTouchpadIndex].Collections[foundLinkCollectionIndex].PhysicalRect.top    = cap.PhysicalMin;
-                                                            touchpads[foundTouchpadIndex].Collections[foundLinkCollectionIndex].PhysicalRect.bottom = cap.PhysicalMax;
+                                                            touchpadInfoArray[foundTouchpadIndex].Collections[foundLinkCollectionIndex].PhysicalRect.top    = cap.PhysicalMin;
+                                                            touchpadInfoArray[foundTouchpadIndex].Collections[foundLinkCollectionIndex].PhysicalRect.bottom = cap.PhysicalMax;
                                                             std::cout << "  Top: " << cap.PhysicalMin << std::endl;
                                                             std::cout << "  Bottom: " << cap.PhysicalMax << std::endl;
                                                         }
@@ -406,6 +408,10 @@ void WM_CREATE_handle(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam) {
 
                                 delete[] lpb;
                             }
+                        }
+
+                        if (!isDeviceNameStored) {
+                            free(deviceName);
                         }
                     }
                 }
@@ -480,6 +486,67 @@ void WM_INPUT_handle(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam) {
                         if (count != 0) {
                             // TODO parse raw data
 
+                            // TODO find device name of the input event
+                            UINT deviceNameBufferSize = 0;
+                            winReturnCode             = GetRawInputDeviceInfo(raw->header.hDevice, RIDI_DEVICENAME, NULL, &deviceNameBufferSize);
+                            if (winReturnCode == (UINT)-1) {
+                                std::cout << FG_RED << "GetRawInputDeviceInfo failed at " << __FILE__ << ":" << __LINE__ << RESET_COLOR << std::endl;
+                                printLastError();
+                            } else {
+                                const UINT deviceNameLength = deviceNameBufferSize;
+                                TCHAR *deviceName           = (TCHAR *)malloc(sizeof(TCHAR) * (deviceNameLength + 1));
+                                if (deviceName == NULL) {
+                                    std::cout << FG_RED << "malloc failed at " << __FILE__ << ":" << __LINE__ << RESET_COLOR << std::endl;
+                                } else {
+                                    deviceName[deviceNameLength] = 0;
+                                    winReturnCode                = GetRawInputDeviceInfo(raw->header.hDevice, RIDI_DEVICENAME, deviceName, &deviceNameBufferSize);
+                                    if (winReturnCode == (UINT)-1) {
+                                        std::cout << FG_RED << "GetRawInputDeviceInfo failed at " << __FILE__ << ":" << __LINE__ << RESET_COLOR << std::endl;
+                                        printLastError();
+                                    } else if (winReturnCode != deviceNameLength) {
+                                        std::cout << FG_RED << "GetRawInputDeviceInfo did not copy enough data " << winReturnCode << " (copied) vs " << deviceNameLength << " at " << __FILE__ << ":" << __LINE__ << RESET_COLOR << std::endl;
+                                    } else {
+                                        printTimestamp();
+                                        std::cout << "deviceName: ";
+                                        std::wcout << deviceName << std::endl;
+
+                                        unsigned int foundTouchpadIndex = (unsigned int)-1;
+
+                                        bool isTouchpadsNull              = (touchpadInfoArray == NULL);
+                                        bool isTouchpadsRecordedSizeEmpty = (numTouchpads == 0);
+                                        if (isTouchpadsNull || isTouchpadsRecordedSizeEmpty) {
+                                            // TODO parse new connected device data
+                                        } else {
+                                            for (unsigned int touchpadIndex = 0; touchpadIndex < numTouchpads; touchpadIndex++) {
+                                                int compareNameResult = _tcscmp(deviceName, touchpadInfoArray[touchpadIndex].Name);
+                                                if (compareNameResult == 0) {
+                                                    foundTouchpadIndex = touchpadIndex;
+                                                    break;
+                                                }
+                                            }
+                                        }
+
+                                        std::cout << FG_GREEN << "Device index in stored global array: " << foundTouchpadIndex << RESET_COLOR << std::endl;
+
+                                        if (foundTouchpadIndex == (unsigned int)-1) {
+                                            // TODO parse new connected device data
+                                        } else {
+                                            bool isCollectionNull              = (touchpadInfoArray[foundTouchpadIndex].Collections == NULL);
+                                            bool isCollectionRecordedSizeEmpty = (touchpadInfoArray[foundTouchpadIndex].NumCollections == 0);
+
+                                            if (isCollectionNull || isCollectionRecordedSizeEmpty) {
+                                                std::cout << FG_RED << "Cannot find any LinkCollection(s). Try parse the PREPARED_DATA may help. TODO" << RESET_COLOR << std::endl;
+                                            } else {
+                                                for (unsigned int linkCollectionIndex = 0; linkCollectionIndex < touchpadInfoArray[foundTouchpadIndex].NumCollections; linkCollectionIndex++) {
+                                                }
+                                            }
+                                        }
+                                    }
+                                }
+
+                                free(deviceName);
+                            }
+
                             // https://stackoverflow.com/a/27012730/8364403
                             // ULONG numTouchContacts;
                             // NTSTATUS hidpReturnCode = HidP_GetUsageValue(
@@ -487,6 +554,7 @@ void WM_INPUT_handle(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam) {
                             //  HID_USAGE_PAGE_DIGITIZER, // UsagePage
                             //  // LinkCollection
                             //);
+                            // HidP_GetUsageValue(HidP_Input, HID_USAGE_PAGE_DIGITIZER, )
                         }
                     }
                 }
