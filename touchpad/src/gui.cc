@@ -14,6 +14,23 @@
 #include "hid-utils.h"
 #include <map>
 
+// https://docs.microsoft.com/en-us/windows-hardware/design/component-guidelines/supporting-usages-in-multitouch-digitizer-drivers
+struct HID_USAGE {
+    int UsagePage;
+    int Usage;
+};
+
+const HID_USAGE MULTI_TOUCH_DIGITIZER_X                  = {0x01, 0x30};
+const HID_USAGE MULTI_TOUCH_DIGITIZER_Y                  = {0x01, 0x31};
+const HID_USAGE MULTI_TOUCH_DIGITIZER_CONTACT_IDENTIFIER = {0x0D, 0x51};
+const HID_USAGE MULTI_TOUCH_DIGITIZER_TIP_SWITCH         = {0x0D, 0x41};
+const HID_USAGE MULTI_TOUCH_DIGITIZER_IN_RANGE           = {0x0D, 0x32};
+const HID_USAGE MULTI_TOUCH_CONTACT_COUNT_MAXIMUM        = {0x0D, 0x55};
+const HID_USAGE MULTI_TOUCH_CONFIDENCE                   = {0x0D, 0x47};
+const HID_USAGE MULTI_TOUCH_WIDTH                        = {0x0D, 0x48};
+const HID_USAGE MULTI_TOUCH_HEIGHT                       = {0x0D, 0x30};
+const HID_USAGE MULTI_TOUCH_PRESSURE                     = {0x0D, 0x30};
+
 // Global variables:
 HINSTANCE hInst; // current instance
 BOOL isTouchpadRegistered            = FALSE;
@@ -28,9 +45,10 @@ struct COLLECTION_INFO {
 
 // C doesn't have map or dictionary so we are going to use array of struct to replace that
 struct HID_TOUCHPAD_INFO {
-    TCHAR *Name                  = NULL;
-    COLLECTION_INFO *Collections = NULL;
-    unsigned int NumCollections  = 0;
+    TCHAR *Name                       = NULL;
+    COLLECTION_INFO *Collections      = NULL;
+    unsigned int NumCollections       = 0;
+    PHIDP_PREPARSED_DATA PreparedData = NULL;
 };
 
 static unsigned int numTouchpads            = 0;
@@ -210,19 +228,18 @@ void WM_CREATE_handle(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam) {
                                 printLastError();
                             } else {
                                 std::cout << "Prepased data size: " << prepasedDataSize << std::endl;
-                                const UINT _prepasedDataSize = prepasedDataSize;
-                                LPBYTE lpb                   = new BYTE[_prepasedDataSize];
+                                const UINT _prepasedDataSize       = prepasedDataSize;
+                                PHIDP_PREPARSED_DATA preparsedData = (PHIDP_PREPARSED_DATA)malloc(_prepasedDataSize);
+                                bool isPreparsedDataStored         = false;
 
-                                if (lpb == NULL) {
+                                if (preparsedData == NULL) {
                                     std::cout << "Failed to allocate memory at " << __FILE__ << ":" << __LINE__ << std::endl;
                                 } else {
-                                    winReturnCode = GetRawInputDeviceInfo(rawInputDevice.hDevice, RIDI_PREPARSEDDATA, lpb, &prepasedDataSize);
+                                    winReturnCode = GetRawInputDeviceInfo(rawInputDevice.hDevice, RIDI_PREPARSEDDATA, preparsedData, &prepasedDataSize);
                                     if (winReturnCode == (UINT)-1) {
                                         std::cout << "Failed to call GetRawInputDeviceInfo to get prepased data at " << __FILE__ << ":" << __LINE__ << std::endl;
                                         printLastError();
                                     } else {
-                                        PHIDP_PREPARSED_DATA preparsedData = (PHIDP_PREPARSED_DATA)lpb;
-
                                         NTSTATUS hidpReturnCode;
 
                                         // find HID capabilities
@@ -279,10 +296,12 @@ void WM_CREATE_handle(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam) {
                                                                 exit(-1);
                                                             }
 
-                                                            isDeviceNameStored                                   = true;
                                                             touchpadInfoArray[foundTouchpadIndex].Name           = deviceName;
                                                             touchpadInfoArray[foundTouchpadIndex].Collections    = NULL;
                                                             touchpadInfoArray[foundTouchpadIndex].NumCollections = 0;
+                                                            touchpadInfoArray[foundTouchpadIndex].PreparedData   = preparsedData;
+                                                            isPreparsedDataStored                                = true;
+                                                            isDeviceNameStored                                   = true;
                                                         } else {
                                                             for (unsigned int touchpadIndex = 0; touchpadIndex < numTouchpads; touchpadIndex++) {
                                                                 int compareNameResult = _tcscmp(deviceName, touchpadInfoArray[touchpadIndex].Name);
@@ -313,9 +332,14 @@ void WM_CREATE_handle(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam) {
                                                             }
 
                                                             free(touchpadInfoArray);
-                                                            touchpadInfoArray                          = tmpTouchpadInfoArray;
-                                                            touchpadInfoArray[foundTouchpadIndex].Name = deviceName;
-                                                            isDeviceNameStored                         = true;
+                                                            touchpadInfoArray = tmpTouchpadInfoArray;
+
+                                                            touchpadInfoArray[foundTouchpadIndex].Name           = deviceName;
+                                                            touchpadInfoArray[foundTouchpadIndex].Collections    = NULL;
+                                                            touchpadInfoArray[foundTouchpadIndex].NumCollections = 0;
+                                                            touchpadInfoArray[foundTouchpadIndex].PreparedData   = preparsedData;
+                                                            isDeviceNameStored                                   = true;
+                                                            isPreparsedDataStored                                = true;
                                                         }
 
                                                         std::cout << FG_GREEN << "foundTouchpadIndex: " << RESET_COLOR << foundTouchpadIndex << std::endl;
@@ -406,7 +430,9 @@ void WM_CREATE_handle(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam) {
                                     }
                                 }
 
-                                delete[] lpb;
+                                if (!isPreparsedDataStored) {
+                                    free(preparsedData);
+                                }
                             }
                         }
 
@@ -533,11 +559,36 @@ void WM_INPUT_handle(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam) {
                                         } else {
                                             bool isCollectionNull              = (touchpadInfoArray[foundTouchpadIndex].Collections == NULL);
                                             bool isCollectionRecordedSizeEmpty = (touchpadInfoArray[foundTouchpadIndex].NumCollections == 0);
+                                            bool isPreparsedDataNull           = (touchpadInfoArray[foundTouchpadIndex].PreparedData == NULL);
 
                                             if (isCollectionNull || isCollectionRecordedSizeEmpty) {
                                                 std::cout << FG_RED << "Cannot find any LinkCollection(s). Try parse the PREPARED_DATA may help. TODO" << RESET_COLOR << std::endl;
+                                            } else if (isPreparsedDataNull) {
+                                                std::cout << FG_RED << "Cannot find PreparsedData at " << __FILE__ << ":" << __LINE__ << RESET_COLOR << std::endl;
                                             } else {
                                                 for (unsigned int linkCollectionIndex = 0; linkCollectionIndex < touchpadInfoArray[foundTouchpadIndex].NumCollections; linkCollectionIndex++) {
+                                                    ULONG usageValue        = 0;
+                                                    NTSTATUS hidpReturnCode = HidP_GetUsageValue(HidP_Input, MULTI_TOUCH_DIGITIZER_X.UsagePage, touchpadInfoArray[foundTouchpadIndex].Collections[linkCollectionIndex].LinkCollection,
+                                                                                                 MULTI_TOUCH_DIGITIZER_X.Usage, &usageValue, touchpadInfoArray[foundTouchpadIndex].PreparedData, (PCHAR)raw->data.hid.bRawData, raw->data.hid.dwSizeHid);
+
+                                                    if (hidpReturnCode == HIDP_STATUS_SUCCESS) {
+                                                        std::cout << FG_GREEN << "LinkCollection: " << touchpadInfoArray[foundTouchpadIndex].Collections[linkCollectionIndex].LinkCollection << " value: " << usageValue << RESET_COLOR << std::endl;
+                                                    } else if (hidpReturnCode == HIDP_STATUS_INVALID_REPORT_LENGTH) {
+                                                        std::cout << FG_RED << "The report length is not valid. HidP_GetUsageValue failed at " << __FILE__ << ":" << __LINE__ << RESET_COLOR << std::endl;
+                                                    } else if (hidpReturnCode == HIDP_STATUS_INVALID_REPORT_TYPE) {
+                                                        std::cout << FG_RED << "The specified report type is not valid. HidP_GetUsageValue failed at " << __FILE__ << ":" << __LINE__ << RESET_COLOR << std::endl;
+                                                    } else if (hidpReturnCode == HIDP_STATUS_INCOMPATIBLE_REPORT_ID) {
+                                                        std::cout << FG_RED
+                                                                  << "The collection contains a value on the specified usage page in a report of the specified type, but there are no such usages in the specified report. HidP_GetUsageValue failed at "
+                                                                  << __FILE__ << ":" << __LINE__ << RESET_COLOR << std::endl;
+                                                    } else if (hidpReturnCode == HIDP_STATUS_INVALID_PREPARSED_DATA) {
+                                                        std::cout << FG_RED << "The preparsed data is not valid. HidP_GetUsageValue failed at " << __FILE__ << ":" << __LINE__ << RESET_COLOR << std::endl;
+                                                    } else if (hidpReturnCode == HIDP_STATUS_USAGE_NOT_FOUND) {
+                                                        std::cout << FG_RED << "The collection does not contain a value on the specified usage page in any report of the specified report type. HidP_GetUsageValue failed at " << __FILE__ << ":" << __LINE__
+                                                                  << RESET_COLOR << std::endl;
+                                                    } else {
+                                                        std::cout << FG_RED << "Unknown error code: " << hidpReturnCode << ". HidP_GetUsageValue failed at " __FILE__ << ":" << __LINE__ << RESET_COLOR << std::endl;
+                                                    }
                                                 }
                                             }
                                         }
@@ -548,13 +599,6 @@ void WM_INPUT_handle(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam) {
                             }
 
                             // https://stackoverflow.com/a/27012730/8364403
-                            // ULONG numTouchContacts;
-                            // NTSTATUS hidpReturnCode = HidP_GetUsageValue(
-                            //  HidP_Input, // ReportType
-                            //  HID_USAGE_PAGE_DIGITIZER, // UsagePage
-                            //  // LinkCollection
-                            //);
-                            // HidP_GetUsageValue(HidP_Input, HID_USAGE_PAGE_DIGITIZER, )
                         }
                     }
                 }
