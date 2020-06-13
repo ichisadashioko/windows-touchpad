@@ -3,14 +3,16 @@
 #include <hidusage.h>
 #include <hidpi.h>
 // clang-format on
+
 #include <iostream>
 #include <time.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include <tchar.h>
-#include "termcolor.h"
 #include <vector>
+
+#include "termcolor.h"
 #include "hid-utils.h"
 
 // Global variables:
@@ -26,8 +28,8 @@ static HID_DEVICE_INFO_LIST g_deviceInfoList = {NULL, 0};
 int main();
 LRESULT CALLBACK WndProc(HWND, UINT, WPARAM, LPARAM);
 int CALLBACK WinMain(HINSTANCE, HINSTANCE, LPSTR, int);
-void WM_CREATE_handle(HWND, UINT, WPARAM, LPARAM);
-void WM_INPUT_handle(HWND, UINT, WPARAM, LPARAM);
+void handle_wm_create(HWND, UINT, WPARAM, LPARAM);
+void handle_wm_input(HWND, UINT, WPARAM, LPARAM);
 
 int CALLBACK WinMain(_In_ HINSTANCE hInstance, _In_opt_ HINSTANCE hPrevInstance, _In_ LPSTR lpCmdLine, _In_ int nCmdShow) {
     WNDCLASSEX wcex;
@@ -92,10 +94,10 @@ LRESULT CALLBACK WndProc(_In_ HWND hWnd, _In_ UINT message, _In_ WPARAM wParam, 
 
     switch (message) {
         case WM_CREATE: {
-            WM_CREATE_handle(hWnd, message, wParam, lParam);
+            handle_wm_create(hWnd, message, wParam, lParam);
         } break;
         case WM_INPUT: {
-            WM_INPUT_handle(hWnd, message, wParam, lParam);
+            handle_wm_input(hWnd, message, wParam, lParam);
         } break;
         case WM_PAINT: {
             hdc = BeginPaint(hWnd, &ps);
@@ -120,7 +122,7 @@ LRESULT CALLBACK WndProc(_In_ HWND hWnd, _In_ UINT message, _In_ WPARAM wParam, 
 
 int main() { return WinMain(GetModuleHandle(NULL), NULL, GetCommandLineA(), SW_SHOWNORMAL); };
 
-void WM_CREATE_handle(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam) {
+void handle_wm_create(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam) {
     UINT winReturnCode;
 
     if (!showedConnectedDevices) {
@@ -237,9 +239,9 @@ void WM_CREATE_handle(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam) {
                 std::wcout << deviceName << std::endl;
 
                 std::cout << FG_GREEN << "Finding device in global list..." << RESET_COLOR << std::endl;
-                findOrCreateTouchpadInfo_RETVAL findOrCreateTouchpadInfoRetval = findOrCreateTouchpadInfo(g_deviceInfoList, deviceName, deviceNameSizeInBytes, preparsedData, _prepasedDataSize);
-                unsigned int foundTouchpadIndex                                = findOrCreateTouchpadInfoRetval.FoundIndex;
-                g_deviceInfoList                                               = findOrCreateTouchpadInfoRetval.ModifiedList;
+                auto findOrCreateTouchpadInfoRetval = findOrCreateTouchpadInfo(g_deviceInfoList, deviceName, deviceNameSizeInBytes, preparsedData, _prepasedDataSize);
+                unsigned int foundTouchpadIndex     = findOrCreateTouchpadInfoRetval.FoundIndex;
+                g_deviceInfoList                    = findOrCreateTouchpadInfoRetval.ModifiedList;
 
                 std::cout << FG_GREEN << "foundTouchpadIndex: " << RESET_COLOR << foundTouchpadIndex << std::endl;
 
@@ -274,9 +276,9 @@ void WM_CREATE_handle(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam) {
                             continue;
                         }
 
-                        findOrCreateLinkCollectionInfo_RETVAL findOrCreateLinkCollectionInfoRetval = findOrCreateLinkCollectionInfo(g_deviceInfoList.Entries[foundTouchpadIndex].LinkCollectionInfoList, cap.LinkCollection);
-                        g_deviceInfoList.Entries[foundTouchpadIndex].LinkCollectionInfoList        = findOrCreateLinkCollectionInfoRetval.ModifiedList;
-                        const unsigned int foundLinkCollectionIndex                                = findOrCreateLinkCollectionInfoRetval.FoundIndex;
+                        auto findOrCreateLinkCollectionInfoRetval                           = findOrCreateLinkCollectionInfo(g_deviceInfoList.Entries[foundTouchpadIndex].LinkCollectionInfoList, cap.LinkCollection);
+                        g_deviceInfoList.Entries[foundTouchpadIndex].LinkCollectionInfoList = findOrCreateLinkCollectionInfoRetval.ModifiedList;
+                        const unsigned int foundLinkCollectionIndex                         = findOrCreateLinkCollectionInfoRetval.FoundIndex;
 
                         std::cout << FG_GREEN << "[ValueCaps] foundLinkCollectionIndex: " << foundLinkCollectionIndex << RESET_COLOR << std::endl;
 
@@ -340,9 +342,9 @@ void WM_CREATE_handle(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam) {
 
                         if (buttonCap.UsagePage == HID_USAGE_PAGE_DIGITIZER) {
                             if (buttonCap.NotRange.Usage == MULTI_TOUCH_DIGITIZER_TIP_SWITCH.Usage) {
-                                findOrCreateLinkCollectionInfo_RETVAL findOrCreateLinkCollectionInfoRetval = findOrCreateLinkCollectionInfo(g_deviceInfoList.Entries[foundTouchpadIndex].LinkCollectionInfoList, buttonCap.LinkCollection);
-                                g_deviceInfoList.Entries[foundTouchpadIndex].LinkCollectionInfoList        = findOrCreateLinkCollectionInfoRetval.ModifiedList;
-                                const unsigned int foundLinkCollectionIndex                                = findOrCreateLinkCollectionInfoRetval.FoundIndex;
+                                auto findOrCreateLinkCollectionInfoRetval                           = findOrCreateLinkCollectionInfo(g_deviceInfoList.Entries[foundTouchpadIndex].LinkCollectionInfoList, buttonCap.LinkCollection);
+                                g_deviceInfoList.Entries[foundTouchpadIndex].LinkCollectionInfoList = findOrCreateLinkCollectionInfoRetval.ModifiedList;
+                                const unsigned int foundLinkCollectionIndex                         = findOrCreateLinkCollectionInfoRetval.FoundIndex;
 
                                 std::cout << FG_GREEN << "[ButtonCaps] foundLinkCollectionIndex: " << foundLinkCollectionIndex << RESET_COLOR << std::endl;
 
@@ -384,13 +386,14 @@ void WM_CREATE_handle(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam) {
     }
 }
 
-void WM_INPUT_handle(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam) {
+void handle_wm_input(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam) {
     UINT winReturnCode; // return code from windows API call
 
     if (isTouchpadRegistered) {
         // Following guide: https://docs.microsoft.com/en-us/windows/win32/inputdev/using-raw-input#performing-a-standard-read-of-raw-input
 
         // x should we only read RID_HEADER first to filter device types for RIM_TYPEHID only to save bandwidth and improve performance
+
         // Get the size of RAWINPUT by calling GetRawInputData() with pData = NULL
 
         UINT rawInputSize = 0;
@@ -488,7 +491,11 @@ void WM_INPUT_handle(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam) {
                     } else if (isPreparsedDataNull) {
                         std::cout << FG_RED << "Cannot find PreparsedData at " << __FILE__ << ":" << __LINE__ << RESET_COLOR << std::endl;
                     } else {
+                        std::cout << "=================================" << std::endl;
                         NTSTATUS hidpReturnCode;
+
+                        PHIDP_PREPARSED_DATA preparsedHIDData = g_deviceInfoList.Entries[foundTouchpadIndex].PreparedData;
+
                         for (unsigned int linkCollectionIndex = 0; linkCollectionIndex < g_deviceInfoList.Entries[foundTouchpadIndex].LinkCollectionInfoList.Size; linkCollectionIndex++) {
                             HID_LINK_COLLECTION_INFO collectionInfo = g_deviceInfoList.Entries[foundTouchpadIndex].LinkCollectionInfoList.Entries[linkCollectionIndex];
 
@@ -499,8 +506,8 @@ void WM_INPUT_handle(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam) {
 
                                 // std::cout << BG_BLUE << "LinkCollection: " << collectionInfo.LinkCollection << ", HasX: " << collectionInfo.HasX << ", HasY:" << collectionInfo.HasY << RESET_COLOR << std::endl;
 
-                                hidpReturnCode = HidP_GetUsageValue(HidP_Input, MULTI_TOUCH_DIGITIZER_X.UsagePage, collectionInfo.LinkCollection, MULTI_TOUCH_DIGITIZER_X.Usage, &usageValue, g_deviceInfoList.Entries[foundTouchpadIndex].PreparedData,
-                                                                    (PCHAR)rawInputData->data.hid.bRawData, rawInputData->data.hid.dwSizeHid);
+                                hidpReturnCode = HidP_GetUsageValue(HidP_Input, MULTI_TOUCH_DIGITIZER_X.UsagePage, collectionInfo.LinkCollection, MULTI_TOUCH_DIGITIZER_X.Usage, &usageValue, preparsedHIDData, (PCHAR)rawInputData->data.hid.bRawData,
+                                                                    rawInputData->data.hid.dwSizeHid);
 
                                 if (hidpReturnCode != HIDP_STATUS_SUCCESS) {
                                     std::cout << FG_RED << "Failed to read x position!" << RESET_COLOR << std::endl;
@@ -510,8 +517,8 @@ void WM_INPUT_handle(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam) {
 
                                 xPos = usageValue;
 
-                                hidpReturnCode = HidP_GetUsageValue(HidP_Input, MULTI_TOUCH_DIGITIZER_Y.UsagePage, collectionInfo.LinkCollection, MULTI_TOUCH_DIGITIZER_Y.Usage, &usageValue, g_deviceInfoList.Entries[foundTouchpadIndex].PreparedData,
-                                                                    (PCHAR)rawInputData->data.hid.bRawData, rawInputData->data.hid.dwSizeHid);
+                                hidpReturnCode = HidP_GetUsageValue(HidP_Input, MULTI_TOUCH_DIGITIZER_Y.UsagePage, collectionInfo.LinkCollection, MULTI_TOUCH_DIGITIZER_Y.Usage, &usageValue, preparsedHIDData, (PCHAR)rawInputData->data.hid.bRawData,
+                                                                    rawInputData->data.hid.dwSizeHid);
 
                                 if (hidpReturnCode != HIDP_STATUS_SUCCESS) {
                                     std::cout << FG_RED << "Failed to read y position!" << RESET_COLOR << std::endl;
@@ -521,7 +528,18 @@ void WM_INPUT_handle(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam) {
 
                                 yPos = usageValue;
 
-                                std::cout << FG_GREEN << "(" << xPos << ", " << yPos << ") LinkCollection: " << collectionInfo.LinkCollection << RESET_COLOR << std::endl;
+                                hidpReturnCode = HidP_GetUsageValue(HidP_Input, MULTI_TOUCH_DIGITIZER_CONTACT_IDENTIFIER.UsagePage, collectionInfo.LinkCollection, MULTI_TOUCH_DIGITIZER_CONTACT_IDENTIFIER.Usage, &usageValue, preparsedHIDData,
+                                                                    (PCHAR)rawInputData->data.hid.bRawData, rawInputData->data.hid.dwSizeHid);
+
+                                if (hidpReturnCode != HIDP_STATUS_SUCCESS) {
+                                    std::cout << FG_RED << "Failed to read touch ID!" << RESET_COLOR << std::endl;
+                                    print_HidP_errors(hidpReturnCode, __FILE__, __LINE__);
+                                    exit(-1);
+                                }
+
+                                ULONG touchId = usageValue;
+
+                                std::cout << FG_GREEN << "LinkCollection: " << collectionInfo.LinkCollection << " ID: " << touchId << " (" << xPos << ", " << yPos << ")" << RESET_COLOR << std::endl;
                             }
                         }
                     }
