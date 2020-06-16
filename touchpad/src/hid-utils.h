@@ -44,14 +44,14 @@ struct HID_TOUCH_LINK_COL_INFO {
 };
 
 struct HID_LINK_COL_INFO_LIST {
-  HID_TOUCH_LINK_COL_INFO *Entries;
+  HID_TOUCH_LINK_COL_INFO* Entries;
   unsigned int Size;
 };
 
 // C doesn't have map or dictionary so we are going to use array of struct to
 // replace that
 struct HID_DEVICE_INFO {
-  TCHAR *Name;
+  TCHAR* Name;
   unsigned int cbName;
   HID_LINK_COL_INFO_LIST LinkColInfoList;
   PHIDP_PREPARSED_DATA PreparedData;
@@ -60,7 +60,7 @@ struct HID_DEVICE_INFO {
 };
 
 struct HID_DEVICE_INFO_LIST {
-  HID_DEVICE_INFO *Entries;
+  HID_DEVICE_INFO* Entries;
   unsigned int Size;
 };
 
@@ -68,19 +68,22 @@ void printTimestamp();
 void printLastError();
 void print_HidP_errors(NTSTATUS, std::string, int);
 
-struct findOrCreateTouchpadInfo_RETVAL {
+struct FIND_INPUT_DEVICE_RETVAL {
   HID_DEVICE_INFO_LIST ModifiedList;
   unsigned int FoundIndex;
 };
 
-findOrCreateTouchpadInfo_RETVAL
-findOrCreateTouchpadInfo(HID_DEVICE_INFO_LIST, TCHAR *, const unsigned int,
-                         PHIDP_PREPARSED_DATA, const UINT);
+FIND_INPUT_DEVICE_RETVAL
+FindInputDeviceInList(HID_DEVICE_INFO_LIST,
+                      TCHAR*,
+                      const unsigned int,
+                      PHIDP_PREPARSED_DATA,
+                      const UINT);
 
-struct findOrCreateLinkCollectionInfo_RETVAL {
+struct FIND_LINK_COLLECTION_RETVAL {
   HID_LINK_COL_INFO_LIST ModifiedList;
   unsigned int FoundIndex;
 };
 
-findOrCreateLinkCollectionInfo_RETVAL
-  findOrCreateLinkCollectionInfo(HID_LINK_COL_INFO_LIST, USHORT);
+FIND_LINK_COLLECTION_RETVAL
+FindLinkCollectionInList(HID_LINK_COL_INFO_LIST, USHORT);

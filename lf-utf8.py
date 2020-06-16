@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 # encoding=utf-8
+# python3 -m pip install --user tqdm
 import os
 import mimetypes
 import traceback
@@ -14,29 +15,46 @@ class Encoding:
     UTF8_WITH_BOM = 'utf-8-sig'
     UTF16 = 'utf-16'
     GB2312 = 'gb2312'
+    SHIFT_JIS = 'shift-jis'
 
     @classmethod
     def decode(cls, bs: bytes):
         try:
-            return cls.UTF8_WITH_BOM, bs.decode(cls.UTF8_WITH_BOM)
+            encoding = cls.UTF8_WITH_BOM
+            decoded_content = bs.decode(encoding)
+            return encoding, decoded_content
         except Exception as ex:
             # traceback.print_exc()
             pass
 
         try:
-            return cls.UTF8, bs.decode(cls.UTF8)
+            encoding = cls.UTF8
+            decoded_content = bs.decode(encoding)
+            return encoding, decoded_content
         except Exception as ex:
             # traceback.print_exc()
             pass
 
         try:
-            return cls.UTF16, bs.decode(cls.UTF16)
+            encoding = cls.UTF16
+            decoded_content = bs.decode(encoding)
+            return encoding, decoded_content
         except Exception as ex:
             # traceback.print_exc()
             pass
 
         try:
-            return cls.GB2312, bs.decode(cls.GB2312)
+            encoding = cls.GB2312
+            decoded_content = bs.decode(encoding)
+            return encoding, decoded_content
+        except Exception as ex:
+            # traceback.print_exc()
+            pass
+
+        try:
+            encoding = cls.SHIFT_JIS
+            decoded_content = bs.decode(encoding)
+            return encoding, decoded_content
         except Exception as ex:
             # traceback.print_exc()
             pass
