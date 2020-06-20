@@ -1,6 +1,9 @@
 ## Goal
 
-Retrieve absolute touchpad touches' positions
+- [x] Retrieve absolute touchpad touches' positions
+- [ ] Block mouse movement while using trackpad for handwriting (`BlockInput` API call)
+- [ ] Visualize touch input position on GUI
+- [ ] Integrate with TensorFlow (threading)
 
 ## Steps
 
