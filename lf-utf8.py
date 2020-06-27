@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 # encoding=utf-8
-# python3 -m pip install --user tqdm
+# pip3 install tqdm
 import os
 import mimetypes
 import traceback
@@ -104,7 +104,7 @@ def find_all_files(infile):
     elif os.path.isdir(infile):
         flist = os.listdir(infile)
         for fname in flist:
-            fpath = f'{infile}/{fname}'
+            fpath = os.path.join(infile, fname)
             retval.extend(find_all_files(fpath))
 
     return retval

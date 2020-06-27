@@ -48,8 +48,7 @@ struct HID_LINK_COL_INFO_LIST {
   unsigned int Size;
 };
 
-// C doesn't have map or dictionary so we are going to use array of struct to
-// replace that
+// C doesn't have map or dictionary so we are going to use array of struct to replace that
 struct HID_DEVICE_INFO {
   TCHAR* Name;
   unsigned int cbName;
@@ -74,11 +73,7 @@ struct FIND_INPUT_DEVICE_RETVAL {
 };
 
 FIND_INPUT_DEVICE_RETVAL
-FindInputDeviceInList(HID_DEVICE_INFO_LIST,
-                      TCHAR*,
-                      const unsigned int,
-                      PHIDP_PREPARSED_DATA,
-                      const UINT);
+FindInputDeviceInList(HID_DEVICE_INFO_LIST, TCHAR*, const unsigned int, PHIDP_PREPARSED_DATA, const UINT);
 
 struct FIND_LINK_COLLECTION_RETVAL {
   HID_LINK_COL_INFO_LIST ModifiedList;

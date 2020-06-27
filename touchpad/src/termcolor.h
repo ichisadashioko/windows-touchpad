@@ -33,8 +33,7 @@ static const char BG_BRIGHT_BLUE[]    = "\033[104m";
 static const char BG_BRIGHT_MAGENTA[] = "\033[105m";
 static const char BG_BRIGHT_CYAN[]    = "\033[106m";
 static const char BG_BRIGHT_WHITE[]   = "\033[107m";
-
-static const char RESET_COLOR[] = "\033[0m";
+static const char RESET_COLOR[]       = "\033[0m";
 
 static const char SGR_RESET         = 0;
 static const char SGR_BOLD          = 1;
@@ -43,7 +42,7 @@ static const char SGR_ITALIC        = 3;
 static const char SGR_UNDERLINE     = 4;
 static const char SGR_SLOW_BLINK    = 5;
 static const char SGR_RAPID_BLINK   = 6;
-static const char SGR_INVERT        = 7; // swap bg and fg colors
+static const char SGR_INVERT        = 7;  // swap bg and fg colors
 static const char SGR_HIDE          = 8;
 static const char SGR_STRIKE        = 9;
 static const char SGR_NORMAL        = 22;
