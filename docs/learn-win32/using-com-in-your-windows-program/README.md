@@ -36,7 +36,7 @@ COM is a _binary standard_, not a language standard: It defines the binary inter
 - [Asking an Object for an Interface](./asking-an-object-for-an-interface.md)
 - [Memory Allocation in COM](./memory-allocation-in-com.md)
 - [COM Coding Practices](./com-coding-practices.md)
-- [Error Handling in COM]()
+- [Error Handling in COM](./error-handling-in-com.md)
 
 [wm-paint]: https://docs.microsoft.com/en-us/windows/win32/gdi/wm-paint
 [wm-close]: https://docs.microsoft.com/en-us/windows/win32/winmsg/wm-close

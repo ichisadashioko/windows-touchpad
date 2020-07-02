@@ -222,7 +222,7 @@ The `CComPtr::CoCreateInstance` method is provided purely as a convenience; you 
 
 ## Next
 
-[Error Handling in COM]()
+[Error Handling in COM](./error-handling-in-com.md)
 
 [cocreateinstance]: https://docs.microsoft.com/en-us/windows/win32/api/combaseapi/nf-combaseapi-cocreateinstance
 [iunknown-queryinterface]: https://docs.microsoft.com/en-us/windows/win32/api/unknwn/nf-unknwn-iunknown-queryinterface(q)
