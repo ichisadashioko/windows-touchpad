@@ -23,4 +23,4 @@ Note, however, that the DWM is not guaranteed to be enabled. The graphics card m
 
 ## Next
 
-[Retained Mode Versus Immediate Mode]()
+[Retained Mode Versus Immediate Mode](./retained-mode-versus-immediate-mode.md)

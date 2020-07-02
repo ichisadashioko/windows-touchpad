@@ -9,7 +9,7 @@ This module starts with a high-level overview of the Windows graphics architectu
 
 - [Overview of the Windows Graphics Architecture](./overview-of-the-windows-graphics-architecture.md)
 - [The Desktop Window Manager](./the-window-desktop-manager.md)
-- Retained Mode Versus Immediate Mode
+- [Retained Mode Versus Immediate Mode](./retained-mode-versus-immediate-mode.md)
 - Your First Direct2D Program
 - Render Targets, Devices, and Resources
 - Drawing with Direct2D
