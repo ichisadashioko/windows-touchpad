@@ -48,4 +48,4 @@ Direct2D supports _vector graphics_. In vector graphics, mathematical formulas a
 
 ## Next
 
-[The Desktop Window Manager]()
+[The Desktop Window Manager](./the-window-desktop-manager.md)
