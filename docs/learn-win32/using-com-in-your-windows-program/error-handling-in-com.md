@@ -268,7 +268,7 @@ Disadvantages
 
 ## Next
 
-[Module 3. Windows Graphics]()
+[Module 3. Windows Graphics](../windows-graphics/README.md)
 
 [winerror-succeeded]: https://docs.microsoft.com/en-us/windows/win32/api/winerror/nf-winerror-succeeded
 [winerror-failed]: https://docs.microsoft.com/en-us/windows/win32/api/winerror/nf-winerror-failed
