@@ -15,4 +15,4 @@ Retained-mode APIs can be simpler to use, because the API does more of the work 
 
 ## Next
 
-[Your First Direct2D Program]()
+[Your First Direct2D Program](./your-first-direct2d-program.md)

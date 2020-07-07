@@ -1,26 +1,31 @@
-
 Microsoft Visual Studio Solution File, Format Version 12.00
 # Visual Studio Version 16
 VisualStudioVersion = 16.0.30011.22
 MinimumVisualStudioVersion = 10.0.40219.1
 Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "touchpad", "touchpad\touchpad.vcxproj", "{F0864556-571D-40E5-B26E-BFC962239610}"
 EndProject
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "open-dialog", "docs\learn-win32\learn-win32-samples\open-dialog\open-dialog.vcxproj", "{EF0FCCB1-7C6F-484D-B826-5BF49C3352E1}"
+EndProject
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "direct2d-sample", "docs\learn-win32\learn-win32-samples\direct2d-sample\direct2d-sample.vcxproj", "{E98BA967-C1F5-4CF8-9C96-2BCF1197F415}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
-		Debug|x64 = Debug|x64
 		Debug|x86 = Debug|x86
-		Release|x64 = Release|x64
 		Release|x86 = Release|x86
 	EndGlobalSection
 	GlobalSection(ProjectConfigurationPlatforms) = postSolution
-		{F0864556-571D-40E5-B26E-BFC962239610}.Debug|x64.ActiveCfg = Debug|x64
-		{F0864556-571D-40E5-B26E-BFC962239610}.Debug|x64.Build.0 = Debug|x64
 		{F0864556-571D-40E5-B26E-BFC962239610}.Debug|x86.ActiveCfg = Debug|Win32
 		{F0864556-571D-40E5-B26E-BFC962239610}.Debug|x86.Build.0 = Debug|Win32
-		{F0864556-571D-40E5-B26E-BFC962239610}.Release|x64.ActiveCfg = Release|x64
-		{F0864556-571D-40E5-B26E-BFC962239610}.Release|x64.Build.0 = Release|x64
-		{F0864556-571D-40E5-B26E-BFC962239610}.Release|x86.ActiveCfg = Release|Win32
-		{F0864556-571D-40E5-B26E-BFC962239610}.Release|x86.Build.0 = Release|Win32
+		{F0864556-571D-40E5-B26E-BFC962239610}.Release|x86.ActiveCfg = Debug|Win32
+		{F0864556-571D-40E5-B26E-BFC962239610}.Release|x86.Build.0 = Debug|Win32
+		{EF0FCCB1-7C6F-484D-B826-5BF49C3352E1}.Debug|x86.ActiveCfg = Debug|Win32
+		{EF0FCCB1-7C6F-484D-B826-5BF49C3352E1}.Debug|x86.Build.0 = Debug|Win32
+		{EF0FCCB1-7C6F-484D-B826-5BF49C3352E1}.Release|x86.ActiveCfg = Debug|Win32
+		{EF0FCCB1-7C6F-484D-B826-5BF49C3352E1}.Release|x86.Build.0 = Debug|Win32
+		{E98BA967-C1F5-4CF8-9C96-2BCF1197F415}.Debug|x86.ActiveCfg = Debug|Win32
+		{E98BA967-C1F5-4CF8-9C96-2BCF1197F415}.Debug|x86.Build.0 = Debug|Win32
+		{E98BA967-C1F5-4CF8-9C96-2BCF1197F415}.Release|x86.ActiveCfg = Debug|Win32
+		{E98BA967-C1F5-4CF8-9C96-2BCF1197F415}.Release|x86.Build.0 = Debug|Win32
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
