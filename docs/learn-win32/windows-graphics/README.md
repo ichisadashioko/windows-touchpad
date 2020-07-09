@@ -11,9 +11,9 @@ This module starts with a high-level overview of the Windows graphics architectu
 - [The Desktop Window Manager](./the-window-desktop-manager.md)
 - [Retained Mode Versus Immediate Mode](./retained-mode-versus-immediate-mode.md)
 - [Your First Direct2D Program](./your-first-direct2d-program.md)
-- Render Targets, Devices, and Resources
-- Drawing with Direct2D
+- [Render Targets, Devices, and Resources](./render-targets-devices-and-resources.md)
+- [Drawing with Direct2D](./drawing-with-direct2d.md)
 - DPI and Device-Independent Pixels
-- Using Color in Direct2D
+- [Using Color in Direct2D](./using-color-in-direct2d.md)
 - Applying Transforms in Direct2D
 - Appendix: Matrix Transforms

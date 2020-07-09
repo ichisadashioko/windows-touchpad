@@ -201,4 +201,4 @@ You will see examples of the `D2D1` namespace throughout this module.
 
 ## Next
 
-[Render Targets, Devices, and Resources]()
+[Render Targets, Devices, and Resources](./render-targets-devices-and-resources.md)
