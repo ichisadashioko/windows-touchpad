@@ -13,7 +13,7 @@ This module starts with a high-level overview of the Windows graphics architectu
 - [Your First Direct2D Program](./your-first-direct2d-program.md)
 - [Render Targets, Devices, and Resources](./render-targets-devices-and-resources.md)
 - [Drawing with Direct2D](./drawing-with-direct2d.md)
-- DPI and Device-Independent Pixels
+- [DPI and Device-Independent Pixels](./dpi-and-device-independent-pixels.md)
 - [Using Color in Direct2D](./using-color-in-direct2d.md)
 - Applying Transforms in Direct2D
 - Appendix: Matrix Transforms
