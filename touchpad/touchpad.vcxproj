@@ -50,9 +50,6 @@
     <ClCompile Include="src\gui.cc" />
   </ItemGroup>
   <ItemGroup>
-    <None Include=".clang-format" />
-  </ItemGroup>
-  <ItemGroup>
     <ClInclude Include="src\hid-utils.h" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
