@@ -52,8 +52,9 @@ int CALLBACK wWinMain(_In_ HINSTANCE hInstance, _In_opt_ HINSTANCE hPrevInstance
   wcex.hIconSm       = LoadIcon(wcex.hInstance, IDI_APPLICATION);
 
   if (!RegisterClassEx(&wcex)) {
-    MessageBox(NULL, _T("Call to RegisterClassEx failed!"), _T("Windows Desktop Guided Tour"), NULL);
-    return 1;
+    std::cout << "RegisterClassEx filed at " << __FILE__ << ":" << __LINE__ << std::endl;
+    printLastError();
+    return -1;
   }
 
   hInst = hInstance;
@@ -71,8 +72,9 @@ int CALLBACK wWinMain(_In_ HINSTANCE hInstance, _In_opt_ HINSTANCE hPrevInstance
   HWND hWnd = CreateWindow(szWindowClass, szTitle, WS_OVERLAPPEDWINDOW, CW_USEDEFAULT, CW_USEDEFAULT, 500, 100, NULL, NULL, hInstance, NULL);
 
   if (!hWnd) {
-    MessageBox(NULL, _T("Call to CreateWindow failed!"), _T("Windows Desktop Guided Tour"), NULL);
-    return 1;
+    std::cout << "CreateWindow filed at " << __FILE__ << ":" << __LINE__ << std::endl;
+    printLastError();
+    return -1;
   }
 
   // The parameters to ShowWindow explained:
