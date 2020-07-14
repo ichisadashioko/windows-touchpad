@@ -57,7 +57,8 @@ rid.hwndTarget  = hWnd;
     - the link collection (ID) to get the tip switch value in each raw input message (to tell if the finger is currently on the touchpad surface or the finger is lifted from the touchpad surface)
     - the link collection for each touches (contacts) to get/locate the touch's data (position, tip switch, etc.) in the raw input message
 
-- 
+- There is no convenient functions (e.g. `GetDeviceWidth()`) to retrieve those information. We have to call `HidP_GetValuesCaps` to get a array of device's `capabilities`. And we have to iterate through them to check their HID `Usage` and `UsagePage` to see if they contain the data (e.g. the width of the device) that we want.
+- However, that array doesn't contain all the information that we need. There is another array called `button capabilities` from the `HidP_GetButtonCaps` API call.
 
 [getrawinputdeviceinfoa]: https://docs.microsoft.com/en-us/windows/win32/api/winuser/nf-winuser-getrawinputdeviceinfoa
 [getrawinputdata]: https://docs.microsoft.com/en-us/windows/win32/api/winuser/nf-winuser-getrawinputdata
