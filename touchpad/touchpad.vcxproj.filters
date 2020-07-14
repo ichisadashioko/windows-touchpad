@@ -18,15 +18,15 @@
     <ClCompile Include="src\termcolor.h">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="src\hid-utils.cc">
+    <ClCompile Include="src\main.cc">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="src\gui.cc">
+    <ClCompile Include="src\utils.cc">
       <Filter>Source Files</Filter>
     </ClCompile>
   </ItemGroup>
   <ItemGroup>
-    <ClInclude Include="src\hid-utils.h">
+    <ClInclude Include="src\utils.h">
       <Filter>Header Files</Filter>
     </ClInclude>
   </ItemGroup>

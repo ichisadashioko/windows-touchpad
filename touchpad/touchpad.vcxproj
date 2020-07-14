@@ -45,12 +45,10 @@
     </Link>
   </ItemDefinitionGroup>
   <ItemGroup>
-    <ClCompile Include="src\hid-utils.cc" />
+    <ClCompile Include="src\utils.cc" />
     <ClCompile Include="src\termcolor.h" />
-    <ClCompile Include="src\gui.cc" />
-  </ItemGroup>
-  <ItemGroup>
-    <ClInclude Include="src\hid-utils.h" />
+    <ClCompile Include="src\main.cc" />
+    <ClInclude Include="src\utils.h" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">

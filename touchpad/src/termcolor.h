@@ -1,3 +1,6 @@
+#pragma once
+#ifndef _TERMCOLOR_H_
+#define _TERMCOLOR_H_
 // https://en.wikipedia.org/wiki/ANSI_escape_code#Colors
 
 static const char FG_BLACK[]          = "\033[30m";
@@ -51,3 +54,4 @@ static const char SGR_BLINK_OFF     = 25;
 static const char SGR_INVERT_OFF    = 27;
 static const char SGR_HIDE_OFF      = 28;
 static const char SGR_STRIKE_OFF    = 29;
+#endif  // _TERMCOLOR_H_

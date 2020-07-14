@@ -1,13 +1,11 @@
+#pragma once
+#ifndef _UTILS_H_
+#define _UTILS_H_
 // clang-format off
 #include <Windows.h>
 #include <hidusage.h>
 #include <hidpi.h>
 // clang-format on
-#include <iostream>
-#include <time.h>
-#include <stdio.h>
-#include <stdlib.h>
-#include <string.h>
 #include <tchar.h>
 
 // https://docs.microsoft.com/en-us/windows-hardware/design/component-guidelines/supporting-usages-in-multitouch-digitizer-drivers
@@ -64,21 +62,12 @@ struct HID_DEVICE_INFO_LIST {
 };
 
 void printTimestamp();
+
 void printLastError();
-void print_HidP_errors(NTSTATUS, std::string, int);
 
-struct FIND_INPUT_DEVICE_RETVAL {
-  HID_DEVICE_INFO_LIST ModifiedList;
-  unsigned int FoundIndex;
-};
+void print_HidP_errors(NTSTATUS hidpReturnCode, std::string filePath, int lineNumber);
 
-FIND_INPUT_DEVICE_RETVAL
-FindInputDeviceInList(HID_DEVICE_INFO_LIST, TCHAR*, const unsigned int, PHIDP_PREPARSED_DATA, const UINT);
+int FindInputDeviceInList(HID_DEVICE_INFO_LIST* hidInfoList, TCHAR* deviceName, const unsigned int cbDeviceName, PHIDP_PREPARSED_DATA preparsedData, const UINT cbPreparsedData, unsigned int* foundHidIndex);
 
-struct FIND_LINK_COLLECTION_RETVAL {
-  HID_LINK_COL_INFO_LIST ModifiedList;
-  unsigned int FoundIndex;
-};
-
-FIND_LINK_COLLECTION_RETVAL
-FindLinkCollectionInList(HID_LINK_COL_INFO_LIST, USHORT);
+int FindLinkCollectionInList(HID_LINK_COL_INFO_LIST* linkColInfoList, USHORT linkCollection, unsigned int* foundLinkColIdx);
+#endif  // _UTILS_H_
