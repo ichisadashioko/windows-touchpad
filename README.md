@@ -1,3 +1,11 @@
+# Handwriting touchpad
+
+This project is about making use of touchpad for handwriting. It is heavily inspired by the Apple Trackpad on MacBook. As a poor undergraduate student who can't afford a MacBook, I decided to build a software that can turn my touchpad into a device that can be used for handwriting.
+
+> Why would you want to do handwriting on a computer? Can you just type the word?
+
+I am a fan of practicing writing those crazy difficult Japanese Kanji. As a Japanese learner, you will not know how to type those words presented in Kanji. There is some words (e.g. people names) that even if you know the reading but when you type the reading (e.g. with Microsoft IME), it will never give you the kanji that you want.
+
 ## Goal
 
 - [x] Retrieve absolute touchpad touches' positions
@@ -5,7 +13,11 @@
 - [ ] Visualize touch input position on GUI
 - [ ] Integrate with TensorFlow (threading)
 
-## Steps
+## CI status
+
+![C/C++ CI](https://github.com/ichisadashioko/windows-touchpad/workflows/C/C++%20CI/badge.svg)
+
+## Progress
 
 - We want to get raw touchpad input.
 - Windows will send raw touchpad input data to GUI desktop application. (I am not sure how to get raw HID input from a console application.)
@@ -41,8 +53,11 @@ rid.hwndTarget  = hWnd;
 - With some methods from `hid.lib`, we can get the following information:
 
     - the touchpad size (width and height)
-    - maximum number of touches per raw input message
+    - maximum number (the number - as all the touch data is) of touches per raw input message
     - the link collection (ID) to get the tip switch value in each raw input message (to tell if the finger is currently on the touchpad surface or the finger is lifted from the touchpad surface)
+    - the link collection for each touches (contacts) to get/locate the touch's data (position, tip switch, etc.) in the raw input message
+
+- 
 
 [getrawinputdeviceinfoa]: https://docs.microsoft.com/en-us/windows/win32/api/winuser/nf-winuser-getrawinputdeviceinfoa
 [getrawinputdata]: https://docs.microsoft.com/en-us/windows/win32/api/winuser/nf-winuser-getrawinputdata
