@@ -1,5 +1,6 @@
 // clang-format off
 #include <Windows.h>
+#include <WinUser.h>
 #include <hidusage.h>
 #include <hidpi.h>
 // clang-format on
@@ -21,6 +22,52 @@ static TCHAR szWindowClass[] = _T("DesktopApp");
 static TCHAR szTitle[] = _T("use touchpad for handwriting");
 
 static HID_DEVICE_INFO_LIST g_deviceInfoList = {NULL, 0};
+
+struct TOUCH_DATA {
+  ULONG TouchID;  // touch ID
+  ULONG X;        // X position
+  ULONG Y;        // Y position
+  int OnSurface;  // boolean flag for determining if the touch in on the touchpad surface
+};
+
+struct TOUCH_DATA_LIST {
+  TOUCH_DATA* Entries;
+  unsigned int Size;
+};
+
+static clock_t g_LastRawInputMessageProcessedTime   = 0;
+static TCHAR g_LastRawInputMessageDeviceName        = NULL;
+static TOUCH_DATA_LIST g_LastRawInputMessageTouches = {NULL, 0};
+
+static const unsigned int EVENT_TYPE_TOUCH_DOWN = 0;
+static const unsigned int EVENT_TYPE_TOUCH_MOVE = 1;
+static const unsigned int EVENT_TYPE_TOUCH_UP   = 2;
+
+int InterpretRawTouchInput(TOUCH_DATA_LIST* prevTouchesList, TOUCH_DATA curTouch, unsigned int* eventType) {
+  // check arguments
+  if (eventType == NULL) {
+    std::cout << FG_RED << "You must pass a unsigned int pointer. It's NULL right now!" << RESET_COLOR << std::endl;
+    throw;
+    exit(-1);
+    return -1;
+  }
+
+  if (prevTouchesList == NULL) {
+    prevTouchesList = (TOUCH_DATA_LIST*)malloc(sizeof(TOUCH_DATA_LIST));
+    if (prevTouchesList == NULL) {
+      std::cout << FG_RED << "malloc failed at " << __FILE__ << ":" << __LINE__ << RESET_COLOR << std::endl;
+      throw;
+      exit(-1);
+      return -1;
+    }
+
+    prevTouchesList->Entries = NULL;
+    prevTouchesList->Size    = 0;
+  }
+
+  if ((prevTouchesList->Entries == NULL) || (prevTouchesList->Size == 0)) {
+  }
+}
 
 void ParseConnectedInputDevices() {
   UINT winReturnCode;
@@ -286,11 +333,11 @@ void mRegisterRawInput(HWND hwnd) {
   rid.hwndTarget  = hwnd;
 
   if (RegisterRawInputDevices(&rid, 1, sizeof(RAWINPUTDEVICE))) {
-    printTimestamp();
-    std::cout << FG_GREEN << "Successfully register touchpad!" << RESET_COLOR << std::endl;
+    std::cout << FG_GREEN << "[" << clock() << "]"
+              << "Successfully register touchpad!" << RESET_COLOR << std::endl;
   } else {
-    printTimestamp();
-    std::cout << FG_RED << "Failed to register touchpad at " << __FILE__ << ":" << __LINE__ << RESET_COLOR << std::endl;
+    std::cout << FG_RED << "[" << clock() << "]"
+              << "Failed to register touchpad at " << __FILE__ << ":" << __LINE__ << RESET_COLOR << std::endl;
     printLastError();
     throw;
     exit(-1);
@@ -306,8 +353,6 @@ void handle_wm_input(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam) {
 
   // following guide: https://docs.microsoft.com/en-us/windows/win32/inputdev/using-raw-input#performing-a-standard-read-of-raw-input
 
-  // x should we only read RID_HEADER first to filter device types for RIM_TYPEHID only to save cpu cycles and improve performance
-
   // Get the size of RAWINPUT by calling GetRawInputData() with pData = NULL
 
   UINT rawInputSize = 0;
@@ -315,8 +360,8 @@ void handle_wm_input(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam) {
   winReturnCode = GetRawInputData((HRAWINPUT)lParam, RID_INPUT, NULL, &rawInputSize, sizeof(RAWINPUTHEADER));
   if (winReturnCode == (UINT)-1) {
     // handle error
-    printTimestamp();
-    std::cout << FG_RED << "GetRawInputData failed at " << __FILE__ << ":" << __LINE__ << RESET_COLOR << std::endl;
+    std::cout << FG_RED << "[" << clock() << "]"
+              << "GetRawInputData failed at " << __FILE__ << ":" << __LINE__ << RESET_COLOR << std::endl;
     printLastError();
 
     throw;
@@ -335,14 +380,14 @@ void handle_wm_input(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam) {
   winReturnCode = GetRawInputData((HRAWINPUT)lParam, RID_INPUT, rawInputData, &rawInputSize, sizeof(RAWINPUTHEADER));
   if (winReturnCode == (UINT)-1) {
     // handle error
-    printTimestamp();
-    std::cout << FG_RED << "GetRawInputData failed at " << __FILE__ << ":" << __LINE__ << RESET_COLOR << std::endl;
+    std::cout << FG_RED << "[" << clock() << "]"
+              << "GetRawInputData failed at " << __FILE__ << ":" << __LINE__ << RESET_COLOR << std::endl;
     printLastError();
     throw;
     exit(-1);
   } else if (winReturnCode != _rawInputSize) {
-    printTimestamp();
-    std::cout << FG_RED << "GetRawInputData did not copy enough data as reported at " << __FILE__ << ":" << __LINE__ << RESET_COLOR << std::endl;
+    std::cout << FG_RED << "[" << clock() << "]"
+              << "GetRawInputData did not copy enough data as reported at " << __FILE__ << ":" << __LINE__ << RESET_COLOR << std::endl;
     throw;
     exit(-1);
   }
@@ -414,7 +459,7 @@ void handle_wm_input(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam) {
         } else if (isPreparsedDataNull) {
           std::cout << FG_RED << "Cannot find PreparsedData at " << __FILE__ << ":" << __LINE__ << RESET_COLOR << std::endl;
         } else {
-          std::cout << "=================================" << std::endl;
+          std::cout << "[" << clock() << "]" << std::endl;
           NTSTATUS hidpReturnCode;
           ULONG usageValue;
 
@@ -521,17 +566,17 @@ void handle_wm_input(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam) {
   }
 }
 
-LRESULT CALLBACK WndProc(_In_ HWND hWnd, _In_ UINT message, _In_ WPARAM wParam, _In_ LPARAM lParam) {
+LRESULT CALLBACK WndProc(_In_ HWND hWnd, _In_ UINT uMsg, _In_ WPARAM wParam, _In_ LPARAM lParam) {
   PAINTSTRUCT ps;
   HDC hdc;
 
-  switch (message) {
+  switch (uMsg) {
     case WM_CREATE: {
-      handle_wm_create(hWnd, message, wParam, lParam);
+      handle_wm_create(hWnd, uMsg, wParam, lParam);
       break;
     }
     case WM_INPUT: {
-      handle_wm_input(hWnd, message, wParam, lParam);
+      handle_wm_input(hWnd, uMsg, wParam, lParam);
       break;
     }
     case WM_PAINT: {
@@ -545,7 +590,7 @@ LRESULT CALLBACK WndProc(_In_ HWND hWnd, _In_ UINT message, _In_ WPARAM wParam, 
       break;
     }
     default: {
-      return DefWindowProc(hWnd, message, wParam, lParam);
+      return DefWindowProc(hWnd, uMsg, wParam, lParam);
     }
   }
 
@@ -566,7 +611,7 @@ int CALLBACK wWinMain(_In_ HINSTANCE hInstance, _In_opt_ HINSTANCE hPrevInstance
   wcex.hIcon       = LoadIcon(hInstance, IDI_APPLICATION);
   wcex.hCursor     = LoadCursor(NULL, IDC_ARROW);
   // TODO make window background transparent
-  wcex.hbrBackground = (HBRUSH)(COLOR_WINDOW + 1);
+  wcex.hbrBackground = (HBRUSH)(0);
   wcex.lpszMenuName  = NULL;
   wcex.lpszClassName = szWindowClass;
   wcex.hIconSm       = LoadIcon(wcex.hInstance, IDI_APPLICATION);
@@ -587,13 +632,17 @@ int CALLBACK wWinMain(_In_ HINSTANCE hInstance, _In_opt_ HINSTANCE hPrevInstance
   // NULL: this application does not have a menu bar
   // hInstance: the first parameter from WinMain
   // NULL: not used in this application
-  HWND hWnd = CreateWindow(szWindowClass, szTitle, WS_OVERLAPPEDWINDOW, CW_USEDEFAULT, CW_USEDEFAULT, 500, 100, NULL, NULL, hInstance, NULL);
+  HWND hWnd = CreateWindow(szWindowClass, szTitle, WS_OVERLAPPEDWINDOW | WS_EX_LAYERED, CW_USEDEFAULT, CW_USEDEFAULT, 500, 100, NULL, NULL, hInstance, NULL);
 
   if (!hWnd) {
     std::cout << "CreateWindow filed at " << __FILE__ << ":" << __LINE__ << std::endl;
     printLastError();
     return -1;
   }
+
+  SetWindowLong(hWnd, GWL_EXSTYLE, GetWindowLong(hWnd, GWL_EXSTYLE) | WS_EX_LAYERED);
+
+  SetLayeredWindowAttributes(hWnd, RGB(0, 0, 0), 128, LWA_ALPHA | LWA_COLORKEY);
 
   // The parameters to ShowWindow explained:
   // hWnd: the value returned from CreateWindow
@@ -612,5 +661,5 @@ int CALLBACK wWinMain(_In_ HINSTANCE hInstance, _In_opt_ HINSTANCE hPrevInstance
 }
 
 int main() {
-  return wWinMain(GetModuleHandle(NULL), NULL, GetCommandLineW(), SW_SHOWNORMAL);
+  return wWinMain(GetModuleHandle(NULL), NULL, GetCommandLine(), SW_SHOWNORMAL);
 };

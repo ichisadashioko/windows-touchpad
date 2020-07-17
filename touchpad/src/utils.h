@@ -61,8 +61,6 @@ struct HID_DEVICE_INFO_LIST {
   unsigned int Size;
 };
 
-void printTimestamp();
-
 void printLastError();
 
 void print_HidP_errors(NTSTATUS hidpReturnCode, std::string filePath, int lineNumber);

@@ -13,12 +13,6 @@
 #include "termcolor.h"
 #include "utils.h"
 
-void printTimestamp() {
-  SYSTEMTIME ts;
-  GetSystemTime(&ts);
-  printf("%s[%04d-%02d-%02d-%02d-%02d-%02d.%03d]%s ", FG_GREEN, ts.wYear, ts.wMonth, ts.wDay, ts.wHour, ts.wMinute, ts.wSecond, ts.wMilliseconds, RESET_COLOR);
-}
-
 void printLastError() {
   DWORD errorCode      = GetLastError();
   LPWSTR messageBuffer = NULL;
