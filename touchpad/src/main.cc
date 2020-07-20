@@ -66,7 +66,81 @@ int InterpretRawTouchInput(TOUCH_DATA_LIST* prevTouchesList, TOUCH_DATA curTouch
   }
 
   if ((prevTouchesList->Entries == NULL) || (prevTouchesList->Size == 0)) {
+    prevTouchesList->Entries = (TOUCH_DATA*)malloc(sizeof(TOUCH_DATA));
+
+    if (prevTouchesList->Entries == NULL) {
+      std::cout << FG_RED << "malloc failed at " << __FILE__ << ":" << __LINE__ << RESET_COLOR << std::endl;
+      throw;
+      exit(-1);
+      return -1;
+    }
+
+    prevTouchesList->Size = 1;
+
+    memcpy(prevTouchesList->Entries, &curTouch, sizeof(TOUCH_DATA));
+
+    if (curTouch.OnSurface) {
+      (*eventType) = EVENT_TYPE_TOUCH_DOWN;
+      return 0;
+    } else {
+      (*eventType) = EVENT_TYPE_TOUCH_UP;
+      return 0;
+    }
+  } else {
+    for (unsigned int touchIdx = 0; touchIdx < prevTouchesList->Size; touchIdx++) {
+      TOUCH_DATA prevTouch = prevTouchesList->Entries[touchIdx];
+      if (prevTouch.TouchID == curTouch.TouchID) {
+        if (prevTouch.OnSurface && curTouch.OnSurface) {
+          (*eventType) = EVENT_TYPE_TOUCH_MOVE;
+        } else if ((prevTouch.OnSurface != 0) && (curTouch.OnSurface == 0)) {
+          (*eventType) = EVENT_TYPE_TOUCH_UP;
+        } else if ((prevTouch.OnSurface == 0) && (curTouch.OnSurface != 0)) {
+          (*eventType) = EVENT_TYPE_TOUCH_DOWN;
+        } else {
+          // (prevTouch.OnSurface == 0) && (curTouch.OnSurface == 0)
+          // this might never be the case unless the touchpad or its driver is broken
+          (*eventType) = EVENT_TYPE_TOUCH_UP;
+        }
+
+        // update touch data
+        prevTouchesList->Entries[touchIdx] = curTouch;
+
+        return 0;
+      }
+    }
   }
+
+  // this touch id has not been recorded before
+
+  // If you touchpad only supports maximum of 5 touches, then there will be only 5 unique touch IDs.
+  unsigned int newTouchesListSize = prevTouchesList->Size + 1;
+  TOUCH_DATA* tmpTouchesList      = (TOUCH_DATA*)malloc(sizeof(TOUCH_DATA) * newTouchesListSize);
+
+  if (tmpTouchesList == NULL) {
+    std::cout << FG_RED << "malloc failed at " << __FILE__ << ":" << __LINE__ << RESET_COLOR << std::endl;
+    throw;
+    exit(-1);
+    return -1;
+  }
+
+  memcpy(tmpTouchesList, prevTouchesList->Entries, sizeof(TOUCH_DATA) * prevTouchesList->Size);
+
+  tmpTouchesList[newTouchesListSize - 1] = curTouch;
+  free(prevTouchesList->Entries);
+  prevTouchesList->Entries = tmpTouchesList;
+  tmpTouchesList           = NULL;
+  prevTouchesList->Size    = newTouchesListSize;
+
+  if (curTouch.OnSurface) {
+    (*eventType) = EVENT_TYPE_TOUCH_MOVE;
+  } else {
+    // edge case
+    // how can a touch be lifted while it was not on the touchpad surface.
+    // probably because of faulty hardware or driver
+    (*eventType) = EVENT_TYPE_TOUCH_UP;
+  }
+
+  return 0;
 }
 
 void ParseConnectedInputDevices() {
@@ -519,8 +593,6 @@ void handle_wm_input(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam) {
 
                   ULONG touchId = usageValue;
 
-                  int isContactOnSurface = 0;
-
                   const ULONG maxNumButtons = HidP_MaxUsageListLength(HidP_Input, HID_USAGE_PAGE_DIGITIZER, preparsedHIDData);
                   // std::cout << FG_BRIGHT_BLUE << "maximum number of buttons: " << maxNumButtons << RESET_COLOR << std::endl;
 
@@ -543,6 +615,8 @@ void handle_wm_input(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam) {
                     exit(-1);
                   }
 
+                  int isContactOnSurface = 0;
+
                   for (ULONG usageIdx = 0; usageIdx < maxNumButtons; usageIdx++) {
                     if (buttonUsageArray[usageIdx] == HID_USAGE_DIGITIZER_TIP_SWITCH) {
                       isContactOnSurface = 1;
@@ -551,7 +625,35 @@ void handle_wm_input(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam) {
 
                   free(buttonUsageArray);
 
-                  std::cout << FG_GREEN << "LinkColID: " << collectionInfo.LinkColID << " touchID: " << touchId << " | tipSwitch: " << isContactOnSurface << " (" << xPos << ", " << yPos << ")" << RESET_COLOR << std::endl;
+                  TOUCH_DATA curTouch;
+                  curTouch.TouchID   = touchId;
+                  curTouch.X         = xPos;
+                  curTouch.Y         = xPos;
+                  curTouch.OnSurface = isContactOnSurface;
+
+                  unsigned int touchType;
+                  int cStyleFunctionReturnCode = InterpretRawTouchInput(&g_LastRawInputMessageTouches, curTouch, &touchType);
+                  if (cStyleFunctionReturnCode != 0) {
+                    std::cout << FG_RED << "InterpretRawTouchInput failed at " << __FILE__ << ":" << __LINE__ << RESET_COLOR << std::endl;
+                    throw;
+                    exit(-1);
+                  }
+
+                  const char* touchTypeStr;
+
+                  if (touchType == EVENT_TYPE_TOUCH_UP) {
+                    touchTypeStr = "touch up";
+                  } else if (touchType == EVENT_TYPE_TOUCH_MOVE) {
+                    touchTypeStr = "touch move";
+                  } else if (touchType == EVENT_TYPE_TOUCH_DOWN) {
+                    touchTypeStr = "touch down";
+                  } else {
+                    std::cout << FG_RED << "unknown event type: " << touchType << RESET_COLOR << std::endl;
+                    throw;
+                    exit(-1);
+                  }
+
+                  std::cout << FG_GREEN << "LinkColID: " << collectionInfo.LinkColID << " touchID: " << touchId << " | tipSwitch: " << isContactOnSurface << " (" << xPos << ", " << yPos << ") " << touchTypeStr << RESET_COLOR << std::endl;
                 }
               }
             }
@@ -640,9 +742,9 @@ int CALLBACK wWinMain(_In_ HINSTANCE hInstance, _In_opt_ HINSTANCE hPrevInstance
     return -1;
   }
 
+  // make the window transparent
   SetWindowLong(hWnd, GWL_EXSTYLE, GetWindowLong(hWnd, GWL_EXSTYLE) | WS_EX_LAYERED);
-
-  SetLayeredWindowAttributes(hWnd, RGB(0, 0, 0), 128, LWA_ALPHA | LWA_COLORKEY);
+  SetLayeredWindowAttributes(hWnd, RGB(0, 0, 0), 200, LWA_ALPHA | LWA_COLORKEY);
 
   // The parameters to ShowWindow explained:
   // hWnd: the value returned from CreateWindow
