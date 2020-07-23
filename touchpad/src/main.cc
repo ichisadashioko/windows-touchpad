@@ -39,30 +39,25 @@ static clock_t g_LastRawInputMessageProcessedTime   = 0;
 static TCHAR g_LastRawInputMessageDeviceName        = NULL;
 static TOUCH_DATA_LIST g_LastRawInputMessageTouches = {NULL, 0};
 
-static const unsigned int EVENT_TYPE_TOUCH_DOWN = 0;
-static const unsigned int EVENT_TYPE_TOUCH_MOVE = 1;
-static const unsigned int EVENT_TYPE_TOUCH_UP   = 2;
+static const unsigned int EVENT_TYPE_TOUCH_DOWN           = 0;
+static const unsigned int EVENT_TYPE_TOUCH_MOVE           = 1;
+static const unsigned int EVENT_TYPE_TOUCH_UP             = 2;
+static const unsigned int EVENT_TYPE_TOUCH_MOVE_UNCHANGED = 3;
 
 int InterpretRawTouchInput(TOUCH_DATA_LIST* prevTouchesList, TOUCH_DATA curTouch, unsigned int* eventType) {
   // check arguments
   if (eventType == NULL) {
-    std::cout << FG_RED << "You must pass a unsigned int pointer. It's NULL right now!" << RESET_COLOR << std::endl;
+    std::cout << FG_RED << "You must pass a unsigned int pointer eventType. It's NULL right now!" << RESET_COLOR << std::endl;
     throw;
     exit(-1);
     return -1;
   }
 
   if (prevTouchesList == NULL) {
-    prevTouchesList = (TOUCH_DATA_LIST*)malloc(sizeof(TOUCH_DATA_LIST));
-    if (prevTouchesList == NULL) {
-      std::cout << FG_RED << "malloc failed at " << __FILE__ << ":" << __LINE__ << RESET_COLOR << std::endl;
-      throw;
-      exit(-1);
-      return -1;
-    }
-
-    prevTouchesList->Entries = NULL;
-    prevTouchesList->Size    = 0;
+    std::cout << FG_RED << "You must pass a valid pointer for prevTouchesList. It's NULL right now!" << RESET_COLOR << std::endl;
+    throw;
+    exit(-1);
+    return -1;
   }
 
   if ((prevTouchesList->Entries == NULL) || (prevTouchesList->Size == 0)) {
@@ -81,17 +76,21 @@ int InterpretRawTouchInput(TOUCH_DATA_LIST* prevTouchesList, TOUCH_DATA curTouch
 
     if (curTouch.OnSurface) {
       (*eventType) = EVENT_TYPE_TOUCH_DOWN;
-      return 0;
     } else {
       (*eventType) = EVENT_TYPE_TOUCH_UP;
-      return 0;
     }
+
+    return 0;
   } else {
     for (unsigned int touchIdx = 0; touchIdx < prevTouchesList->Size; touchIdx++) {
       TOUCH_DATA prevTouch = prevTouchesList->Entries[touchIdx];
       if (prevTouch.TouchID == curTouch.TouchID) {
         if (prevTouch.OnSurface && curTouch.OnSurface) {
-          (*eventType) = EVENT_TYPE_TOUCH_MOVE;
+          if ((prevTouch.X == curTouch.X) && (prevTouch.Y == curTouch.Y)) {
+            (*eventType) = EVENT_TYPE_TOUCH_MOVE_UNCHANGED;
+          } else {
+            (*eventType) = EVENT_TYPE_TOUCH_MOVE;
+          }
         } else if ((prevTouch.OnSurface != 0) && (curTouch.OnSurface == 0)) {
           (*eventType) = EVENT_TYPE_TOUCH_UP;
         } else if ((prevTouch.OnSurface == 0) && (curTouch.OnSurface != 0)) {
@@ -620,6 +619,7 @@ void handle_wm_input(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam) {
                   for (ULONG usageIdx = 0; usageIdx < maxNumButtons; usageIdx++) {
                     if (buttonUsageArray[usageIdx] == HID_USAGE_DIGITIZER_TIP_SWITCH) {
                       isContactOnSurface = 1;
+                      break;
                     }
                   }
 
@@ -647,6 +647,8 @@ void handle_wm_input(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam) {
                     touchTypeStr = "touch move";
                   } else if (touchType == EVENT_TYPE_TOUCH_DOWN) {
                     touchTypeStr = "touch down";
+                  } else if (touchType == EVENT_TYPE_TOUCH_MOVE_UNCHANGED) {
+                    touchTypeStr = "touch move unchanged";
                   } else {
                     std::cout << FG_RED << "unknown event type: " << touchType << RESET_COLOR << std::endl;
                     throw;
@@ -744,7 +746,7 @@ int CALLBACK wWinMain(_In_ HINSTANCE hInstance, _In_opt_ HINSTANCE hPrevInstance
 
   // make the window transparent
   SetWindowLong(hWnd, GWL_EXSTYLE, GetWindowLong(hWnd, GWL_EXSTYLE) | WS_EX_LAYERED);
-  SetLayeredWindowAttributes(hWnd, RGB(0, 0, 0), 200, LWA_ALPHA | LWA_COLORKEY);
+  SetLayeredWindowAttributes(hWnd, RGB(0, 0, 0), 255, LWA_ALPHA | LWA_COLORKEY);
 
   // The parameters to ShowWindow explained:
   // hWnd: the value returned from CreateWindow
