@@ -1,8 +1,10 @@
 // clang-format off
 #include <Windows.h>
 #include <WinUser.h>
+
 #include <hidusage.h>
 #include <hidpi.h>
+#pragma comment (lib, "hid.lib")
 // clang-format on
 
 #include <iostream>
@@ -38,6 +40,114 @@ struct TOUCH_DATA_LIST {
 static clock_t g_LastRawInputMessageProcessedTime   = 0;
 static TCHAR g_LastRawInputMessageDeviceName        = NULL;
 static TOUCH_DATA_LIST g_LastRawInputMessageTouches = {NULL, 0};
+
+struct Point2D {
+  ULONG X;
+  ULONG Y;
+};
+
+struct Point2DList {
+  Point2D* Entries;
+  unsigned int Size;
+};
+
+struct StrokeList {
+  Point2DList* Entries;
+  unsigned int Size;
+};
+
+static StrokeList g_Strokes    = {NULL, 0};
+static ULONG g_TrackingTouchID = (ULONG)-1;
+
+int AppendPoint2DToList(Point2D point, Point2DList* list) {
+  if (list == NULL) {
+    std::cout << FG_RED << "list argument is NULL!" << RESET_COLOR << std::endl;
+    throw;
+    exit(-1);
+    return -1;
+  }
+
+  if ((list->Entries == NULL) || (list->Size == 0)) {
+    list->Size    = 1;
+    list->Entries = (Point2D*)malloc(sizeof(Point2D));
+
+    if (list->Entries == NULL) {
+      std::cout << FG_RED << "malloc failed at " << __FILE__ << ":" << __LINE__ << RESET_COLOR << std::endl;
+      throw;
+      exit(-1);
+      return -1;
+    }
+
+    list->Entries[0].X = point.X;
+    list->Entries[0].Y = point.Y;
+  } else {
+    unsigned int newArraySize = list->Size + 1;
+    Point2D* newArray         = (Point2D*)malloc(sizeof(Point2D) * newArraySize);
+
+    if (newArray == NULL) {
+      std::cout << FG_RED << "malloc failed at " << __FILE__ << ":" << __LINE__ << RESET_COLOR << std::endl;
+      throw;
+      exit(-1);
+      return -1;
+    }
+
+    memcpy(list->Entries, newArray, sizeof(Point2D) * list->Size);
+    free(list->Entries);
+    list->Entries                   = newArray;
+    list->Size                      = newArraySize;
+    list->Entries[list->Size - 1].X = point.X;
+    list->Entries[list->Size - 1].Y = point.Y;
+  }
+
+  return 0;
+}
+
+int CreateNewStroke(Point2D point, StrokeList* strokes) {
+  if (strokes == NULL) {
+    std::cout << FG_RED << "strokes argument is NULL!" << RESET_COLOR << std::endl;
+    throw;
+    exit(-1);
+    return -1;
+  }
+
+  if ((strokes->Entries == NULL) || (strokes->Size == 0)) {
+    strokes->Size    = 1;
+    strokes->Entries = (Point2DList*)malloc(sizeof(Point2DList));
+    if (strokes->Entries == NULL) {
+      std::cout << FG_RED << "malloc failed at " << __FILE__ << ":" << __LINE__ << RESET_COLOR << std::endl;
+      throw;
+      exit(-1);
+      return -1;
+    }
+
+    // TODO check for memory access violation
+    strokes->Entries[0].Entries = NULL;
+    strokes->Entries[0].Size    = 0;
+    return AppendPoint2DToList(point, &(strokes->Entries[0]));
+  } else {
+    unsigned int newStrokeArraySize = strokes->Size + 1;
+    Point2DList* newStrokeArray     = (Point2DList*)malloc(sizeof(Point2DList) * newStrokeArraySize);
+    if (newStrokeArray == NULL) {
+      std::cout << FG_RED << "malloc failed at " << __FILE__ << ":" << __LINE__ << RESET_COLOR << std::endl;
+      throw;
+      exit(-1);
+      return -1;
+    }
+
+    for (unsigned int strokeIdx = 0; strokeIdx < strokes->Size; strokeIdx++) {
+      newStrokeArray[strokeIdx] = strokes->Entries[strokeIdx];
+    }
+
+    // memcpy(newStrokeArray, strokes->Entries, sizeof(Point2DList) * strokes->Size);
+    free(strokes->Entries);
+
+    strokes->Entries = newStrokeArray;
+    strokes->Size    = newStrokeArraySize;
+    return AppendPoint2DToList(point, &(strokes->Entries[strokes->Size - 1]));
+  }
+
+  return 0;
+}
 
 static const unsigned int EVENT_TYPE_TOUCH_DOWN           = 0;
 static const unsigned int EVENT_TYPE_TOUCH_MOVE           = 1;
@@ -421,7 +531,7 @@ void handle_wm_create(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam) {
   mRegisterRawInput(hWnd);
 }
 
-void handle_wm_input(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam) {
+void mHandleInputMessage(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam) {
   UINT winReturnCode;  // return code from windows API call
 
   // following guide: https://docs.microsoft.com/en-us/windows/win32/inputdev/using-raw-input#performing-a-standard-read-of-raw-input
@@ -555,7 +665,10 @@ void handle_wm_input(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam) {
             std::cout << FG_BRIGHT_BLUE << "numContacts: " << numContacts << RESET_COLOR << std::endl;
 
             if (numContacts > g_deviceInfoList.Entries[foundHidIdx].LinkColInfoList.Size) {
+              // TODO how should we deal with this edge case
               std::cout << FG_RED << "number of contacts is greater than Link Collection Array size at " << __FILE__ << ":" << __LINE__ << RESET_COLOR << std::endl;
+              throw;
+              exit(-1);
             } else {
               for (unsigned int linkColIdx = 0; linkColIdx < numContacts; linkColIdx++) {
                 HID_TOUCH_LINK_COL_INFO collectionInfo = g_deviceInfoList.Entries[foundHidIdx].LinkColInfoList.Entries[linkColIdx];
@@ -639,6 +752,35 @@ void handle_wm_input(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam) {
                     exit(-1);
                   }
 
+                  Point2D touchPos = {curTouch.X, curTouch.Y};
+
+                  if (g_TrackingTouchID == (ULONG)-1) {
+                    if (touchType == EVENT_TYPE_TOUCH_DOWN) {
+                      g_TrackingTouchID = curTouch.TouchID;
+                      // TODO create new stroke
+                      // TODO check return value for indication of errors
+                      CreateNewStroke(touchPos, &g_Strokes);
+                    } else {
+                      // wait for touch down event to register new stroke
+                    }
+                  } else if (curTouch.TouchID == g_TrackingTouchID) {
+                    if (touchType == EVENT_TYPE_TOUCH_MOVE) {
+                      // we skip EVENT_TYPE_TOUCH_MOVE_UNCHANGED here
+                      // TODO append touch position to the last stroke
+                      if ((g_Strokes.Entries == NULL) || (g_Strokes.Size == 0)) {
+                        std::cout << FG_RED << "The application state is broken!" << RESET_COLOR << std::endl;
+                        throw;
+                        exit(-1);
+                      } else {
+                        // TODO check return value for indication of errors
+                        AppendPoint2DToList(touchPos, &g_Strokes.Entries[g_Strokes.Size - 1]);
+                      }
+                    } else if (touchType == EVENT_TYPE_TOUCH_UP) {
+                      // I sure that the touch position is the same with the last touch position
+                      g_TrackingTouchID = (ULONG)-1;
+                    }
+                  }
+
                   const char* touchTypeStr;
 
                   if (touchType == EVENT_TYPE_TOUCH_UP) {
@@ -670,23 +812,45 @@ void handle_wm_input(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam) {
   }
 }
 
-LRESULT CALLBACK WndProc(_In_ HWND hWnd, _In_ UINT uMsg, _In_ WPARAM wParam, _In_ LPARAM lParam) {
+void mHandlePaintMessage(_In_ HWND hWnd, _In_ UINT uMsg, _In_ WPARAM wParam, _In_ LPARAM lParam) {
   PAINTSTRUCT ps;
   HDC hdc;
+  hdc = BeginPaint(hWnd, &ps);
 
+  if ((g_Strokes.Entries == NULL) || (g_Strokes.Size == 0)) {
+  } else {
+    for (unsigned int strokeIdx = 0; strokeIdx < g_Strokes.Size; strokeIdx++) {
+      // TODO change rendering color for each strokes
+      Point2DList strokeData = g_Strokes.Entries[strokeIdx];
+      if (strokeData.Size < 2) {
+        // TODO improve rendering strokes logic
+        continue;
+      } else {
+        Point2D firstPoint = strokeData.Entries[0];
+        MoveToEx(hdc, (int)firstPoint.X, (int)firstPoint.Y, (LPPOINT)NULL);
+        for (unsigned int pointIdx = 1; pointIdx < strokeData.Size; pointIdx++) {
+          Point2D point = strokeData.Entries[pointIdx];
+          LineTo(hdc, (int)point.X, (int)point.Y);
+        }
+      }
+    }
+  }
+
+  EndPaint(hWnd, &ps);
+}
+
+LRESULT CALLBACK WndProc(_In_ HWND hWnd, _In_ UINT uMsg, _In_ WPARAM wParam, _In_ LPARAM lParam) {
   switch (uMsg) {
     case WM_CREATE: {
       handle_wm_create(hWnd, uMsg, wParam, lParam);
       break;
     }
     case WM_INPUT: {
-      handle_wm_input(hWnd, uMsg, wParam, lParam);
+      mHandleInputMessage(hWnd, uMsg, wParam, lParam);
       break;
     }
     case WM_PAINT: {
-      hdc = BeginPaint(hWnd, &ps);
-      // TODO visualize touches
-      EndPaint(hWnd, &ps);
+      mHandlePaintMessage(hWnd, uMsg, wParam, lParam);
       break;
     }
     case WM_DESTROY: {
@@ -703,6 +867,35 @@ LRESULT CALLBACK WndProc(_In_ HWND hWnd, _In_ UINT uMsg, _In_ WPARAM wParam, _In
 
 int CALLBACK wWinMain(_In_ HINSTANCE hInstance, _In_opt_ HINSTANCE hPrevInstance, _In_ LPWSTR lpCmdLine, _In_ int nCmdShow) {
   ParseConnectedInputDevices();
+
+  // TODO detect and prompt user to select touchpad device and parse its width and height
+  // default values
+  int nWidth  = 720;
+  int nHeight = 480;
+
+  if ((g_deviceInfoList.Entries != NULL) && (g_deviceInfoList.Size != 0)) {
+    // TODO check for valid touchpad device
+    HID_DEVICE_INFO inputDevice = g_deviceInfoList.Entries[0];
+
+    if ((inputDevice.LinkColInfoList.Entries == NULL) || (inputDevice.LinkColInfoList.Size == 0)) {
+      std::cout << FG_RED << "Failed to parse link collections of input device!" << RESET_COLOR << std::endl;
+      return -1;
+    } else {
+      for (unsigned int linkColIdx = 0; linkColIdx < inputDevice.LinkColInfoList.Size; linkColIdx++) {
+        HID_TOUCH_LINK_COL_INFO linkCollectionInfo = inputDevice.LinkColInfoList.Entries[linkColIdx];
+        if (linkCollectionInfo.HasX && linkCollectionInfo.HasY) {
+          // TODO Should we need to parse every single touch link collections? For now, I think one is sufficient.
+          // TODO validate values (e.g. 0 or > screen size)
+          nWidth  = linkCollectionInfo.PhysicalRect.right;
+          nHeight = linkCollectionInfo.PhysicalRect.bottom;
+          break;
+        }
+      }
+    }
+  } else {
+    std::cout << FG_RED << "Failed to parse input devices!" << RESET_COLOR << std::endl;
+    return -1;
+  }
 
   WNDCLASSEX wcex;
 
@@ -736,7 +929,7 @@ int CALLBACK wWinMain(_In_ HINSTANCE hInstance, _In_opt_ HINSTANCE hPrevInstance
   // NULL: this application does not have a menu bar
   // hInstance: the first parameter from WinMain
   // NULL: not used in this application
-  HWND hWnd = CreateWindow(szWindowClass, szTitle, WS_OVERLAPPEDWINDOW | WS_EX_LAYERED, CW_USEDEFAULT, CW_USEDEFAULT, 500, 100, NULL, NULL, hInstance, NULL);
+  HWND hWnd = CreateWindow(szWindowClass, szTitle, WS_OVERLAPPEDWINDOW | WS_EX_LAYERED, CW_USEDEFAULT, CW_USEDEFAULT, nWidth, nHeight, NULL, NULL, hInstance, NULL);
 
   if (!hWnd) {
     std::cout << "CreateWindow filed at " << __FILE__ << ":" << __LINE__ << std::endl;
@@ -745,8 +938,8 @@ int CALLBACK wWinMain(_In_ HINSTANCE hInstance, _In_opt_ HINSTANCE hPrevInstance
   }
 
   // make the window transparent
-  SetWindowLong(hWnd, GWL_EXSTYLE, GetWindowLong(hWnd, GWL_EXSTYLE) | WS_EX_LAYERED);
-  SetLayeredWindowAttributes(hWnd, RGB(0, 0, 0), 255, LWA_ALPHA | LWA_COLORKEY);
+  // SetWindowLong(hWnd, GWL_EXSTYLE, GetWindowLong(hWnd, GWL_EXSTYLE) | WS_EX_LAYERED);
+  // SetLayeredWindowAttributes(hWnd, RGB(0, 0, 0), 255, LWA_ALPHA | LWA_COLORKEY);
 
   // The parameters to ShowWindow explained:
   // hWnd: the value returned from CreateWindow

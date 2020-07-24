@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 # encoding=utf-8
-# pip3 install tqdm
+# python3 -m pip install --user tqdm
 import os
 import mimetypes
 import traceback
