@@ -527,11 +527,11 @@ void mRegisterRawInput(HWND hwnd) {
   }
 }
 
-void handle_wm_create(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam) {
-  mRegisterRawInput(hWnd);
+void handle_wm_create(HWND hwnd, UINT message, WPARAM wParam, LPARAM lParam) {
+  mRegisterRawInput(hwnd);
 }
 
-void mHandleInputMessage(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam) {
+void mHandleInputMessage(HWND hwnd, UINT message, WPARAM wParam, LPARAM lParam) {
   UINT winReturnCode;  // return code from windows API call
 
   // following guide: https://docs.microsoft.com/en-us/windows/win32/inputdev/using-raw-input#performing-a-standard-read-of-raw-input
@@ -812,10 +812,13 @@ void mHandleInputMessage(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam) 
   }
 }
 
-void mHandlePaintMessage(_In_ HWND hWnd, _In_ UINT uMsg, _In_ WPARAM wParam, _In_ LPARAM lParam) {
-  PAINTSTRUCT ps;
+void mHandlePaintMessage(_In_ HWND hwnd, _In_ UINT uMsg, _In_ WPARAM wParam, _In_ LPARAM lParam) {
   HDC hdc;
-  hdc = BeginPaint(hWnd, &ps);
+  HPEN pen;
+
+  hdc = GetDC(hwnd);
+  pen = CreatePen(PS_SOLID, 5, RGB(0, 255, 0));
+  SelectObject(hdc, pen);
 
   if ((g_Strokes.Entries == NULL) || (g_Strokes.Size == 0)) {
   } else {
@@ -836,21 +839,21 @@ void mHandlePaintMessage(_In_ HWND hWnd, _In_ UINT uMsg, _In_ WPARAM wParam, _In
     }
   }
 
-  EndPaint(hWnd, &ps);
+  ReleaseDC(hwnd, hdc);
 }
 
-LRESULT CALLBACK WndProc(_In_ HWND hWnd, _In_ UINT uMsg, _In_ WPARAM wParam, _In_ LPARAM lParam) {
+LRESULT CALLBACK WndProc(_In_ HWND hwnd, _In_ UINT uMsg, _In_ WPARAM wParam, _In_ LPARAM lParam) {
   switch (uMsg) {
     case WM_CREATE: {
-      handle_wm_create(hWnd, uMsg, wParam, lParam);
+      handle_wm_create(hwnd, uMsg, wParam, lParam);
       break;
     }
     case WM_INPUT: {
-      mHandleInputMessage(hWnd, uMsg, wParam, lParam);
+      mHandleInputMessage(hwnd, uMsg, wParam, lParam);
       break;
     }
     case WM_PAINT: {
-      mHandlePaintMessage(hWnd, uMsg, wParam, lParam);
+      mHandlePaintMessage(hwnd, uMsg, wParam, lParam);
       break;
     }
     case WM_DESTROY: {
@@ -858,7 +861,7 @@ LRESULT CALLBACK WndProc(_In_ HWND hWnd, _In_ UINT uMsg, _In_ WPARAM wParam, _In
       break;
     }
     default: {
-      return DefWindowProc(hWnd, uMsg, wParam, lParam);
+      return DefWindowProc(hwnd, uMsg, wParam, lParam);
     }
   }
 
@@ -929,23 +932,23 @@ int CALLBACK wWinMain(_In_ HINSTANCE hInstance, _In_opt_ HINSTANCE hPrevInstance
   // NULL: this application does not have a menu bar
   // hInstance: the first parameter from WinMain
   // NULL: not used in this application
-  HWND hWnd = CreateWindow(szWindowClass, szTitle, WS_OVERLAPPEDWINDOW | WS_EX_LAYERED, CW_USEDEFAULT, CW_USEDEFAULT, nWidth, nHeight, NULL, NULL, hInstance, NULL);
+  HWND hwnd = CreateWindow(szWindowClass, szTitle, WS_OVERLAPPEDWINDOW | WS_EX_LAYERED, CW_USEDEFAULT, CW_USEDEFAULT, nWidth, nHeight, NULL, NULL, hInstance, NULL);
 
-  if (!hWnd) {
+  if (!hwnd) {
     std::cout << "CreateWindow filed at " << __FILE__ << ":" << __LINE__ << std::endl;
     printLastError();
     return -1;
   }
 
   // make the window transparent
-  // SetWindowLong(hWnd, GWL_EXSTYLE, GetWindowLong(hWnd, GWL_EXSTYLE) | WS_EX_LAYERED);
-  // SetLayeredWindowAttributes(hWnd, RGB(0, 0, 0), 255, LWA_ALPHA | LWA_COLORKEY);
+  // SetWindowLong(hwnd, GWL_EXSTYLE, GetWindowLong(hwnd, GWL_EXSTYLE) | WS_EX_LAYERED);
+  // SetLayeredWindowAttributes(hwnd, RGB(0, 0, 0), 255, LWA_ALPHA | LWA_COLORKEY);
 
   // The parameters to ShowWindow explained:
-  // hWnd: the value returned from CreateWindow
+  // hwnd: the value returned from CreateWindow
   // nCmdShow: the fourth parameter from WinMain
-  ShowWindow(hWnd, nCmdShow);
-  UpdateWindow(hWnd);
+  ShowWindow(hwnd, nCmdShow);
+  UpdateWindow(hwnd);
 
   // Main message loop:
   MSG msg;
