@@ -16,8 +16,12 @@ static TCHAR szTitle[] = _T("GDI samples");
 void mHandlePaintMessage(_In_ HWND hwnd, _In_ UINT uMsg, _In_ WPARAM wParam, _In_ LPARAM lParam) {
   HDC hdc;
   HPEN pen;
+  RECT rc;
 
   hdc = GetDC(hwnd);
+  GetClientRect(hwnd, &rc);
+  FillRect(hdc, &rc, (HBRUSH)(COLOR_WINDOW + 1));
+
   pen = CreatePen(PS_SOLID, 5, RGB(0, 255, 0));
   SelectObject(hdc, pen);
 
