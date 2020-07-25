@@ -2,6 +2,7 @@
 #include <iostream>
 
 #include "termcolor.h"
+#include "utils.h"
 #include "stroke.h"
 
 int mCreateNewStroke(Point2D point, StrokeList* strokes) {
@@ -14,13 +15,7 @@ int mCreateNewStroke(Point2D point, StrokeList* strokes) {
 
   if ((strokes->Entries == NULL) || (strokes->Size == 0)) {
     strokes->Size    = 1;
-    strokes->Entries = (Point2DList*)malloc(sizeof(Point2DList));
-    if (strokes->Entries == NULL) {
-      std::cout << FG_RED << "malloc failed at " << __FILE__ << ":" << __LINE__ << RESET_COLOR << std::endl;
-      throw;
-      exit(-1);
-      return -1;
-    }
+    strokes->Entries = (Point2DList*)mMalloc(sizeof(Point2DList), __FILE__, __LINE__);
 
     // TODO check for memory access violation
     strokes->Entries[0].Entries = NULL;
@@ -28,13 +23,7 @@ int mCreateNewStroke(Point2D point, StrokeList* strokes) {
     return mAppendPoint2DToList(point, &(strokes->Entries[0]));
   } else {
     unsigned int newStrokeArraySize = strokes->Size + 1;
-    Point2DList* newStrokeArray     = (Point2DList*)malloc(sizeof(Point2DList) * newStrokeArraySize);
-    if (newStrokeArray == NULL) {
-      std::cout << FG_RED << "malloc failed at " << __FILE__ << ":" << __LINE__ << RESET_COLOR << std::endl;
-      throw;
-      exit(-1);
-      return -1;
-    }
+    Point2DList* newStrokeArray     = (Point2DList*)mMalloc(sizeof(Point2DList) * newStrokeArraySize, __FILE__, __LINE__);
 
     for (unsigned int strokeIdx = 0; strokeIdx < strokes->Size; strokeIdx++) {
       newStrokeArray[strokeIdx] = strokes->Entries[strokeIdx];

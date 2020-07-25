@@ -70,14 +70,7 @@ int mInterpretRawTouchInput(TOUCH_DATA_LIST* prevTouchesList, TOUCH_DATA curTouc
   }
 
   if ((prevTouchesList->Entries == NULL) || (prevTouchesList->Size == 0)) {
-    prevTouchesList->Entries = (TOUCH_DATA*)malloc(sizeof(TOUCH_DATA));
-
-    if (prevTouchesList->Entries == NULL) {
-      std::cout << FG_RED << "malloc failed at " << __FILE__ << ":" << __LINE__ << RESET_COLOR << std::endl;
-      throw;
-      exit(-1);
-      return -1;
-    }
+    prevTouchesList->Entries = (TOUCH_DATA*)mMalloc(sizeof(TOUCH_DATA), __FILE__, __LINE__);
 
     prevTouchesList->Size = 1;
 
@@ -122,14 +115,7 @@ int mInterpretRawTouchInput(TOUCH_DATA_LIST* prevTouchesList, TOUCH_DATA curTouc
 
   // If you touchpad only supports maximum of 5 touches, then there will be only 5 unique touch IDs.
   unsigned int newTouchesListSize = prevTouchesList->Size + 1;
-  TOUCH_DATA* tmpTouchesList      = (TOUCH_DATA*)malloc(sizeof(TOUCH_DATA) * newTouchesListSize);
-
-  if (tmpTouchesList == NULL) {
-    std::cout << FG_RED << "malloc failed at " << __FILE__ << ":" << __LINE__ << RESET_COLOR << std::endl;
-    throw;
-    exit(-1);
-    return -1;
-  }
+  TOUCH_DATA* tmpTouchesList      = (TOUCH_DATA*)mMalloc(sizeof(TOUCH_DATA) * newTouchesListSize, __FILE__, __LINE__);
 
   memcpy(tmpTouchesList, prevTouchesList->Entries, sizeof(TOUCH_DATA) * prevTouchesList->Size);
 
@@ -203,12 +189,7 @@ void mParseConnectedInputDevices() {
 
     std::cout << "Prepased data size: " << prepasedDataSize << std::endl;
     const UINT _prepasedDataSize       = prepasedDataSize;
-    PHIDP_PREPARSED_DATA preparsedData = (PHIDP_PREPARSED_DATA)malloc(_prepasedDataSize);
-    if (preparsedData == NULL) {
-      std::cout << "malloc failed at " << __FILE__ << ":" << __LINE__ << std::endl;
-      throw;
-      exit(-1);
-    }
+    PHIDP_PREPARSED_DATA preparsedData = (PHIDP_PREPARSED_DATA)mMalloc(_prepasedDataSize, __FILE__, __LINE__);
 
     winReturnCode = GetRawInputDeviceInfo(rawInputDevice.hDevice, RIDI_PREPARSEDDATA, preparsedData, &prepasedDataSize);
     if (winReturnCode == (UINT)-1) {
@@ -249,7 +230,7 @@ void mParseConnectedInputDevices() {
       const UINT deviceNameLength = deviceNameBufferSize;
 
       const unsigned int cbDeviceName = sizeof(TCHAR) * (deviceNameLength + 1);
-      TCHAR* deviceName               = (TCHAR*)malloc(cbDeviceName);
+      TCHAR* deviceName               = (TCHAR*)mMalloc(cbDeviceName, __FILE__, __LINE__);
 
       // set string terminator
       // if we don't do this, the print function will not know when to stop
@@ -291,12 +272,7 @@ void mParseConnectedInputDevices() {
         const USHORT numValueCaps = caps.NumberInputValueCaps;
         USHORT _numValueCaps      = numValueCaps;
 
-        PHIDP_VALUE_CAPS valueCaps = (PHIDP_VALUE_CAPS)malloc(sizeof(HIDP_VALUE_CAPS) * numValueCaps);
-        if (valueCaps == NULL) {
-          std::cout << "malloc failed at " << __FILE__ << ":" << __LINE__ << std::endl;
-          throw;
-          exit(-1);
-        }
+        PHIDP_VALUE_CAPS valueCaps = (PHIDP_VALUE_CAPS)mMalloc(sizeof(HIDP_VALUE_CAPS) * numValueCaps, __FILE__, __LINE__);
 
         hidpReturnCode = HidP_GetValueCaps(HidP_Input, valueCaps, &_numValueCaps, preparsedData);
         if (hidpReturnCode != HIDP_STATUS_SUCCESS) {
@@ -356,12 +332,7 @@ void mParseConnectedInputDevices() {
         const USHORT numButtonCaps = caps.NumberInputButtonCaps;
         USHORT _numButtonCaps      = numButtonCaps;
 
-        PHIDP_BUTTON_CAPS buttonCaps = (PHIDP_BUTTON_CAPS)malloc(sizeof(HIDP_BUTTON_CAPS) * numButtonCaps);
-        if (buttonCaps == NULL) {
-          std::cout << "malloc failed at " << __FILE__ << ":" << __LINE__ << std::endl;
-          throw;
-          exit(-1);
-        }
+        PHIDP_BUTTON_CAPS buttonCaps = (PHIDP_BUTTON_CAPS)mMalloc(sizeof(HIDP_BUTTON_CAPS) * numButtonCaps, __FILE__, __LINE__);
 
         hidpReturnCode = HidP_GetButtonCaps(HidP_Input, buttonCaps, &_numButtonCaps, preparsedData);
         if (hidpReturnCode != HIDP_STATUS_SUCCESS) {
@@ -460,12 +431,7 @@ void mHandleInputMessage(HWND hwnd, UINT message, WPARAM wParam, LPARAM lParam) 
 
   // rawInputSize might be modified to 0 after calling GetRawInputData() the second time
   const UINT _rawInputSize = rawInputSize;  // backup the raw input size for checking with return value from GetRawInputData()
-  RAWINPUT* rawInputData   = (RAWINPUT*)malloc(_rawInputSize);
-  if (rawInputData == NULL) {
-    std::cout << FG_RED << "malloc failed at " << __FILE__ << ":" << __LINE__ << std::endl;
-    throw;
-    exit(-1);
-  }
+  RAWINPUT* rawInputData   = (RAWINPUT*)mMalloc(_rawInputSize, __FILE__, __LINE__);
 
   winReturnCode = GetRawInputData((HRAWINPUT)lParam, RID_INPUT, rawInputData, &rawInputSize, sizeof(RAWINPUTHEADER));
   if (winReturnCode == (UINT)-1) {
@@ -499,12 +465,7 @@ void mHandleInputMessage(HWND hwnd, UINT message, WPARAM wParam, LPARAM lParam) 
       }
 
       const UINT deviceNameLength = deviceNameBufferSize;
-      TCHAR* deviceName           = (TCHAR*)malloc(sizeof(TCHAR) * (deviceNameLength + 1));
-      if (deviceName == NULL) {
-        std::cout << FG_RED << "malloc failed at " << __FILE__ << ":" << __LINE__ << RESET_COLOR << std::endl;
-        throw;
-        exit(-1);
-      }
+      TCHAR* deviceName           = (TCHAR*)mMalloc(sizeof(TCHAR) * (deviceNameLength + 1), __FILE__, __LINE__);
 
       deviceName[deviceNameLength] = 0;
       winReturnCode                = GetRawInputDeviceInfo(rawInputData->header.hDevice, RIDI_DEVICENAME, deviceName, &deviceNameBufferSize);
@@ -617,13 +578,7 @@ void mHandleInputMessage(HWND hwnd, UINT message, WPARAM wParam, LPARAM lParam) 
 
                   ULONG _maxNumButtons = maxNumButtons;
 
-                  USAGE* buttonUsageArray = (USAGE*)malloc(sizeof(USAGE) * maxNumButtons);
-
-                  if (buttonUsageArray == NULL) {
-                    std::cout << "malloc failed at " << __FILE__ << ":" << __LINE__ << std::endl;
-                    throw;
-                    exit(-1);
-                  }
+                  USAGE* buttonUsageArray = (USAGE*)mMalloc(sizeof(USAGE) * maxNumButtons, __FILE__, __LINE__);
 
                   hidpReturnCode = HidP_GetUsages(HidP_Input, HID_USAGE_PAGE_DIGITIZER, collectionInfo.LinkColID, buttonUsageArray, &_maxNumButtons, preparsedHIDData, (PCHAR)rawInputData->data.hid.bRawData, rawInputData->data.hid.dwSizeHid);
 

@@ -1,11 +1,9 @@
 #pragma once
 #ifndef _UTILS_H_
 #define _UTILS_H_
-// clang-format off
 #include <Windows.h>
 #include <hidusage.h>
 #include <hidpi.h>
-// clang-format on
 #include <tchar.h>
 
 // https://docs.microsoft.com/en-us/windows-hardware/design/component-guidelines/supporting-usages-in-multitouch-digitizer-drivers
@@ -68,4 +66,6 @@ void print_HidP_errors(NTSTATUS hidpReturnCode, std::string filePath, int lineNu
 int FindInputDeviceInList(HID_DEVICE_INFO_LIST* hidInfoList, TCHAR* deviceName, const unsigned int cbDeviceName, PHIDP_PREPARSED_DATA preparsedData, const UINT cbPreparsedData, unsigned int* foundHidIndex);
 
 int FindLinkCollectionInList(HID_LINK_COL_INFO_LIST* linkColInfoList, USHORT linkCollection, unsigned int* foundLinkColIdx);
+
+void* mMalloc(size_t size, std::string filePath, int lineNumber);
 #endif  // _UTILS_H_

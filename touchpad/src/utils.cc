@@ -1,8 +1,6 @@
-// clang-format off
 #include <Windows.h>
 #include <hidusage.h>
 #include <hidpi.h>
-// clang-format on
 #include <iostream>
 #include <time.h>
 #include <stdio.h>
@@ -56,37 +54,19 @@ int FindInputDeviceInList(HID_DEVICE_INFO_LIST* hidInfoList, TCHAR* deviceName, 
 
     // shallow free memory in case if it has been assigned before
     free(hidInfoArray);
-    hidInfoArray = (HID_DEVICE_INFO*)malloc(sizeof(HID_DEVICE_INFO));
-    if (hidInfoArray == NULL) {
-      std::cout << FG_RED << "malloc failed at " << __FILE__ << ":" << __LINE__ << RESET_COLOR << std::endl;
-      throw;
-      exit(-1);
-      return -1;
-    }
+    hidInfoArray = (HID_DEVICE_INFO*)mMalloc(sizeof(HID_DEVICE_INFO), __FILE__, __LINE__);
 
     hidInfoArray[(*foundHidIndex)].cbName          = cbDeviceName;
     hidInfoArray[(*foundHidIndex)].LinkColInfoList = {NULL, 0};
     hidInfoArray[(*foundHidIndex)].PreparedData    = preparsedData;
     hidInfoArray[(*foundHidIndex)].cbPreparsedData = cbPreparsedData;
 
-    hidInfoArray[(*foundHidIndex)].Name                       = (TCHAR*)malloc(cbDeviceName);
+    hidInfoArray[(*foundHidIndex)].Name                       = (TCHAR*)mMalloc(cbDeviceName, __FILE__, __LINE__);
     hidInfoArray[(*foundHidIndex)].ContactCountLinkCollection = (USHORT)-1;
-    if (hidInfoArray[(*foundHidIndex)].Name == NULL) {
-      std::cout << FG_RED << "malloc failed at " << __FILE__ << ":" << __LINE__ << RESET_COLOR << std::endl;
-      throw;
-      exit(-1);
-      return -1;
-    }
 
     memcpy(hidInfoArray[(*foundHidIndex)].Name, deviceName, cbDeviceName);
 
-    hidInfoArray[(*foundHidIndex)].PreparedData = (PHIDP_PREPARSED_DATA)malloc(cbPreparsedData);
-    if (hidInfoArray[(*foundHidIndex)].PreparedData == NULL) {
-      std::cout << FG_RED << "malloc failed at " << __FILE__ << ":" << __LINE__ << RESET_COLOR << std::endl;
-      throw;
-      exit(-1);
-      return -1;
-    }
+    hidInfoArray[(*foundHidIndex)].PreparedData = (PHIDP_PREPARSED_DATA)mMalloc(cbPreparsedData, __FILE__, __LINE__);
 
     memcpy(hidInfoArray[(*foundHidIndex)].PreparedData, preparsedData, cbPreparsedData);
   } else {
@@ -108,13 +88,7 @@ int FindInputDeviceInList(HID_DEVICE_INFO_LIST* hidInfoList, TCHAR* deviceName, 
     hidInfoArraySize = (*foundHidIndex) + 1;
 
     // copy entries to new array
-    HID_DEVICE_INFO* tmpHidInfoArray = (HID_DEVICE_INFO*)malloc(sizeof(HID_DEVICE_INFO) * hidInfoArraySize);
-    if (tmpHidInfoArray == NULL) {
-      std::cout << FG_RED << "malloc failed at " << __FILE__ << ":" << __LINE__ << RESET_COLOR << std::endl;
-      throw;
-      exit(-1);
-      return -1;
-    }
+    HID_DEVICE_INFO* tmpHidInfoArray = (HID_DEVICE_INFO*)mMalloc(sizeof(HID_DEVICE_INFO) * hidInfoArraySize, __FILE__, __LINE__);
 
     for (unsigned int hidIndex = 0; hidIndex < (*foundHidIndex); hidIndex++) {
       tmpHidInfoArray[hidIndex].Name = hidInfoArray[hidIndex].Name;
@@ -141,23 +115,11 @@ int FindInputDeviceInList(HID_DEVICE_INFO_LIST* hidInfoList, TCHAR* deviceName, 
     hidInfoArray[(*foundHidIndex)].LinkColInfoList = {NULL, 0};
     hidInfoArray[(*foundHidIndex)].cbPreparsedData = cbPreparsedData;
 
-    hidInfoArray[(*foundHidIndex)].Name = (TCHAR*)malloc(cbDeviceName);
-    if (hidInfoArray[(*foundHidIndex)].Name == NULL) {
-      std::cout << FG_RED << "malloc failed at " << __FILE__ << ":" << __LINE__ << RESET_COLOR << std::endl;
-      throw;
-      exit(-1);
-      return -1;
-    }
+    hidInfoArray[(*foundHidIndex)].Name = (TCHAR*)mMalloc(cbDeviceName, __FILE__, __LINE__);
 
     memcpy(hidInfoArray[(*foundHidIndex)].Name, deviceName, cbDeviceName);
 
-    hidInfoArray[(*foundHidIndex)].PreparedData = (PHIDP_PREPARSED_DATA)malloc(cbPreparsedData);
-    if (hidInfoArray[(*foundHidIndex)].PreparedData == NULL) {
-      std::cout << FG_RED << "malloc failed at " << __FILE__ << ":" << __LINE__ << RESET_COLOR << std::endl;
-      throw;
-      exit(-1);
-      return -1;
-    }
+    hidInfoArray[(*foundHidIndex)].PreparedData = (PHIDP_PREPARSED_DATA)mMalloc(cbPreparsedData, __FILE__, __LINE__);
 
     memcpy(hidInfoArray[(*foundHidIndex)].PreparedData, preparsedData, cbPreparsedData);
   }
@@ -178,13 +140,7 @@ int FindLinkCollectionInList(HID_LINK_COL_INFO_LIST* linkColInfoList, USHORT lin
     linkColInfoList->Size = 1;
 
     free(linkColInfoList->Entries);
-    linkColInfoList->Entries = (HID_TOUCH_LINK_COL_INFO*)malloc(sizeof(HID_TOUCH_LINK_COL_INFO));
-
-    if (linkColInfoList->Entries == NULL) {
-      std::cout << FG_RED << "malloc failed at " << __FILE__ << ":" << __LINE__ << RESET_COLOR << std::endl;
-      throw;
-      exit(-1);
-    }
+    linkColInfoList->Entries = (HID_TOUCH_LINK_COL_INFO*)mMalloc(sizeof(HID_TOUCH_LINK_COL_INFO), __FILE__, __LINE__);
 
     linkColInfoList->Entries[(*foundLinkColIdx)].LinkColID     = linkCollection;
     linkColInfoList->Entries[(*foundLinkColIdx)].HasX          = 0;
@@ -209,13 +165,7 @@ int FindLinkCollectionInList(HID_LINK_COL_INFO_LIST* linkColInfoList, USHORT lin
     (*foundLinkColIdx)    = linkColInfoList->Size;
     linkColInfoList->Size = (*foundLinkColIdx) + 1;
 
-    HID_TOUCH_LINK_COL_INFO* tmpCollectionArray = (HID_TOUCH_LINK_COL_INFO*)malloc(sizeof(HID_TOUCH_LINK_COL_INFO) * linkColInfoList->Size);
-    if (tmpCollectionArray == NULL) {
-      std::cout << FG_RED << "malloc failed at " << __FILE__ << ":" << __LINE__ << RESET_COLOR << std::endl;
-      throw;
-      exit(-1);
-      return -1;
-    }
+    HID_TOUCH_LINK_COL_INFO* tmpCollectionArray = (HID_TOUCH_LINK_COL_INFO*)mMalloc(sizeof(HID_TOUCH_LINK_COL_INFO) * linkColInfoList->Size, __FILE__, __LINE__);
 
     for (unsigned int linkColIdx = 0; linkColIdx < (*foundLinkColIdx); linkColIdx++) {
       tmpCollectionArray[linkColIdx] = linkColInfoList->Entries[linkColIdx];
@@ -236,4 +186,15 @@ int FindLinkCollectionInList(HID_LINK_COL_INFO_LIST* linkColInfoList, USHORT lin
   }
 
   return 0;
+}
+
+void* mMalloc(size_t size, std::string filePath, int lineNumber) {
+  void* retval = malloc(size);
+  if (retval == NULL) {
+    std::cout << FG_RED << "malloc failed to allocate " << size << " byte(s) at " << filePath << ":" << lineNumber << RESET_COLOR << std::endl;
+    throw;
+    exit(-1);
+  }
+
+  return retval;
 }

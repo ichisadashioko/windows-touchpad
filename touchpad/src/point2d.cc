@@ -1,4 +1,5 @@
 #include "point2d.h"
+#include "utils.h"
 
 int mInitializePoint2DList(Point2D point, Point2DList* list) {
   int retval = 0;
@@ -9,17 +10,10 @@ int mInitializePoint2DList(Point2D point, Point2DList* list) {
     exit(-1);
   } else {
     list->Size    = 1;
-    list->Entries = (Point2D*)malloc(sizeof(Point2D));
+    list->Entries = (Point2D*)mMalloc(sizeof(Point2D), __FILE__, __LINE__);
 
-    if (list->Entries == NULL) {
-      retval = -1;
-      std::cout << FG_RED << "malloc failed at " << __FILE__ << ":" << __LINE__ << RESET_COLOR << std::endl;
-      throw;
-      exit(-1);
-    } else {
-      list->Entries[0].X = point.X;
-      list->Entries[0].Y = point.Y;
-    }
+    list->Entries[0].X = point.X;
+    list->Entries[0].Y = point.Y;
   }
 
   return retval;
@@ -37,25 +31,20 @@ int mAppendPoint2DToList(Point2D point, Point2DList* list) {
       retval = mInitializePoint2DList(point, list);
     } else {
       unsigned int newArraySize = list->Size + 1;
-      Point2D* newArray         = (Point2D*)malloc(sizeof(Point2D) * newArraySize);
+      Point2D* newArray         = (Point2D*)mMalloc(sizeof(Point2D) * newArraySize, __FILE__, __LINE__);
 
-      if (newArray == NULL) {
-        retval = -1;
-        std::cout << FG_RED << "malloc failed at " << __FILE__ << ":" << __LINE__ << RESET_COLOR << std::endl;
-        throw;
-        exit(-1);
-      } else {
-        for (unsigned int pIdx = 0; pIdx < list->Size; pIdx++) {
-          newArray[pIdx].X = list->Entries[pIdx].X;
-          newArray[pIdx].Y = list->Entries[pIdx].Y;
-        }
-
-        free(list->Entries);
-        list->Entries                   = newArray;
-        list->Size                      = newArraySize;
-        list->Entries[list->Size - 1].X = point.X;
-        list->Entries[list->Size - 1].Y = point.Y;
+      for (unsigned int pIdx = 0; pIdx < list->Size; pIdx++) {
+        newArray[pIdx].X = list->Entries[pIdx].X;
+        newArray[pIdx].Y = list->Entries[pIdx].Y;
       }
+
+      newArray[list->Size].X = point.X;
+      newArray[list->Size].Y = point.Y;
+
+      free(list->Entries);
+
+      list->Entries = newArray;
+      list->Size    = newArraySize;
     }
   }
 
