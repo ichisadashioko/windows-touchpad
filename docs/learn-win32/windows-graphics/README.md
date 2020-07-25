@@ -15,5 +15,5 @@ This module starts with a high-level overview of the Windows graphics architectu
 - [Drawing with Direct2D](./drawing-with-direct2d.md)
 - [DPI and Device-Independent Pixels](./dpi-and-device-independent-pixels.md)
 - [Using Color in Direct2D](./using-color-in-direct2d.md)
-- Applying Transforms in Direct2D
-- Appendix: Matrix Transforms
+- [Applying Transforms in Direct2D](./applying-transforms-in-direct2d.md)
+- [Appendix: Matrix Transforms](./appendix-matrix-transforms.md)

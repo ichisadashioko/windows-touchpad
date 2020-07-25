@@ -41,13 +41,16 @@
     <Link>
       <SubSystem>Console</SubSystem>
       <GenerateDebugInformation>true</GenerateDebugInformation>
-      <AdditionalDependencies>kernel32.lib;user32.lib;gdi32.lib;winspool.lib;comdlg32.lib;advapi32.lib;shell32.lib;ole32.lib;oleaut32.lib;uuid.lib;odbc32.lib;odbccp32.lib;hid.lib;%(AdditionalDependencies)</AdditionalDependencies>
     </Link>
   </ItemDefinitionGroup>
   <ItemGroup>
+    <ClCompile Include="src\point2d.cc" />
+    <ClCompile Include="src\stroke.cc" />
     <ClCompile Include="src\utils.cc" />
     <ClCompile Include="src\termcolor.h" />
     <ClCompile Include="src\main.cc" />
+    <ClInclude Include="src\point2d.h" />
+    <ClInclude Include="src\stroke.h" />
     <ClInclude Include="src\utils.h" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />

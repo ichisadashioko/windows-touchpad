@@ -24,9 +24,21 @@
     <ClCompile Include="src\utils.cc">
       <Filter>Source Files</Filter>
     </ClCompile>
+    <ClCompile Include="src\point2d.cc">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="src\stroke.cc">
+      <Filter>Source Files</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="src\utils.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="src\point2d.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="src\stroke.h">
       <Filter>Header Files</Filter>
     </ClInclude>
   </ItemGroup>

@@ -1,11 +1,11 @@
-// clang-format off
 #include <Windows.h>
-#include <WinUser.h>
 
 #include <hidusage.h>
 #include <hidpi.h>
-#pragma comment (lib, "hid.lib")
-// clang-format on
+#pragma comment(lib, "hid.lib")
+
+#include <d2d1.h>
+#pragma comment(lib, "d2d1.lib")
 
 #include <iostream>
 #include <time.h>
@@ -17,19 +17,19 @@
 
 #include "termcolor.h"
 #include "utils.h"
+#include "point2d.h"
+#include "stroke.h"
 
-// the main window class name
 static TCHAR szWindowClass[] = _T("DesktopApp");
-// the application's title bar
-static TCHAR szTitle[] = _T("use touchpad for handwriting");
+static TCHAR szTitle[]       = _T("use touchpad for handwriting");
 
 static HID_DEVICE_INFO_LIST g_deviceInfoList = {NULL, 0};
 
 struct TOUCH_DATA {
-  ULONG TouchID;  // touch ID
-  ULONG X;        // X position
-  ULONG Y;        // Y position
-  int OnSurface;  // boolean flag for determining if the touch in on the touchpad surface
+  ULONG TouchID;
+  ULONG X;
+  ULONG Y;
+  int OnSurface;
 };
 
 struct TOUCH_DATA_LIST {
@@ -41,120 +41,19 @@ static clock_t g_LastRawInputMessageProcessedTime   = 0;
 static TCHAR g_LastRawInputMessageDeviceName        = NULL;
 static TOUCH_DATA_LIST g_LastRawInputMessageTouches = {NULL, 0};
 
-struct Point2D {
-  ULONG X;
-  ULONG Y;
-};
-
-struct Point2DList {
-  Point2D* Entries;
-  unsigned int Size;
-};
-
-struct StrokeList {
-  Point2DList* Entries;
-  unsigned int Size;
-};
+ID2D1Factory* g_Direct2DFactory                   = NULL;
+ID2D1HwndRenderTarget* g_Direct2DHwndRenderTarget = NULL;
+ID2D1SolidColorBrush* g_Direct2DSolidColorBrush   = NULL;
 
 static StrokeList g_Strokes    = {NULL, 0};
 static ULONG g_TrackingTouchID = (ULONG)-1;
-
-int AppendPoint2DToList(Point2D point, Point2DList* list) {
-  if (list == NULL) {
-    std::cout << FG_RED << "list argument is NULL!" << RESET_COLOR << std::endl;
-    throw;
-    exit(-1);
-    return -1;
-  }
-
-  if ((list->Entries == NULL) || (list->Size == 0)) {
-    list->Size    = 1;
-    list->Entries = (Point2D*)malloc(sizeof(Point2D));
-
-    if (list->Entries == NULL) {
-      std::cout << FG_RED << "malloc failed at " << __FILE__ << ":" << __LINE__ << RESET_COLOR << std::endl;
-      throw;
-      exit(-1);
-      return -1;
-    }
-
-    list->Entries[0].X = point.X;
-    list->Entries[0].Y = point.Y;
-  } else {
-    unsigned int newArraySize = list->Size + 1;
-    Point2D* newArray         = (Point2D*)malloc(sizeof(Point2D) * newArraySize);
-
-    if (newArray == NULL) {
-      std::cout << FG_RED << "malloc failed at " << __FILE__ << ":" << __LINE__ << RESET_COLOR << std::endl;
-      throw;
-      exit(-1);
-      return -1;
-    }
-
-    memcpy(list->Entries, newArray, sizeof(Point2D) * list->Size);
-    free(list->Entries);
-    list->Entries                   = newArray;
-    list->Size                      = newArraySize;
-    list->Entries[list->Size - 1].X = point.X;
-    list->Entries[list->Size - 1].Y = point.Y;
-  }
-
-  return 0;
-}
-
-int CreateNewStroke(Point2D point, StrokeList* strokes) {
-  if (strokes == NULL) {
-    std::cout << FG_RED << "strokes argument is NULL!" << RESET_COLOR << std::endl;
-    throw;
-    exit(-1);
-    return -1;
-  }
-
-  if ((strokes->Entries == NULL) || (strokes->Size == 0)) {
-    strokes->Size    = 1;
-    strokes->Entries = (Point2DList*)malloc(sizeof(Point2DList));
-    if (strokes->Entries == NULL) {
-      std::cout << FG_RED << "malloc failed at " << __FILE__ << ":" << __LINE__ << RESET_COLOR << std::endl;
-      throw;
-      exit(-1);
-      return -1;
-    }
-
-    // TODO check for memory access violation
-    strokes->Entries[0].Entries = NULL;
-    strokes->Entries[0].Size    = 0;
-    return AppendPoint2DToList(point, &(strokes->Entries[0]));
-  } else {
-    unsigned int newStrokeArraySize = strokes->Size + 1;
-    Point2DList* newStrokeArray     = (Point2DList*)malloc(sizeof(Point2DList) * newStrokeArraySize);
-    if (newStrokeArray == NULL) {
-      std::cout << FG_RED << "malloc failed at " << __FILE__ << ":" << __LINE__ << RESET_COLOR << std::endl;
-      throw;
-      exit(-1);
-      return -1;
-    }
-
-    for (unsigned int strokeIdx = 0; strokeIdx < strokes->Size; strokeIdx++) {
-      newStrokeArray[strokeIdx] = strokes->Entries[strokeIdx];
-    }
-
-    // memcpy(newStrokeArray, strokes->Entries, sizeof(Point2DList) * strokes->Size);
-    free(strokes->Entries);
-
-    strokes->Entries = newStrokeArray;
-    strokes->Size    = newStrokeArraySize;
-    return AppendPoint2DToList(point, &(strokes->Entries[strokes->Size - 1]));
-  }
-
-  return 0;
-}
 
 static const unsigned int EVENT_TYPE_TOUCH_DOWN           = 0;
 static const unsigned int EVENT_TYPE_TOUCH_MOVE           = 1;
 static const unsigned int EVENT_TYPE_TOUCH_UP             = 2;
 static const unsigned int EVENT_TYPE_TOUCH_MOVE_UNCHANGED = 3;
 
-int InterpretRawTouchInput(TOUCH_DATA_LIST* prevTouchesList, TOUCH_DATA curTouch, unsigned int* eventType) {
+int mInterpretRawTouchInput(TOUCH_DATA_LIST* prevTouchesList, TOUCH_DATA curTouch, unsigned int* eventType) {
   // check arguments
   if (eventType == NULL) {
     std::cout << FG_RED << "You must pass a unsigned int pointer eventType. It's NULL right now!" << RESET_COLOR << std::endl;
@@ -252,7 +151,7 @@ int InterpretRawTouchInput(TOUCH_DATA_LIST* prevTouchesList, TOUCH_DATA curTouch
   return 0;
 }
 
-void ParseConnectedInputDevices() {
+void mParseConnectedInputDevices() {
   UINT winReturnCode;
 
   std::cout << FG_BLUE << "Retrieving all HID devices..." << RESET_COLOR << std::endl;
@@ -527,8 +426,16 @@ void mRegisterRawInput(HWND hwnd) {
   }
 }
 
-void handle_wm_create(HWND hwnd, UINT message, WPARAM wParam, LPARAM lParam) {
+void mHandleCreateMessage(HWND hwnd, UINT message, WPARAM wParam, LPARAM lParam) {
+  HRESULT hr;
   mRegisterRawInput(hwnd);
+
+  hr = D2D1CreateFactory(D2D1_FACTORY_TYPE_SINGLE_THREADED, &g_Direct2DFactory);
+  if (FAILED(hr)) {
+    std::cout << FG_RED << "D2D1CreateFactory failed at " << __FILE__ << ":" << __LINE__ << RESET_COLOR << std::endl;
+    throw;
+    exit(-1);
+  }
 }
 
 void mHandleInputMessage(HWND hwnd, UINT message, WPARAM wParam, LPARAM lParam) {
@@ -745,9 +652,9 @@ void mHandleInputMessage(HWND hwnd, UINT message, WPARAM wParam, LPARAM lParam) 
                   curTouch.OnSurface = isContactOnSurface;
 
                   unsigned int touchType;
-                  int cStyleFunctionReturnCode = InterpretRawTouchInput(&g_LastRawInputMessageTouches, curTouch, &touchType);
+                  int cStyleFunctionReturnCode = mInterpretRawTouchInput(&g_LastRawInputMessageTouches, curTouch, &touchType);
                   if (cStyleFunctionReturnCode != 0) {
-                    std::cout << FG_RED << "InterpretRawTouchInput failed at " << __FILE__ << ":" << __LINE__ << RESET_COLOR << std::endl;
+                    std::cout << FG_RED << "mInterpretRawTouchInput failed at " << __FILE__ << ":" << __LINE__ << RESET_COLOR << std::endl;
                     throw;
                     exit(-1);
                   }
@@ -759,7 +666,7 @@ void mHandleInputMessage(HWND hwnd, UINT message, WPARAM wParam, LPARAM lParam) 
                       g_TrackingTouchID = curTouch.TouchID;
                       // TODO create new stroke
                       // TODO check return value for indication of errors
-                      CreateNewStroke(touchPos, &g_Strokes);
+                      mCreateNewStroke(touchPos, &g_Strokes);
                     } else {
                       // wait for touch down event to register new stroke
                     }
@@ -773,7 +680,7 @@ void mHandleInputMessage(HWND hwnd, UINT message, WPARAM wParam, LPARAM lParam) 
                         exit(-1);
                       } else {
                         // TODO check return value for indication of errors
-                        AppendPoint2DToList(touchPos, &g_Strokes.Entries[g_Strokes.Size - 1]);
+                        mAppendPoint2DToList(touchPos, &g_Strokes.Entries[g_Strokes.Size - 1]);
                       }
                     } else if (touchType == EVENT_TYPE_TOUCH_UP) {
                       // I sure that the touch position is the same with the last touch position
@@ -812,40 +719,109 @@ void mHandleInputMessage(HWND hwnd, UINT message, WPARAM wParam, LPARAM lParam) 
   }
 }
 
-void mHandlePaintMessage(_In_ HWND hwnd, _In_ UINT uMsg, _In_ WPARAM wParam, _In_ LPARAM lParam) {
-  HDC hdc;
-  HPEN pen;
+HRESULT mCreateGraphicsResources(HWND hwnd) {
+  HRESULT hr = S_OK;
 
-  hdc = GetDC(hwnd);
-  pen = CreatePen(PS_SOLID, 5, RGB(0, 255, 0));
-  SelectObject(hdc, pen);
+  if (g_Direct2DHwndRenderTarget == NULL) {
+    RECT rc;
+    GetClientRect(hwnd, &rc);
 
-  if ((g_Strokes.Entries == NULL) || (g_Strokes.Size == 0)) {
-  } else {
-    for (unsigned int strokeIdx = 0; strokeIdx < g_Strokes.Size; strokeIdx++) {
-      // TODO change rendering color for each strokes
-      Point2DList strokeData = g_Strokes.Entries[strokeIdx];
-      if (strokeData.Size < 2) {
-        // TODO improve rendering strokes logic
-        continue;
-      } else {
-        Point2D firstPoint = strokeData.Entries[0];
-        MoveToEx(hdc, (int)firstPoint.X, (int)firstPoint.Y, (LPPOINT)NULL);
-        for (unsigned int pointIdx = 1; pointIdx < strokeData.Size; pointIdx++) {
-          Point2D point = strokeData.Entries[pointIdx];
-          LineTo(hdc, (int)point.X, (int)point.Y);
-        }
+    D2D1_SIZE_U size = {(UINT32)rc.right, (UINT32)rc.bottom};
+
+    if (g_Direct2DFactory == NULL) {
+      std::cout << FG_RED << "Direct2DFactory hasn't been initialized!" << RESET_COLOR << std::endl;
+      throw;
+      exit(-1);
+    }
+
+    hr = g_Direct2DFactory->CreateHwndRenderTarget(D2D1::RenderTargetProperties(), D2D1::HwndRenderTargetProperties(hwnd, size), &g_Direct2DHwndRenderTarget);
+
+    if (SUCCEEDED(hr)) {
+      const D2D1_COLOR_F color = {1.0f, 1.0f, 1.0f, 1.0f};
+
+      hr = g_Direct2DHwndRenderTarget->CreateSolidColorBrush(color, &g_Direct2DSolidColorBrush);
+      if (FAILED(hr)) {
+        std::cout << FG_RED << "CreateSolidColorBrush failed at " << __FILE__ << ":" << __LINE__ << RESET_COLOR << std::endl;
+        throw;
+        exit(-1);
       }
+    } else {
+      std::cout << FG_RED << "CreateHwndRenderTarget failed at " << __FILE__ << ":" << __LINE__ << RESET_COLOR << std::endl;
+      throw;
+      exit(-1);
     }
   }
 
-  ReleaseDC(hwnd, hdc);
+  return hr;
+}
+
+void mDiscardGraphicsResources() {
+  // TODO check to see if the order is matter
+  if (g_Direct2DHwndRenderTarget != NULL) {
+    g_Direct2DHwndRenderTarget->Release();
+    g_Direct2DHwndRenderTarget = NULL;
+  }
+
+  if (g_Direct2DSolidColorBrush != NULL) {
+    g_Direct2DSolidColorBrush->Release();
+    g_Direct2DSolidColorBrush = NULL;
+  }
+}
+
+void mHandlePaintMessage(_In_ HWND hwnd, _In_ UINT uMsg, _In_ WPARAM wParam, _In_ LPARAM lParam) {
+  HRESULT hr = mCreateGraphicsResources(hwnd);
+  if (SUCCEEDED(hr)) {
+  } else {
+    PAINTSTRUCT ps;
+    BeginPaint(hwnd, &ps);
+
+    if (g_Direct2DHwndRenderTarget == NULL) {
+      std::cout << FG_RED << "HwndRenderTarget is NULL!" << RESET_COLOR << std::endl;
+      throw;
+      exit(-1);
+    } else {
+      g_Direct2DHwndRenderTarget->BeginDraw();
+      g_Direct2DHwndRenderTarget->Clear();
+
+      if (g_Direct2DSolidColorBrush == NULL) {
+        std::cout << FG_RED << "SolidColorBrush is NULL!" << RESET_COLOR << std::endl;
+        throw;
+        exit(-1);
+      } else {
+        if ((g_Strokes.Entries == NULL) || (g_Strokes.Size == 0)) {
+        } else {
+          for (unsigned int strokeIdx = 0; strokeIdx < g_Strokes.Size; strokeIdx++) {
+            // TODO change rendering color for each strokes
+            Point2DList strokeData = g_Strokes.Entries[strokeIdx];
+            if (strokeData.Size < 2) {
+              // TODO improve rendering strokes logic
+              continue;
+            } else {
+              D2D1_POINT_2F firstPoint = {(FLOAT)strokeData.Entries[0].X, (FLOAT)strokeData.Entries[0].Y};
+              for (unsigned int pointIdx = 1; pointIdx < strokeData.Size; pointIdx++) {
+                D2D1_POINT_2F secondPoint = {(FLOAT)strokeData.Entries[pointIdx].X, (FLOAT)strokeData.Entries[pointIdx].Y};
+                g_Direct2DHwndRenderTarget->DrawLine(firstPoint, secondPoint, g_Direct2DSolidColorBrush, 5.0f);
+                firstPoint = secondPoint;
+              }
+            }
+          }
+        }
+      }
+
+      hr = g_Direct2DHwndRenderTarget->EndDraw();
+      if (FAILED(hr) || (hr == D2DERR_RECREATE_TARGET)) {
+        mDiscardGraphicsResources();
+      }
+    }
+
+    EndPaint(hwnd, &ps);
+  }
 }
 
 LRESULT CALLBACK WndProc(_In_ HWND hwnd, _In_ UINT uMsg, _In_ WPARAM wParam, _In_ LPARAM lParam) {
   switch (uMsg) {
     case WM_CREATE: {
-      handle_wm_create(hwnd, uMsg, wParam, lParam);
+      mHandleCreateMessage(hwnd, uMsg, wParam, lParam);
       break;
     }
     case WM_INPUT: {
@@ -869,7 +845,7 @@ LRESULT CALLBACK WndProc(_In_ HWND hwnd, _In_ UINT uMsg, _In_ WPARAM wParam, _In
 }
 
 int CALLBACK wWinMain(_In_ HINSTANCE hInstance, _In_opt_ HINSTANCE hPrevInstance, _In_ LPWSTR lpCmdLine, _In_ int nCmdShow) {
-  ParseConnectedInputDevices();
+  mParseConnectedInputDevices();
 
   // TODO detect and prompt user to select touchpad device and parse its width and height
   // default values
@@ -902,15 +878,14 @@ int CALLBACK wWinMain(_In_ HINSTANCE hInstance, _In_opt_ HINSTANCE hPrevInstance
 
   WNDCLASSEX wcex;
 
-  wcex.cbSize      = sizeof(WNDCLASSEX);
-  wcex.style       = CS_HREDRAW | CS_VREDRAW;
-  wcex.lpfnWndProc = WndProc;
-  wcex.cbClsExtra  = 0;
-  wcex.cbWndExtra  = 0;
-  wcex.hInstance   = hInstance;
-  wcex.hIcon       = LoadIcon(hInstance, IDI_APPLICATION);
-  wcex.hCursor     = LoadCursor(NULL, IDC_ARROW);
-  // TODO make window background transparent
+  wcex.cbSize        = sizeof(WNDCLASSEX);
+  wcex.style         = CS_HREDRAW | CS_VREDRAW;
+  wcex.lpfnWndProc   = WndProc;
+  wcex.cbClsExtra    = 0;
+  wcex.cbWndExtra    = 0;
+  wcex.hInstance     = hInstance;
+  wcex.hIcon         = LoadIcon(hInstance, IDI_APPLICATION);
+  wcex.hCursor       = LoadCursor(NULL, IDC_ARROW);
   wcex.hbrBackground = (HBRUSH)(0);
   wcex.lpszMenuName  = NULL;
   wcex.lpszClassName = szWindowClass;
@@ -922,16 +897,6 @@ int CALLBACK wWinMain(_In_ HINSTANCE hInstance, _In_opt_ HINSTANCE hPrevInstance
     return -1;
   }
 
-  // The parameters to CreateWindow expained:
-  // szWindowClass: the name of the application
-  // szTitle: the text that appears in the title bar
-  // WS_OVERLAPPEDWINDOW: the type of window to create
-  // CW_USEDEFAULT, CW_USEDEFAULT: initial position (x, y)
-  // 500, 100: initial size (width, length)
-  // NULL: the parent of this window
-  // NULL: this application does not have a menu bar
-  // hInstance: the first parameter from WinMain
-  // NULL: not used in this application
   HWND hwnd = CreateWindow(szWindowClass, szTitle, WS_OVERLAPPEDWINDOW | WS_EX_LAYERED, CW_USEDEFAULT, CW_USEDEFAULT, nWidth, nHeight, NULL, NULL, hInstance, NULL);
 
   if (!hwnd) {
@@ -941,16 +906,12 @@ int CALLBACK wWinMain(_In_ HINSTANCE hInstance, _In_opt_ HINSTANCE hPrevInstance
   }
 
   // make the window transparent
-  // SetWindowLong(hwnd, GWL_EXSTYLE, GetWindowLong(hwnd, GWL_EXSTYLE) | WS_EX_LAYERED);
-  // SetLayeredWindowAttributes(hwnd, RGB(0, 0, 0), 255, LWA_ALPHA | LWA_COLORKEY);
+  SetWindowLong(hwnd, GWL_EXSTYLE, GetWindowLong(hwnd, GWL_EXSTYLE) | WS_EX_LAYERED);
+  SetLayeredWindowAttributes(hwnd, RGB(0, 0, 0), 255, LWA_ALPHA | LWA_COLORKEY);
 
-  // The parameters to ShowWindow explained:
-  // hwnd: the value returned from CreateWindow
-  // nCmdShow: the fourth parameter from WinMain
   ShowWindow(hwnd, nCmdShow);
   UpdateWindow(hwnd);
 
-  // Main message loop:
   MSG msg;
   while (GetMessage(&msg, NULL, 0, 0)) {
     TranslateMessage(&msg);
@@ -961,5 +922,11 @@ int CALLBACK wWinMain(_In_ HINSTANCE hInstance, _In_opt_ HINSTANCE hPrevInstance
 }
 
 int main() {
+//#define TEST
+#ifdef TEST
+  test_mAppendPoint2DToList();
+  return 0;
+#endif
+
   return wWinMain(GetModuleHandle(NULL), NULL, GetCommandLine(), SW_SHOWNORMAL);
 };

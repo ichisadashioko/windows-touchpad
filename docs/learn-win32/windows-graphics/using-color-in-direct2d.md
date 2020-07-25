@@ -92,4 +92,4 @@ If you know that your program will not perform any alpha blending, create the re
 
 ## Next
 
-[Applying Transforms in Direct2D]()
+[Applying Transforms in Direct2D](./applying-transforms-in-direct2d.md)

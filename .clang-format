@@ -1,3 +1,4 @@
 BasedOnStyle: Chromium
 ColumnLimit: 512
 AlignConsecutiveAssignments: true
+SortIncludes: false
