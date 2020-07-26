@@ -11,13 +11,14 @@
 #include "termcolor.h"
 #include "utils.h"
 
-void printLastError() {
+void mGetLastError() {
   DWORD errorCode      = GetLastError();
   LPWSTR messageBuffer = NULL;
   size_t size          = FormatMessageW(FORMAT_MESSAGE_ALLOCATE_BUFFER | FORMAT_MESSAGE_FROM_SYSTEM | FORMAT_MESSAGE_IGNORE_INSERTS, NULL, errorCode, MAKELANGID(LANG_NEUTRAL, SUBLANG_DEFAULT), (LPWSTR)&messageBuffer, 0, NULL);
 
   std::cout << FG_RED << "Error code: " << errorCode << std::endl;
   std::wcout << messageBuffer << RESET_COLOR << std::endl;
+  // TODO check to see if we don't free the messageBuffer pointer, will it lead to memory leaking?
 }
 
 void print_HidP_errors(NTSTATUS hidpReturnCode, std::string filePath, int lineNumber) {

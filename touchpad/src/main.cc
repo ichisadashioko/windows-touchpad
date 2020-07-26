@@ -148,7 +148,7 @@ void mParseConnectedInputDevices() {
 
   if (winReturnCode == (UINT)-1) {
     std::cout << FG_RED << "GetRawInputDeviceList failed at " << __FILE__ << ":" << __LINE__ << RESET_COLOR << std::endl;
-    printLastError();
+    mGetLastError();
     throw;
     exit(-1);
   }
@@ -162,7 +162,7 @@ void mParseConnectedInputDevices() {
 
   if (winReturnCode == (UINT)-1) {
     std::cout << "GetRawInputDeviceList failed at " << __FILE__ << ":" << __LINE__ << std::endl;
-    printLastError();
+    mGetLastError();
     throw;
     exit(-1);
   }
@@ -181,7 +181,7 @@ void mParseConnectedInputDevices() {
     winReturnCode         = GetRawInputDeviceInfo(rawInputDevice.hDevice, RIDI_PREPARSEDDATA, NULL, &prepasedDataSize);
     if (winReturnCode == (UINT)-1) {
       std::cout << "Failed to call GetRawInputDeviceInfo to get prepased data size at " << __FILE__ ":" << __LINE__ << std::endl;
-      printLastError();
+      mGetLastError();
       throw;
       exit(-1);
     }
@@ -193,7 +193,7 @@ void mParseConnectedInputDevices() {
     winReturnCode = GetRawInputDeviceInfo(rawInputDevice.hDevice, RIDI_PREPARSEDDATA, preparsedData, &prepasedDataSize);
     if (winReturnCode == (UINT)-1) {
       std::cout << "Failed to call GetRawInputDeviceInfo to get prepased data at " << __FILE__ << ":" << __LINE__ << std::endl;
-      printLastError();
+      mGetLastError();
       throw;
       exit(-1);
     }
@@ -219,7 +219,7 @@ void mParseConnectedInputDevices() {
       winReturnCode             = GetRawInputDeviceInfo(rawInputDevice.hDevice, RIDI_DEVICENAME, NULL, &deviceNameBufferSize);
       if (winReturnCode == (UINT)-1) {
         std::cout << "Failed to call GetRawInputDeviceInfo for getting device name size at " << __FILE__ << ":" << __LINE__ << std::endl;
-        printLastError();
+        mGetLastError();
         throw;
         exit(-1);
       }
@@ -238,7 +238,7 @@ void mParseConnectedInputDevices() {
       winReturnCode = GetRawInputDeviceInfo(rawInputDevice.hDevice, RIDI_DEVICENAME, deviceName, &deviceNameBufferSize);
       if (winReturnCode == (UINT)-1) {
         std::cout << "Failed to get device name at " << __FILE__ << ":" << __LINE__ << std::endl;
-        printLastError();
+        mGetLastError();
         throw;
         exit(-1);
       } else if (winReturnCode != deviceNameLength) {
@@ -391,7 +391,7 @@ void mRegisterRawInput(HWND hwnd) {
   } else {
     std::cout << FG_RED << "[" << ts << "]"
               << "Failed to register touchpad at " << __FILE__ << ":" << __LINE__ << RESET_COLOR << std::endl;
-    printLastError();
+    mGetLastError();
     throw;
     exit(-1);
   }
@@ -424,7 +424,7 @@ void mHandleInputMessage(HWND hwnd, UINT message, WPARAM wParam, LPARAM lParam) 
     // handle error
     std::cout << FG_RED << "[" << ts << "]"
               << "GetRawInputData failed at " << __FILE__ << ":" << __LINE__ << RESET_COLOR << std::endl;
-    printLastError();
+    mGetLastError();
 
     throw;
     exit(-1);
@@ -439,7 +439,7 @@ void mHandleInputMessage(HWND hwnd, UINT message, WPARAM wParam, LPARAM lParam) 
     // handle error
     std::cout << FG_RED << "[" << ts << "]"
               << "GetRawInputData failed at " << __FILE__ << ":" << __LINE__ << RESET_COLOR << std::endl;
-    printLastError();
+    mGetLastError();
     throw;
     exit(-1);
   } else if (winReturnCode != _rawInputSize) {
@@ -460,7 +460,7 @@ void mHandleInputMessage(HWND hwnd, UINT message, WPARAM wParam, LPARAM lParam) 
       winReturnCode             = GetRawInputDeviceInfo(rawInputData->header.hDevice, RIDI_DEVICENAME, NULL, &deviceNameBufferSize);
       if (winReturnCode == (UINT)-1) {
         std::cout << FG_RED << "GetRawInputDeviceInfo failed at " << __FILE__ << ":" << __LINE__ << RESET_COLOR << std::endl;
-        printLastError();
+        mGetLastError();
         throw;
         exit(-1);
       }
@@ -472,7 +472,7 @@ void mHandleInputMessage(HWND hwnd, UINT message, WPARAM wParam, LPARAM lParam) 
       winReturnCode                = GetRawInputDeviceInfo(rawInputData->header.hDevice, RIDI_DEVICENAME, deviceName, &deviceNameBufferSize);
       if (winReturnCode == (UINT)-1) {
         std::cout << FG_RED << "GetRawInputDeviceInfo failed at " << __FILE__ << ":" << __LINE__ << RESET_COLOR << std::endl;
-        printLastError();
+        mGetLastError();
         throw;
         exit(-1);
       } else if (winReturnCode != deviceNameLength) {
@@ -850,7 +850,7 @@ int CALLBACK wWinMain(_In_ HINSTANCE hInstance, _In_opt_ HINSTANCE hPrevInstance
 
   if (!RegisterClassEx(&wcex)) {
     std::cout << "RegisterClassEx filed at " << __FILE__ << ":" << __LINE__ << std::endl;
-    printLastError();
+    mGetLastError();
     return -1;
   }
 
@@ -858,7 +858,7 @@ int CALLBACK wWinMain(_In_ HINSTANCE hInstance, _In_opt_ HINSTANCE hPrevInstance
 
   if (!hwnd) {
     std::cout << "CreateWindow filed at " << __FILE__ << ":" << __LINE__ << std::endl;
-    printLastError();
+    mGetLastError();
     return -1;
   }
 
