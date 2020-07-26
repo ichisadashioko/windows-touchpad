@@ -32,8 +32,9 @@ int mCreateNewStroke(Point2D point, StrokeList* strokes) {
     // memcpy(newStrokeArray, strokes->Entries, sizeof(Point2DList) * strokes->Size);
     free(strokes->Entries);
 
-    strokes->Entries = newStrokeArray;
-    strokes->Size    = newStrokeArraySize;
+    strokes->Entries                    = newStrokeArray;
+    strokes->Size                       = newStrokeArraySize;
+    strokes->Entries[strokes->Size - 1] = {NULL, 0};
     return mAppendPoint2DToList(point, &(strokes->Entries[strokes->Size - 1]));
   }
 

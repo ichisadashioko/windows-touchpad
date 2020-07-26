@@ -71,10 +71,9 @@ int mInterpretRawTouchInput(TOUCH_DATA_LIST* prevTouchesList, TOUCH_DATA curTouc
 
   if ((prevTouchesList->Entries == NULL) || (prevTouchesList->Size == 0)) {
     prevTouchesList->Entries = (TOUCH_DATA*)mMalloc(sizeof(TOUCH_DATA), __FILE__, __LINE__);
+    prevTouchesList->Size    = 1;
 
-    prevTouchesList->Size = 1;
-
-    memcpy(prevTouchesList->Entries, &curTouch, sizeof(TOUCH_DATA));
+    prevTouchesList->Entries[0] = curTouch;
 
     if (curTouch.OnSurface) {
       (*eventType) = EVENT_TYPE_TOUCH_DOWN;
@@ -379,6 +378,7 @@ void mParseConnectedInputDevices() {
 void mRegisterRawInput(HWND hwnd) {
   // register Windows Precision Touchpad top-level HID collection
   RAWINPUTDEVICE rid;
+  clock_t ts = clock();
 
   rid.usUsagePage = HID_USAGE_PAGE_DIGITIZER;
   rid.usUsage     = HID_USAGE_DIGITIZER_TOUCH_PAD;
@@ -386,10 +386,10 @@ void mRegisterRawInput(HWND hwnd) {
   rid.hwndTarget  = hwnd;
 
   if (RegisterRawInputDevices(&rid, 1, sizeof(RAWINPUTDEVICE))) {
-    std::cout << FG_GREEN << "[" << clock() << "]"
+    std::cout << FG_GREEN << "[" << ts << "]"
               << "Successfully register touchpad!" << RESET_COLOR << std::endl;
   } else {
-    std::cout << FG_RED << "[" << clock() << "]"
+    std::cout << FG_RED << "[" << ts << "]"
               << "Failed to register touchpad at " << __FILE__ << ":" << __LINE__ << RESET_COLOR << std::endl;
     printLastError();
     throw;
@@ -411,6 +411,7 @@ void mHandleCreateMessage(HWND hwnd, UINT message, WPARAM wParam, LPARAM lParam)
 
 void mHandleInputMessage(HWND hwnd, UINT message, WPARAM wParam, LPARAM lParam) {
   UINT winReturnCode;  // return code from windows API call
+  clock_t ts = clock();
 
   // following guide: https://docs.microsoft.com/en-us/windows/win32/inputdev/using-raw-input#performing-a-standard-read-of-raw-input
 
@@ -421,7 +422,7 @@ void mHandleInputMessage(HWND hwnd, UINT message, WPARAM wParam, LPARAM lParam) 
   winReturnCode = GetRawInputData((HRAWINPUT)lParam, RID_INPUT, NULL, &rawInputSize, sizeof(RAWINPUTHEADER));
   if (winReturnCode == (UINT)-1) {
     // handle error
-    std::cout << FG_RED << "[" << clock() << "]"
+    std::cout << FG_RED << "[" << ts << "]"
               << "GetRawInputData failed at " << __FILE__ << ":" << __LINE__ << RESET_COLOR << std::endl;
     printLastError();
 
@@ -436,13 +437,13 @@ void mHandleInputMessage(HWND hwnd, UINT message, WPARAM wParam, LPARAM lParam) 
   winReturnCode = GetRawInputData((HRAWINPUT)lParam, RID_INPUT, rawInputData, &rawInputSize, sizeof(RAWINPUTHEADER));
   if (winReturnCode == (UINT)-1) {
     // handle error
-    std::cout << FG_RED << "[" << clock() << "]"
+    std::cout << FG_RED << "[" << ts << "]"
               << "GetRawInputData failed at " << __FILE__ << ":" << __LINE__ << RESET_COLOR << std::endl;
     printLastError();
     throw;
     exit(-1);
   } else if (winReturnCode != _rawInputSize) {
-    std::cout << FG_RED << "[" << clock() << "]"
+    std::cout << FG_RED << "[" << ts << "]"
               << "GetRawInputData did not copy enough data as reported at " << __FILE__ << ":" << __LINE__ << RESET_COLOR << std::endl;
     throw;
     exit(-1);
@@ -510,7 +511,7 @@ void mHandleInputMessage(HWND hwnd, UINT message, WPARAM wParam, LPARAM lParam) 
         } else if (isPreparsedDataNull) {
           std::cout << FG_RED << "Cannot find PreparsedData at " << __FILE__ << ":" << __LINE__ << RESET_COLOR << std::endl;
         } else {
-          std::cout << "[" << clock() << "]" << std::endl;
+          std::cout << "[" << ts << "]" << std::endl;
           NTSTATUS hidpReturnCode;
           ULONG usageValue;
 
@@ -603,7 +604,7 @@ void mHandleInputMessage(HWND hwnd, UINT message, WPARAM wParam, LPARAM lParam) 
                   TOUCH_DATA curTouch;
                   curTouch.TouchID   = touchId;
                   curTouch.X         = xPos;
-                  curTouch.Y         = xPos;
+                  curTouch.Y         = yPos;
                   curTouch.OnSurface = isContactOnSurface;
 
                   unsigned int touchType;
