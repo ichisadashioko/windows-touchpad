@@ -623,6 +623,7 @@ void mHandleInputMessage(HWND hwnd, UINT message, WPARAM wParam, LPARAM lParam) 
                       // TODO create new stroke
                       // TODO check return value for indication of errors
                       mCreateNewStroke(touchPos, &g_Strokes);
+                      InvalidateRect(hwnd, NULL, NULL);
                     } else {
                       // wait for touch down event to register new stroke
                     }
@@ -637,6 +638,7 @@ void mHandleInputMessage(HWND hwnd, UINT message, WPARAM wParam, LPARAM lParam) 
                       } else {
                         // TODO check return value for indication of errors
                         mAppendPoint2DToList(touchPos, &g_Strokes.Entries[g_Strokes.Size - 1]);
+                        InvalidateRect(hwnd, NULL, NULL);
                       }
                     } else if (touchType == EVENT_TYPE_TOUCH_UP) {
                       // I sure that the touch position is the same with the last touch position
@@ -727,7 +729,6 @@ void mDiscardGraphicsResources() {
 void mHandlePaintMessage(_In_ HWND hwnd, _In_ UINT uMsg, _In_ WPARAM wParam, _In_ LPARAM lParam) {
   HRESULT hr = mCreateGraphicsResources(hwnd);
   if (SUCCEEDED(hr)) {
-  } else {
     PAINTSTRUCT ps;
     BeginPaint(hwnd, &ps);
 
@@ -862,8 +863,8 @@ int CALLBACK wWinMain(_In_ HINSTANCE hInstance, _In_opt_ HINSTANCE hPrevInstance
   }
 
   // make the window transparent
-  SetWindowLong(hwnd, GWL_EXSTYLE, GetWindowLong(hwnd, GWL_EXSTYLE) | WS_EX_LAYERED);
-  SetLayeredWindowAttributes(hwnd, RGB(0, 0, 0), 255, LWA_ALPHA | LWA_COLORKEY);
+  // SetWindowLong(hwnd, GWL_EXSTYLE, GetWindowLong(hwnd, GWL_EXSTYLE) | WS_EX_LAYERED);
+  // SetLayeredWindowAttributes(hwnd, RGB(0, 0, 0), 255, LWA_ALPHA | LWA_COLORKEY);
 
   ShowWindow(hwnd, nCmdShow);
   UpdateWindow(hwnd);
