@@ -1,4 +1,3 @@
-#pragma once
 #ifndef _TERMCOLOR_H_
 #define _TERMCOLOR_H_
 // https://en.wikipedia.org/wiki/ANSI_escape_code#Colors

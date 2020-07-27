@@ -1,5 +1,5 @@
-#ifndef POINT2D_H
-#define POINT2D_H
+#ifndef _POINT2D_H_
+#define _POINT2D_H_
 #include <Windows.h>
 #include <iostream>
 #include "termcolor.h"
@@ -17,4 +17,4 @@ struct Point2DList {
 int mInitializePoint2DList(Point2D point, Point2DList* list);
 int mAppendPoint2DToList(Point2D point, Point2DList* list);
 void test_mAppendPoint2DToList();
-#endif  // POINT2D_H
+#endif  // _POINT2D_H_

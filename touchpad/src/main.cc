@@ -17,25 +17,18 @@
 
 #include "termcolor.h"
 #include "utils.h"
+#include "touchpad.h"
+#include "touchevents.h"
 #include "point2d.h"
 #include "stroke.h"
+
+#define LOG_EVERY_INPUT_MESSAGES
+#undef LOG_EVERY_INPUT_MESSAGES
 
 static TCHAR szWindowClass[] = _T("DesktopApp");
 static TCHAR szTitle[]       = _T("use touchpad for handwriting");
 
 static HID_DEVICE_INFO_LIST g_deviceInfoList = {NULL, 0};
-
-struct TOUCH_DATA {
-  ULONG TouchID;
-  ULONG X;
-  ULONG Y;
-  int OnSurface;
-};
-
-struct TOUCH_DATA_LIST {
-  TOUCH_DATA* Entries;
-  unsigned int Size;
-};
 
 static clock_t g_LastRawInputMessageProcessedTime   = 0;
 static TCHAR g_LastRawInputMessageDeviceName        = NULL;
@@ -47,94 +40,6 @@ ID2D1SolidColorBrush* g_Direct2DSolidColorBrush   = NULL;
 
 static StrokeList g_Strokes    = {NULL, 0};
 static ULONG g_TrackingTouchID = (ULONG)-1;
-
-static const unsigned int EVENT_TYPE_TOUCH_DOWN           = 0;
-static const unsigned int EVENT_TYPE_TOUCH_MOVE           = 1;
-static const unsigned int EVENT_TYPE_TOUCH_UP             = 2;
-static const unsigned int EVENT_TYPE_TOUCH_MOVE_UNCHANGED = 3;
-
-int mInterpretRawTouchInput(TOUCH_DATA_LIST* prevTouchesList, TOUCH_DATA curTouch, unsigned int* eventType) {
-  // check arguments
-  if (eventType == NULL) {
-    std::cout << FG_RED << "You must pass a unsigned int pointer eventType. It's NULL right now!" << RESET_COLOR << std::endl;
-    throw;
-    exit(-1);
-    return -1;
-  }
-
-  if (prevTouchesList == NULL) {
-    std::cout << FG_RED << "You must pass a valid pointer for prevTouchesList. It's NULL right now!" << RESET_COLOR << std::endl;
-    throw;
-    exit(-1);
-    return -1;
-  }
-
-  if ((prevTouchesList->Entries == NULL) || (prevTouchesList->Size == 0)) {
-    prevTouchesList->Entries = (TOUCH_DATA*)mMalloc(sizeof(TOUCH_DATA), __FILE__, __LINE__);
-    prevTouchesList->Size    = 1;
-
-    prevTouchesList->Entries[0] = curTouch;
-
-    if (curTouch.OnSurface) {
-      (*eventType) = EVENT_TYPE_TOUCH_DOWN;
-    } else {
-      (*eventType) = EVENT_TYPE_TOUCH_UP;
-    }
-
-    return 0;
-  } else {
-    for (unsigned int touchIdx = 0; touchIdx < prevTouchesList->Size; touchIdx++) {
-      TOUCH_DATA prevTouch = prevTouchesList->Entries[touchIdx];
-      if (prevTouch.TouchID == curTouch.TouchID) {
-        if (prevTouch.OnSurface && curTouch.OnSurface) {
-          if ((prevTouch.X == curTouch.X) && (prevTouch.Y == curTouch.Y)) {
-            (*eventType) = EVENT_TYPE_TOUCH_MOVE_UNCHANGED;
-          } else {
-            (*eventType) = EVENT_TYPE_TOUCH_MOVE;
-          }
-        } else if ((prevTouch.OnSurface != 0) && (curTouch.OnSurface == 0)) {
-          (*eventType) = EVENT_TYPE_TOUCH_UP;
-        } else if ((prevTouch.OnSurface == 0) && (curTouch.OnSurface != 0)) {
-          (*eventType) = EVENT_TYPE_TOUCH_DOWN;
-        } else {
-          // (prevTouch.OnSurface == 0) && (curTouch.OnSurface == 0)
-          // this might never be the case unless the touchpad or its driver is broken
-          (*eventType) = EVENT_TYPE_TOUCH_UP;
-        }
-
-        // update touch data
-        prevTouchesList->Entries[touchIdx] = curTouch;
-
-        return 0;
-      }
-    }
-  }
-
-  // this touch id has not been recorded before
-
-  // If you touchpad only supports maximum of 5 touches, then there will be only 5 unique touch IDs.
-  unsigned int newTouchesListSize = prevTouchesList->Size + 1;
-  TOUCH_DATA* tmpTouchesList      = (TOUCH_DATA*)mMalloc(sizeof(TOUCH_DATA) * newTouchesListSize, __FILE__, __LINE__);
-
-  memcpy(tmpTouchesList, prevTouchesList->Entries, sizeof(TOUCH_DATA) * prevTouchesList->Size);
-
-  tmpTouchesList[newTouchesListSize - 1] = curTouch;
-  free(prevTouchesList->Entries);
-  prevTouchesList->Entries = tmpTouchesList;
-  tmpTouchesList           = NULL;
-  prevTouchesList->Size    = newTouchesListSize;
-
-  if (curTouch.OnSurface) {
-    (*eventType) = EVENT_TYPE_TOUCH_MOVE;
-  } else {
-    // edge case
-    // how can a touch be lifted while it was not on the touchpad surface.
-    // probably because of faulty hardware or driver
-    (*eventType) = EVENT_TYPE_TOUCH_UP;
-  }
-
-  return 0;
-}
 
 void mParseConnectedInputDevices() {
   UINT winReturnCode;
@@ -511,7 +416,9 @@ void mHandleInputMessage(HWND hwnd, UINT message, WPARAM wParam, LPARAM lParam) 
         } else if (isPreparsedDataNull) {
           std::cout << FG_RED << "Cannot find PreparsedData at " << __FILE__ << ":" << __LINE__ << RESET_COLOR << std::endl;
         } else {
+#ifdef LOG_EVERY_INPUT_MESSAGES
           std::cout << "[" << ts << "]" << std::endl;
+#endif
           NTSTATUS hidpReturnCode;
           ULONG usageValue;
 
@@ -531,7 +438,9 @@ void mHandleInputMessage(HWND hwnd, UINT message, WPARAM wParam, LPARAM lParam) 
 
             ULONG numContacts = usageValue;
 
+#ifdef LOG_EVERY_INPUT_MESSAGES
             std::cout << FG_BRIGHT_BLUE << "numContacts: " << numContacts << RESET_COLOR << std::endl;
+#endif
 
             if (numContacts > g_deviceInfoList.Entries[foundHidIdx].LinkColInfoList.Size) {
               // TODO how should we deal with this edge case
@@ -646,6 +555,7 @@ void mHandleInputMessage(HWND hwnd, UINT message, WPARAM wParam, LPARAM lParam) 
                     }
                   }
 
+#ifdef LOG_EVERY_INPUT_MESSAGES
                   const char* touchTypeStr;
 
                   if (touchType == EVENT_TYPE_TOUCH_UP) {
@@ -663,6 +573,7 @@ void mHandleInputMessage(HWND hwnd, UINT message, WPARAM wParam, LPARAM lParam) 
                   }
 
                   std::cout << FG_GREEN << "LinkColID: " << collectionInfo.LinkColID << " touchID: " << touchId << " | tipSwitch: " << isContactOnSurface << " (" << xPos << ", " << yPos << ") " << touchTypeStr << RESET_COLOR << std::endl;
+#endif
                 }
               }
             }

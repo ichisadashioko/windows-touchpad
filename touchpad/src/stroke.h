@@ -1,5 +1,5 @@
-#ifndef STROKE_H
-#define STROKE_H
+#ifndef _STROKE_H_
+#define _STROKE_H_
 #include "point2d.h"
 
 struct StrokeList {
@@ -8,4 +8,4 @@ struct StrokeList {
 };
 
 int mCreateNewStroke(Point2D point, StrokeList* strokes);
-#endif  // STROKE_H
+#endif  // _STROKE_H_

@@ -17,9 +17,15 @@ I am a fan of practicing writing those crazy difficult Japanese Kanji. As a Japa
 
 ![C/C++ CI](https://github.com/ichisadashioko/windows-touchpad/workflows/C/C++%20CI/badge.svg)
 
+## Terminology
+
+- `digitizer`, `touchpad`, and `trackpad` are refering to the same things in this project.
+- (a) `touch` and (a) `contact` are refering to the representation of the data generated when your finger(s) come(s) into contact with the hardware - the touchpad.
+- `HID` - [human interface device](https://en.wikipedia.org/wiki/Human_interface_device) - refers to devices used by human to "communicate" with computers (even though they can be used by bot).
+
 ## Progress
 
-- We want to get raw touchpad input.
+- We want to get the figure's position when it comes into contact with the touchpad (hereby refered as raw input data).
 - Windows will send raw touchpad input data to GUI desktop application. (I am not sure how to get raw HID input from a console application.)
 - Most of the APIs are for C/C++ so I decided to use C/C++ to create native Windows Desktop Application.
 - We need to register our Desktop App for raw HID input so that Windows will send us the raw HID input data.
