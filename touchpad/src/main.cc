@@ -452,7 +452,7 @@ void mHandleInputMessage(HWND hwnd, UINT message, WPARAM wParam, LPARAM lParam) 
                       // TODO create new stroke
                       // TODO check return value for indication of errors
                       mCreateNewStroke(touchPos, &g_Strokes);
-                      InvalidateRect(hwnd, NULL, NULL);
+                      InvalidateRect(hwnd, NULL, FALSE);
                     } else {
                       // wait for touch down event to register new stroke
                     }
@@ -467,7 +467,7 @@ void mHandleInputMessage(HWND hwnd, UINT message, WPARAM wParam, LPARAM lParam) 
                       } else {
                         // TODO check return value for indication of errors
                         mAppendPoint2DToList(touchPos, &g_Strokes.Entries[g_Strokes.Size - 1]);
-                        InvalidateRect(hwnd, NULL, NULL);
+                        InvalidateRect(hwnd, NULL, FALSE);
                       }
                     } else if (touchType == EVENT_TYPE_TOUCH_UP) {
                       // I sure that the touch position is the same with the last touch position
@@ -515,7 +515,7 @@ HRESULT mCreateGraphicsResources(HWND hwnd) {
     RECT rc;
     GetClientRect(hwnd, &rc);
 
-    D2D1_SIZE_U size = {(UINT32)rc.right, (UINT32)rc.bottom};
+    D2D1_SIZE_U size = D2D1::SizeU(rc.right, rc.bottom);
 
     if (g_Direct2DFactory == NULL) {
       std::cout << FG_RED << "Direct2DFactory hasn't been initialized!" << RESET_COLOR << std::endl;
@@ -554,6 +554,18 @@ void mDiscardGraphicsResources() {
   if (g_Direct2DSolidColorBrush != NULL) {
     g_Direct2DSolidColorBrush->Release();
     g_Direct2DSolidColorBrush = NULL;
+  }
+}
+
+void mHandleResizeMessage(_In_ HWND hwnd, _In_ UINT uMsg, _In_ WPARAM wParam, _In_ LPARAM lParam) {
+  if (g_Direct2DHwndRenderTarget != NULL) {
+    RECT rc;
+    GetClientRect(hwnd, &rc);
+
+    D2D1_SIZE_U size = D2D1::SizeU(rc.right, rc.bottom);
+
+    g_Direct2DHwndRenderTarget->Resize(size);
+    InvalidateRect(hwnd, NULL, FALSE);
   }
 }
 
@@ -618,6 +630,10 @@ LRESULT CALLBACK WndProc(_In_ HWND hwnd, _In_ UINT uMsg, _In_ WPARAM wParam, _In
     }
     case WM_PAINT: {
       mHandlePaintMessage(hwnd, uMsg, wParam, lParam);
+      break;
+    }
+    case WM_SIZE: {
+      mHandleResizeMessage(hwnd, uMsg, wParam, lParam);
       break;
     }
     case WM_DESTROY: {
