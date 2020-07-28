@@ -17,4 +17,5 @@
 #define HID_USAGE_DIGITIZER_CONTACT_COUNT         ((USAGE)0x54)
 #define HID_USAGE_DIGITIZER_CONTACT_COUNT_MAXIMUM ((USAGE)0x55)
 
+int mGetRawInputDeviceName(HANDLE hDevice, TCHAR** deviceName, UINT* nameSize, unsigned int* cbDeviceName);
 #endif  // _TOUCHPAD_H_

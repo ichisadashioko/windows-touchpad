@@ -120,37 +120,11 @@ void mParseConnectedInputDevices() {
     int isButtonCapsEmpty = (caps.NumberInputButtonCaps == 0);
 
     if (!isButtonCapsEmpty) {
-      UINT deviceNameBufferSize = 0;
-      winReturnCode             = GetRawInputDeviceInfo(rawInputDevice.hDevice, RIDI_DEVICENAME, NULL, &deviceNameBufferSize);
-      if (winReturnCode == (UINT)-1) {
-        std::cout << "Failed to call GetRawInputDeviceInfo for getting device name size at " << __FILE__ << ":" << __LINE__ << std::endl;
-        mGetLastError();
-        throw;
-        exit(-1);
-      }
+      UINT deviceNameLength;
+      TCHAR* deviceName = NULL;
+      unsigned int cbDeviceName;
 
-      std::cout << "  deviceNameLength: " << deviceNameBufferSize << std::endl;
-      // the return value is the number of characters for the device name it is NOT the number of bytes for holding the device name
-      const UINT deviceNameLength = deviceNameBufferSize;
-
-      const unsigned int cbDeviceName = sizeof(TCHAR) * (deviceNameLength + 1);
-      TCHAR* deviceName               = (TCHAR*)mMalloc(cbDeviceName, __FILE__, __LINE__);
-
-      // set string terminator
-      // if we don't do this, the print function will not know when to stop
-      deviceName[deviceNameLength] = 0;
-
-      winReturnCode = GetRawInputDeviceInfo(rawInputDevice.hDevice, RIDI_DEVICENAME, deviceName, &deviceNameBufferSize);
-      if (winReturnCode == (UINT)-1) {
-        std::cout << "Failed to get device name at " << __FILE__ << ":" << __LINE__ << std::endl;
-        mGetLastError();
-        throw;
-        exit(-1);
-      } else if (winReturnCode != deviceNameLength) {
-        std::cout << "GetRawInputDeviceInfo does not return the expected size " << winReturnCode << " (actual) vs " << deviceNameLength << " (expected) at " << __FILE__ << ":" << __LINE__ << std::endl;
-        throw;
-        exit(-1);
-      }
+      mGetRawInputDeviceName(rawInputDevice.hDevice, &deviceName, &deviceNameLength, &cbDeviceName);
 
       std::cout << "Device name: ";
       std::wcout << deviceName << std::endl;
@@ -361,30 +335,11 @@ void mHandleInputMessage(HWND hwnd, UINT message, WPARAM wParam, LPARAM lParam) 
     BYTE* rawData = rawInputData->data.hid.bRawData;
 
     if (count != 0) {
-      UINT deviceNameBufferSize = 0;
-      winReturnCode             = GetRawInputDeviceInfo(rawInputData->header.hDevice, RIDI_DEVICENAME, NULL, &deviceNameBufferSize);
-      if (winReturnCode == (UINT)-1) {
-        std::cout << FG_RED << "GetRawInputDeviceInfo failed at " << __FILE__ << ":" << __LINE__ << RESET_COLOR << std::endl;
-        mGetLastError();
-        throw;
-        exit(-1);
-      }
+      UINT deviceNameLength;
+      TCHAR* deviceName = NULL;
+      unsigned int cbDeviceName;
 
-      const UINT deviceNameLength = deviceNameBufferSize;
-      TCHAR* deviceName           = (TCHAR*)mMalloc(sizeof(TCHAR) * (deviceNameLength + 1), __FILE__, __LINE__);
-
-      deviceName[deviceNameLength] = 0;
-      winReturnCode                = GetRawInputDeviceInfo(rawInputData->header.hDevice, RIDI_DEVICENAME, deviceName, &deviceNameBufferSize);
-      if (winReturnCode == (UINT)-1) {
-        std::cout << FG_RED << "GetRawInputDeviceInfo failed at " << __FILE__ << ":" << __LINE__ << RESET_COLOR << std::endl;
-        mGetLastError();
-        throw;
-        exit(-1);
-      } else if (winReturnCode != deviceNameLength) {
-        std::cout << FG_RED << "GetRawInputDeviceInfo did not copy enough data " << winReturnCode << " (copied) vs " << deviceNameLength << " at " << __FILE__ << ":" << __LINE__ << RESET_COLOR << std::endl;
-        throw;
-        exit(-1);
-      }
+      mGetRawInputDeviceName(rawInputData->header.hDevice, &deviceName, &deviceNameLength, &cbDeviceName);
 
       unsigned int foundHidIdx = (unsigned int)-1;
 
