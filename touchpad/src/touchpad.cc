@@ -111,3 +111,43 @@ int mGetRawInputDeviceList(_Out_ UINT* numDevices, _Out_ RAWINPUTDEVICELIST** de
 
   return retval;
 }
+
+int mGetRawInputDevicePreparsedData(_In_ HANDLE hDevice, _Out_ PHIDP_PREPARSED_DATA* data, _Out_ UINT* cbSize) {
+  int retval = 0;
+  UINT winReturnCode;
+
+  if (data == NULL) {
+    retval = -1;
+    std::cout << FG_RED << "(PHIDP_PREPARSED_DATA*) data parameter is NULL!" << RESET_COLOR << std::endl;
+    throw;
+    exit(-1);
+  } else if (cbSize == NULL) {
+    retval = -1;
+    std::cout << FG_RED << "The cbSize parameter is NULL!" << RESET_COLOR << std::endl;
+    throw;
+    exit(-1);
+  } else if ((*data) != NULL) {
+    retval = -1;
+    std::cout << FG_RED << "(PHIDP_PREPARSED_DATA) data parameter is not NULL! Please free your memory and set the point to NULL." << RESET_COLOR << std::endl;
+  } else {
+    winReturnCode = GetRawInputDeviceInfo(hDevice, RIDI_PREPARSEDDATA, NULL, cbSize);
+    if (winReturnCode == (UINT)-1) {
+      retval = -1;
+      std::cout << FG_RED << "GetRawInputDeviceInfo failed at " << __FILE__ << ":" << __LINE__ << RESET_COLOR << std::endl;
+      throw;
+      exit(-1);
+    } else {
+      (*data) = (PHIDP_PREPARSED_DATA)mMalloc((*cbSize), __FILE__, __LINE__);
+
+      winReturnCode = GetRawInputDeviceInfo(hDevice, RIDI_PREPARSEDDATA, (*data), cbSize);
+      if (winReturnCode == (UINT)-1) {
+        retval = -1;
+        std::cout << FG_RED << "GetRawInputDeviceInfo failed at " << __FILE__ << ":" << __LINE__ << RESET_COLOR << std::endl;
+        throw;
+        exit(-1);
+      }
+    }
+  }
+
+  return retval;
+}

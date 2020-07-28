@@ -42,9 +42,7 @@ static StrokeList g_Strokes    = {NULL, 0};
 static ULONG g_TrackingTouchID = (ULONG)-1;
 
 void mParseConnectedInputDevices() {
-  UINT winReturnCode;
-
-  std::cout << FG_BLUE << "Retrieving all HID devices..." << RESET_COLOR << std::endl;
+  std::cout << FG_BLUE << "Parsing all HID devices..." << RESET_COLOR << std::endl;
 
   // find number of connected devices
 
@@ -53,9 +51,7 @@ void mParseConnectedInputDevices() {
 
   mGetRawInputDeviceList(&numDevices, &rawInputDeviceList);
 
-  // as we have to pass a PUINT to GetRawInputDeviceList the value might be changed.
-
-  std::cout << "numDevices: " << numDevices << std::endl;
+  std::cout << "Number of raw input devices: " << numDevices << std::endl;
   for (UINT deviceIndex = 0; deviceIndex < numDevices; deviceIndex++) {
     std::cout << BG_GREEN << "===== Device #" << deviceIndex << " =====" << RESET_COLOR << std::endl;
     RAWINPUTDEVICELIST rawInputDevice = rawInputDeviceList[deviceIndex];
@@ -65,26 +61,10 @@ void mParseConnectedInputDevices() {
     }
 
     // get preparsed data for HidP
-    UINT prepasedDataSize = 0;
-    winReturnCode         = GetRawInputDeviceInfo(rawInputDevice.hDevice, RIDI_PREPARSEDDATA, NULL, &prepasedDataSize);
-    if (winReturnCode == (UINT)-1) {
-      std::cout << "Failed to call GetRawInputDeviceInfo to get prepased data size at " << __FILE__ ":" << __LINE__ << std::endl;
-      mGetLastError();
-      throw;
-      exit(-1);
-    }
+    UINT cbDataSize                    = 0;
+    PHIDP_PREPARSED_DATA preparsedData = NULL;
 
-    std::cout << "Prepased data size: " << prepasedDataSize << std::endl;
-    const UINT _prepasedDataSize       = prepasedDataSize;
-    PHIDP_PREPARSED_DATA preparsedData = (PHIDP_PREPARSED_DATA)mMalloc(_prepasedDataSize, __FILE__, __LINE__);
-
-    winReturnCode = GetRawInputDeviceInfo(rawInputDevice.hDevice, RIDI_PREPARSEDDATA, preparsedData, &prepasedDataSize);
-    if (winReturnCode == (UINT)-1) {
-      std::cout << "Failed to call GetRawInputDeviceInfo to get prepased data at " << __FILE__ << ":" << __LINE__ << std::endl;
-      mGetLastError();
-      throw;
-      exit(-1);
-    }
+    mGetRawInputDevicePreparsedData(rawInputDevice.hDevice, &preparsedData, &cbDataSize);
 
     NTSTATUS hidpReturnCode;
 
@@ -114,7 +94,7 @@ void mParseConnectedInputDevices() {
 
       std::cout << FG_GREEN << "Finding device in global list..." << RESET_COLOR << std::endl;
       unsigned int foundHidIdx;
-      int returnCode = FindInputDeviceInList(&(g_deviceInfoList), deviceName, cbDeviceName, preparsedData, _prepasedDataSize, &foundHidIdx);
+      int returnCode = FindInputDeviceInList(&(g_deviceInfoList), deviceName, cbDeviceName, preparsedData, cbDataSize, &foundHidIdx);
       if (returnCode != 0) {
         std::cout << "FindInputDeviceInList failed at " << __FILE__ << ":" << __LINE__ << std::endl;
         throw;
