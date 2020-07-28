@@ -48,34 +48,17 @@ void mParseConnectedInputDevices() {
 
   // find number of connected devices
 
-  UINT numDevices = 0;
-  winReturnCode   = GetRawInputDeviceList(NULL, &numDevices, sizeof(RAWINPUTDEVICELIST));
+  UINT numDevices;
+  RAWINPUTDEVICELIST* rawInputDeviceList = NULL;
 
-  if (winReturnCode == (UINT)-1) {
-    std::cout << FG_RED << "GetRawInputDeviceList failed at " << __FILE__ << ":" << __LINE__ << RESET_COLOR << std::endl;
-    mGetLastError();
-    throw;
-    exit(-1);
-  }
-
-  std::cout << "Detect " << numDevices << " device(s)!" << std::endl;
-  std::unique_ptr<RAWINPUTDEVICELIST[]> rawInputDeviceList(new RAWINPUTDEVICELIST[numDevices]);
+  mGetRawInputDeviceList(&numDevices, &rawInputDeviceList);
 
   // as we have to pass a PUINT to GetRawInputDeviceList the value might be changed.
-  const UINT _numDevices = numDevices;
-  winReturnCode          = GetRawInputDeviceList(rawInputDeviceList.get(), &numDevices, sizeof(RAWINPUTDEVICELIST));
-
-  if (winReturnCode == (UINT)-1) {
-    std::cout << "GetRawInputDeviceList failed at " << __FILE__ << ":" << __LINE__ << std::endl;
-    mGetLastError();
-    throw;
-    exit(-1);
-  }
 
   std::cout << "numDevices: " << numDevices << std::endl;
-  for (UINT deviceIndex = 0; deviceIndex < _numDevices; deviceIndex++) {
+  for (UINT deviceIndex = 0; deviceIndex < numDevices; deviceIndex++) {
     std::cout << BG_GREEN << "===== Device #" << deviceIndex << " =====" << RESET_COLOR << std::endl;
-    RAWINPUTDEVICELIST rawInputDevice = rawInputDeviceList.get()[deviceIndex];
+    RAWINPUTDEVICELIST rawInputDevice = rawInputDeviceList[deviceIndex];
     if (rawInputDevice.dwType != RIM_TYPEHID) {
       // skip keyboards and mouses
       continue;
@@ -252,6 +235,8 @@ void mParseConnectedInputDevices() {
 
     free(preparsedData);
   }
+
+  free(rawInputDeviceList);
 }
 
 void mRegisterRawInput(HWND hwnd) {
