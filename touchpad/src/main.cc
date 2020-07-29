@@ -254,44 +254,16 @@ void mHandleCreateMessage(HWND hwnd, UINT message, WPARAM wParam, LPARAM lParam)
 }
 
 void mHandleInputMessage(HWND hwnd, UINT message, WPARAM wParam, LPARAM lParam) {
-  UINT winReturnCode;  // return code from windows API call
   clock_t ts = clock();
 
   // following guide: https://docs.microsoft.com/en-us/windows/win32/inputdev/using-raw-input#performing-a-standard-read-of-raw-input
 
   // Get the size of RAWINPUT by calling GetRawInputData() with pData = NULL
 
-  UINT rawInputSize = 0;
+  UINT rawInputSize;
+  PRAWINPUT rawInputData = NULL;
 
-  winReturnCode = GetRawInputData((HRAWINPUT)lParam, RID_INPUT, NULL, &rawInputSize, sizeof(RAWINPUTHEADER));
-  if (winReturnCode == (UINT)-1) {
-    // handle error
-    std::cout << FG_RED << "[" << ts << "]"
-              << "GetRawInputData failed at " << __FILE__ << ":" << __LINE__ << RESET_COLOR << std::endl;
-    mGetLastError();
-
-    throw;
-    exit(-1);
-  }
-
-  // rawInputSize might be modified to 0 after calling GetRawInputData() the second time
-  const UINT _rawInputSize = rawInputSize;  // backup the raw input size for checking with return value from GetRawInputData()
-  RAWINPUT* rawInputData   = (RAWINPUT*)mMalloc(_rawInputSize, __FILE__, __LINE__);
-
-  winReturnCode = GetRawInputData((HRAWINPUT)lParam, RID_INPUT, rawInputData, &rawInputSize, sizeof(RAWINPUTHEADER));
-  if (winReturnCode == (UINT)-1) {
-    // handle error
-    std::cout << FG_RED << "[" << ts << "]"
-              << "GetRawInputData failed at " << __FILE__ << ":" << __LINE__ << RESET_COLOR << std::endl;
-    mGetLastError();
-    throw;
-    exit(-1);
-  } else if (winReturnCode != _rawInputSize) {
-    std::cout << FG_RED << "[" << ts << "]"
-              << "GetRawInputData did not copy enough data as reported at " << __FILE__ << ":" << __LINE__ << RESET_COLOR << std::endl;
-    throw;
-    exit(-1);
-  }
+  mGetRawInputData((HRAWINPUT)lParam, &rawInputSize, (LPVOID*)(&rawInputData));
 
   // Parse the RAWINPUT data.
   if (rawInputData->header.dwType == RIM_TYPEHID) {

@@ -119,21 +119,28 @@ int mGetRawInputDevicePreparsedData(_In_ HANDLE hDevice, _Out_ PHIDP_PREPARSED_D
   if (data == NULL) {
     retval = -1;
     std::cout << FG_RED << "(PHIDP_PREPARSED_DATA*) data parameter is NULL!" << RESET_COLOR << std::endl;
+
     throw;
     exit(-1);
   } else if (cbSize == NULL) {
     retval = -1;
     std::cout << FG_RED << "The cbSize parameter is NULL!" << RESET_COLOR << std::endl;
+
     throw;
     exit(-1);
   } else if ((*data) != NULL) {
     retval = -1;
     std::cout << FG_RED << "(PHIDP_PREPARSED_DATA) data parameter is not NULL! Please free your memory and set the point to NULL." << RESET_COLOR << std::endl;
+
+    throw;
+    exit(-1);
   } else {
     winReturnCode = GetRawInputDeviceInfo(hDevice, RIDI_PREPARSEDDATA, NULL, cbSize);
     if (winReturnCode == (UINT)-1) {
       retval = -1;
       std::cout << FG_RED << "GetRawInputDeviceInfo failed at " << __FILE__ << ":" << __LINE__ << RESET_COLOR << std::endl;
+      mGetLastError();
+
       throw;
       exit(-1);
     } else {
@@ -143,6 +150,63 @@ int mGetRawInputDevicePreparsedData(_In_ HANDLE hDevice, _Out_ PHIDP_PREPARSED_D
       if (winReturnCode == (UINT)-1) {
         retval = -1;
         std::cout << FG_RED << "GetRawInputDeviceInfo failed at " << __FILE__ << ":" << __LINE__ << RESET_COLOR << std::endl;
+        mGetLastError();
+
+        throw;
+        exit(-1);
+      }
+    }
+  }
+
+  return retval;
+}
+
+int mGetRawInputData(_In_ HRAWINPUT hRawInput, _Out_ PUINT pcbSize, _Out_ LPVOID* pData) {
+  int retval = 0;
+  UINT winReturnCode;
+
+  if (pcbSize == NULL) {
+    retval = -1;
+    std::cout << FG_RED << "pcbSize parameter is NULL!" << RESET_COLOR << std::endl;
+
+    throw;
+    exit(-1);
+  } else if (pData == NULL) {
+    retval = -1;
+    std::cout << FG_RED << "(LPVOID*) pData parameter is NULL!" << RESET_COLOR << std::endl;
+
+    throw;
+    exit(-1);
+  } else if ((*pData) != NULL) {
+    retval = -1;
+    std::cout << FG_RED << "(LPVOID) pData value is not NULL! Please free your memory and set the pointer value to NULL." << RESET_COLOR << std::endl;
+
+    throw;
+    exit(-1);
+  } else {
+    winReturnCode = GetRawInputData(hRawInput, RID_INPUT, NULL, pcbSize, sizeof(RAWINPUTHEADER));
+    if (winReturnCode == (UINT)-1) {
+      retval = -1;
+      std::cout << FG_RED << "GetRawInputData failed at " << __FILE__ << ":" << __LINE__ << RESET_COLOR << std::endl;
+      mGetLastError();
+
+      throw;
+      exit(-1);
+    } else {
+      (*pData) = (LPVOID)mMalloc((*pcbSize), __FILE__, __LINE__);
+
+      winReturnCode = GetRawInputData(hRawInput, RID_INPUT, (*pData), pcbSize, sizeof(RAWINPUTHEADER));
+      if (winReturnCode == (UINT)-1) {
+        retval = -1;
+        std::cout << FG_RED << "GetRawInputData failed at " << __FILE__ << ":" << __LINE__ << RESET_COLOR << std::endl;
+        mGetLastError();
+
+        throw;
+        exit(-1);
+      } else if (winReturnCode != (*pcbSize)) {
+        retval = -1;
+        std::cout << FG_RED << "GetRawInputData failed at " << __FILE__ << ":" << __LINE__ << ". The return value - the number of byte(s) copied into pData (" << winReturnCode << ") is not equal the expected value (" << (*pcbSize) << ")." << RESET_COLOR << std::endl;
+
         throw;
         exit(-1);
       }
