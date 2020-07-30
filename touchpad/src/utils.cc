@@ -11,7 +11,8 @@
 #include "termcolor.h"
 #include "utils.h"
 
-void mGetLastError() {
+void mGetLastError()
+{
   DWORD errorCode      = GetLastError();
   LPWSTR messageBuffer = NULL;
   size_t size          = FormatMessageW(FORMAT_MESSAGE_ALLOCATE_BUFFER | FORMAT_MESSAGE_FROM_SYSTEM | FORMAT_MESSAGE_IGNORE_INSERTS, NULL, errorCode, MAKELANGID(LANG_NEUTRAL, SUBLANG_DEFAULT), (LPWSTR)&messageBuffer, 0, NULL);
@@ -21,29 +22,43 @@ void mGetLastError() {
   // TODO check to see if we don't free the messageBuffer pointer, will it lead to memory leaking?
 }
 
-void print_HidP_errors(NTSTATUS hidpReturnCode, std::string filePath, int lineNumber) {
-  if (hidpReturnCode == HIDP_STATUS_INVALID_REPORT_LENGTH) {
+void print_HidP_errors(NTSTATUS hidpReturnCode, const char* filePath, int lineNumber)
+{
+  if (hidpReturnCode == HIDP_STATUS_INVALID_REPORT_LENGTH)
+  {
     std::cout << FG_RED << "The report length is not valid. HidP function failed at " << filePath << ":" << lineNumber << RESET_COLOR << std::endl;
-  } else if (hidpReturnCode == HIDP_STATUS_INVALID_REPORT_TYPE) {
+  }
+  else if (hidpReturnCode == HIDP_STATUS_INVALID_REPORT_TYPE)
+  {
     std::cout << FG_RED << "The specified report type is not valid. HidP function failed at " << filePath << ":" << lineNumber << RESET_COLOR << std::endl;
-  } else if (hidpReturnCode == HIDP_STATUS_INCOMPATIBLE_REPORT_ID) {
+  }
+  else if (hidpReturnCode == HIDP_STATUS_INCOMPATIBLE_REPORT_ID)
+  {
     std::cout << FG_RED << "The collection contains a value on the specified usage page in a report of the specified type, but there are no such usages in the specified report. HidP function failed at " << filePath << ":" << lineNumber << RESET_COLOR << std::endl;
-  } else if (hidpReturnCode == HIDP_STATUS_INVALID_PREPARSED_DATA) {
+  }
+  else if (hidpReturnCode == HIDP_STATUS_INVALID_PREPARSED_DATA)
+  {
     std::cout << FG_RED << "The preparsed data is not valid. HidP function failed at " << filePath << ":" << lineNumber << RESET_COLOR << std::endl;
-  } else if (hidpReturnCode == HIDP_STATUS_USAGE_NOT_FOUND) {
+  }
+  else if (hidpReturnCode == HIDP_STATUS_USAGE_NOT_FOUND)
+  {
     std::cout << FG_RED << "The collection does not contain a value on the specified usage page in any report of the specified report type. HidP function failed at " << filePath << ":" << lineNumber << RESET_COLOR << std::endl;
-  } else {
+  }
+  else
+  {
     std::cout << FG_RED << "Unknown error code: " << hidpReturnCode << ". HidP function failed at " << filePath << ":" << lineNumber << RESET_COLOR << std::endl;
   }
 }
 
-int FindInputDeviceInList(HID_DEVICE_INFO_LIST* hidInfoList, TCHAR* deviceName, const unsigned int cbDeviceName, PHIDP_PREPARSED_DATA preparsedData, const UINT cbPreparsedData, unsigned int* foundHidIndex) {
+int FindInputDeviceInList(HID_DEVICE_INFO_LIST* hidInfoList, TCHAR* deviceName, const unsigned int cbDeviceName, PHIDP_PREPARSED_DATA preparsedData, const UINT cbPreparsedData, unsigned int* foundHidIndex)
+{
   (*foundHidIndex)              = (unsigned int)-1;
   HID_DEVICE_INFO* hidInfoArray = hidInfoList->Entries;
   unsigned int hidInfoArraySize = hidInfoList->Size;
   const int isHidArrayNull      = (hidInfoArray == NULL);
   const int isHidArraySizeEmpty = (hidInfoArraySize == 0);
-  if (isHidArrayNull || isHidArraySizeEmpty) {
+  if (isHidArrayNull || isHidArraySizeEmpty)
+  {
     // the array/list/dictionary is empty
     // allocate memory for the first entry
     hidInfoArraySize = 1;
@@ -70,17 +85,22 @@ int FindInputDeviceInList(HID_DEVICE_INFO_LIST* hidInfoList, TCHAR* deviceName, 
     hidInfoArray[(*foundHidIndex)].PreparedData = (PHIDP_PREPARSED_DATA)mMalloc(cbPreparsedData, __FILE__, __LINE__);
 
     memcpy(hidInfoArray[(*foundHidIndex)].PreparedData, preparsedData, cbPreparsedData);
-  } else {
-    for (unsigned int touchpadIndex = 0; touchpadIndex < hidInfoArraySize; touchpadIndex++) {
+  }
+  else
+  {
+    for (unsigned int touchpadIndex = 0; touchpadIndex < hidInfoArraySize; touchpadIndex++)
+    {
       int compareNameResult = _tcscmp(deviceName, hidInfoArray[touchpadIndex].Name);
-      if (compareNameResult == 0) {
+      if (compareNameResult == 0)
+      {
         (*foundHidIndex) = touchpadIndex;
         break;
       }
     }
   }
 
-  if ((*foundHidIndex) == (unsigned int)-1) {
+  if ((*foundHidIndex) == (unsigned int)-1)
+  {
     // the array/list/dictionary is not empty
     // but we cannot find any entry with the same name
 
@@ -91,7 +111,8 @@ int FindInputDeviceInList(HID_DEVICE_INFO_LIST* hidInfoList, TCHAR* deviceName, 
     // copy entries to new array
     HID_DEVICE_INFO* tmpHidInfoArray = (HID_DEVICE_INFO*)mMalloc(sizeof(HID_DEVICE_INFO) * hidInfoArraySize, __FILE__, __LINE__);
 
-    for (unsigned int hidIndex = 0; hidIndex < (*foundHidIndex); hidIndex++) {
+    for (unsigned int hidIndex = 0; hidIndex < (*foundHidIndex); hidIndex++)
+    {
       tmpHidInfoArray[hidIndex].Name = hidInfoArray[hidIndex].Name;
       hidInfoArray[hidIndex].Name    = NULL;
 
@@ -131,12 +152,14 @@ int FindInputDeviceInList(HID_DEVICE_INFO_LIST* hidInfoList, TCHAR* deviceName, 
   return 0;
 }
 
-int FindLinkCollectionInList(HID_LINK_COL_INFO_LIST* linkColInfoList, USHORT linkCollection, unsigned int* foundLinkColIdx) {
+int FindLinkCollectionInList(HID_LINK_COL_INFO_LIST* linkColInfoList, USHORT linkCollection, unsigned int* foundLinkColIdx)
+{
   (*foundLinkColIdx)      = (unsigned int)-1;
   int isLinkColArrayNull  = (linkColInfoList->Entries == NULL);
   int isLinkColArrayEmpty = (linkColInfoList->Size == 0);
 
-  if (isLinkColArrayNull || isLinkColArrayEmpty) {
+  if (isLinkColArrayNull || isLinkColArrayEmpty)
+  {
     (*foundLinkColIdx)    = 0;
     linkColInfoList->Size = 1;
 
@@ -152,23 +175,29 @@ int FindLinkCollectionInList(HID_LINK_COL_INFO_LIST* linkColInfoList, USHORT lin
     linkColInfoList->Entries[(*foundLinkColIdx)].HasWidth      = 0;
     linkColInfoList->Entries[(*foundLinkColIdx)].HasHeight     = 0;
     linkColInfoList->Entries[(*foundLinkColIdx)].HasPressure   = 0;
-  } else {
+  }
+  else
+  {
     // std::cout << BG_BLUE << "NumCollections: " << linkColInfoList->Size << RESET_COLOR << std::endl;
-    for (unsigned int linkColIdx = 0; linkColIdx < linkColInfoList->Size; linkColIdx++) {
-      if (linkColInfoList->Entries[linkColIdx].LinkColID == linkCollection) {
+    for (unsigned int linkColIdx = 0; linkColIdx < linkColInfoList->Size; linkColIdx++)
+    {
+      if (linkColInfoList->Entries[linkColIdx].LinkColID == linkCollection)
+      {
         (*foundLinkColIdx) = linkColIdx;
         break;
       }
     }
   }
 
-  if ((*foundLinkColIdx) == (unsigned int)-1) {
+  if ((*foundLinkColIdx) == (unsigned int)-1)
+  {
     (*foundLinkColIdx)    = linkColInfoList->Size;
     linkColInfoList->Size = (*foundLinkColIdx) + 1;
 
     HID_TOUCH_LINK_COL_INFO* tmpCollectionArray = (HID_TOUCH_LINK_COL_INFO*)mMalloc(sizeof(HID_TOUCH_LINK_COL_INFO) * linkColInfoList->Size, __FILE__, __LINE__);
 
-    for (unsigned int linkColIdx = 0; linkColIdx < (*foundLinkColIdx); linkColIdx++) {
+    for (unsigned int linkColIdx = 0; linkColIdx < (*foundLinkColIdx); linkColIdx++)
+    {
       tmpCollectionArray[linkColIdx] = linkColInfoList->Entries[linkColIdx];
     }
 
@@ -189,9 +218,11 @@ int FindLinkCollectionInList(HID_LINK_COL_INFO_LIST* linkColInfoList, USHORT lin
   return 0;
 }
 
-void* mMalloc(size_t size, std::string filePath, int lineNumber) {
+void* mMalloc(size_t size, std::string filePath, int lineNumber)
+{
   void* retval = malloc(size);
-  if (retval == NULL) {
+  if (retval == NULL)
+  {
     std::cout << FG_RED << "malloc failed to allocate " << size << " byte(s) at " << filePath << ":" << lineNumber << RESET_COLOR << std::endl;
     throw;
     exit(-1);

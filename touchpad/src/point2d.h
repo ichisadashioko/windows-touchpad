@@ -4,12 +4,14 @@
 #include <iostream>
 #include "termcolor.h"
 
-struct Point2D {
+struct Point2D
+{
   ULONG X;
   ULONG Y;
 };
 
-struct Point2DList {
+struct Point2DList
+{
   Point2D* Entries;
   unsigned int Size;
 };

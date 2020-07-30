@@ -13,7 +13,8 @@ static TCHAR szWindowClass[] = _T("DesktopApp");
 // the application's title bar
 static TCHAR szTitle[] = _T("GDI samples");
 
-void mHandlePaintMessage(_In_ HWND hwnd, _In_ UINT uMsg, _In_ WPARAM wParam, _In_ LPARAM lParam) {
+void mHandlePaintMessage(_In_ HWND hwnd, _In_ UINT uMsg, _In_ WPARAM wParam, _In_ LPARAM lParam)
+{
   HDC hdc;
   HPEN pen;
   RECT rc;
@@ -32,17 +33,22 @@ void mHandlePaintMessage(_In_ HWND hwnd, _In_ UINT uMsg, _In_ WPARAM wParam, _In
   ReleaseDC(hwnd, hdc);
 }
 
-LRESULT CALLBACK WndProc(_In_ HWND hwnd, _In_ UINT uMsg, _In_ WPARAM wParam, _In_ LPARAM lParam) {
-  switch (uMsg) {
-    case WM_PAINT: {
+LRESULT CALLBACK WndProc(_In_ HWND hwnd, _In_ UINT uMsg, _In_ WPARAM wParam, _In_ LPARAM lParam)
+{
+  switch (uMsg)
+  {
+    case WM_PAINT:
+    {
       mHandlePaintMessage(hwnd, uMsg, wParam, lParam);
       break;
     }
-    case WM_DESTROY: {
+    case WM_DESTROY:
+    {
       PostQuitMessage(0);
       break;
     }
-    default: {
+    default:
+    {
       return DefWindowProc(hwnd, uMsg, wParam, lParam);
     }
   }
@@ -50,7 +56,8 @@ LRESULT CALLBACK WndProc(_In_ HWND hwnd, _In_ UINT uMsg, _In_ WPARAM wParam, _In
   return 0;
 }
 
-int CALLBACK wWinMain(_In_ HINSTANCE hInstance, _In_opt_ HINSTANCE hPrevInstance, _In_ LPWSTR lpCmdLine, _In_ int nCmdShow) {
+int CALLBACK wWinMain(_In_ HINSTANCE hInstance, _In_opt_ HINSTANCE hPrevInstance, _In_ LPWSTR lpCmdLine, _In_ int nCmdShow)
+{
   int nWidth  = 720;
   int nHeight = 480;
 
@@ -69,14 +76,16 @@ int CALLBACK wWinMain(_In_ HINSTANCE hInstance, _In_opt_ HINSTANCE hPrevInstance
   wcex.lpszClassName = szWindowClass;
   wcex.hIconSm       = LoadIcon(wcex.hInstance, IDI_APPLICATION);
 
-  if (!RegisterClassEx(&wcex)) {
+  if (!RegisterClassEx(&wcex))
+  {
     std::cout << "RegisterClassEx filed at " << __FILE__ << ":" << __LINE__ << std::endl;
     return -1;
   }
 
   HWND hwnd = CreateWindow(szWindowClass, szTitle, WS_OVERLAPPEDWINDOW | WS_EX_LAYERED, CW_USEDEFAULT, CW_USEDEFAULT, nWidth, nHeight, NULL, NULL, hInstance, NULL);
 
-  if (!hwnd) {
+  if (!hwnd)
+  {
     std::cout << "CreateWindow filed at " << __FILE__ << ":" << __LINE__ << std::endl;
     return -1;
   }
@@ -85,7 +94,8 @@ int CALLBACK wWinMain(_In_ HINSTANCE hInstance, _In_opt_ HINSTANCE hPrevInstance
   UpdateWindow(hwnd);
 
   MSG msg;
-  while (GetMessage(&msg, NULL, 0, 0)) {
+  while (GetMessage(&msg, NULL, 0, 0))
+  {
     TranslateMessage(&msg);
     DispatchMessage(&msg);
   }
@@ -93,6 +103,7 @@ int CALLBACK wWinMain(_In_ HINSTANCE hInstance, _In_opt_ HINSTANCE hPrevInstance
   return (int)msg.wParam;
 }
 
-int main() {
+int main()
+{
   return wWinMain(GetModuleHandle(NULL), NULL, GetCommandLine(), SW_SHOWNORMAL);
 };

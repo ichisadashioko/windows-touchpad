@@ -1,31 +1,40 @@
 #pragma once
 
 template <class DERIVED_TYPE>
-class BaseWindow {
+class BaseWindow
+{
  public:
-  static LRESULT CALLBACK WindowProc(HWND hwnd, UINT uMsg, WPARAM wParam, LPARAM lParam) {
+  static LRESULT CALLBACK WindowProc(HWND hwnd, UINT uMsg, WPARAM wParam, LPARAM lParam)
+  {
     DERIVED_TYPE* pThis = NULL;
 
-    if (uMsg == WM_NCCREATE) {
+    if (uMsg == WM_NCCREATE)
+    {
       CREATESTRUCT* pCreate = (CREATESTRUCT*)lParam;
       pThis                 = (DERIVED_TYPE*)pCreate->lpCreateParams;
       SetWindowLongPtr(hwnd, GWLP_USERDATA, (LONG_PTR)pThis);
 
       pThis->m_hwnd = hwnd;
-    } else {
+    }
+    else
+    {
       pThis = (DERIVED_TYPE*)GetWindowLongPtr(hwnd, GWLP_USERDATA);
     }
 
-    if (pThis) {
+    if (pThis)
+    {
       return pThis->HandleMessage(uMsg, wParam, lParam);
-    } else {
+    }
+    else
+    {
       return DefWindowProc(hwnd, uMsg, wParam, lParam);
     }
   }
 
   BaseWindow() : m_hwnd(NULL) {}
 
-  BOOL Create(PCWSTR lpWindowName, DWORD dwStyle, DWORD dwExStyle = 0, int x = CW_USEDEFAULT, int y = CW_USEDEFAULT, int nWidth = CW_USEDEFAULT, int nHeight = CW_USEDEFAULT, HWND hWndParent = 0, HMENU hMenu = 0) {
+  BOOL Create(PCWSTR lpWindowName, DWORD dwStyle, DWORD dwExStyle = 0, int x = CW_USEDEFAULT, int y = CW_USEDEFAULT, int nWidth = CW_USEDEFAULT, int nHeight = CW_USEDEFAULT, HWND hWndParent = 0, HMENU hMenu = 0)
+  {
     WNDCLASS wc = {0};
 
     wc.lpfnWndProc   = DERIVED_TYPE::WindowProc;

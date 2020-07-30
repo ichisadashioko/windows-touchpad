@@ -41,7 +41,8 @@ ID2D1SolidColorBrush* g_Direct2DSolidColorBrush   = NULL;
 static StrokeList g_Strokes    = {NULL, 0};
 static ULONG g_TrackingTouchID = (ULONG)-1;
 
-void mParseConnectedInputDevices() {
+void mParseConnectedInputDevices()
+{
   std::cout << FG_BLUE << "Parsing all HID devices..." << RESET_COLOR << std::endl;
 
   // find number of connected devices
@@ -52,10 +53,12 @@ void mParseConnectedInputDevices() {
   mGetRawInputDeviceList(&numDevices, &rawInputDeviceList);
 
   std::cout << "Number of raw input devices: " << numDevices << std::endl;
-  for (UINT deviceIndex = 0; deviceIndex < numDevices; deviceIndex++) {
+  for (UINT deviceIndex = 0; deviceIndex < numDevices; deviceIndex++)
+  {
     std::cout << BG_GREEN << "===== Device #" << deviceIndex << " =====" << RESET_COLOR << std::endl;
     RAWINPUTDEVICELIST rawInputDevice = rawInputDeviceList[deviceIndex];
-    if (rawInputDevice.dwType != RIM_TYPEHID) {
+    if (rawInputDevice.dwType != RIM_TYPEHID)
+    {
       // skip keyboards and mouses
       continue;
     }
@@ -71,7 +74,8 @@ void mParseConnectedInputDevices() {
     // find HID capabilities
     HIDP_CAPS caps;
     hidpReturnCode = HidP_GetCaps(preparsedData, &caps);
-    if (hidpReturnCode != HIDP_STATUS_SUCCESS) {
+    if (hidpReturnCode != HIDP_STATUS_SUCCESS)
+    {
       print_HidP_errors(hidpReturnCode, __FILE__, __LINE__);
       throw;
       exit(-1);
@@ -82,7 +86,8 @@ void mParseConnectedInputDevices() {
 
     int isButtonCapsEmpty = (caps.NumberInputButtonCaps == 0);
 
-    if (!isButtonCapsEmpty) {
+    if (!isButtonCapsEmpty)
+    {
       UINT deviceNameLength;
       TCHAR* deviceName = NULL;
       unsigned int cbDeviceName;
@@ -95,7 +100,8 @@ void mParseConnectedInputDevices() {
       std::cout << FG_GREEN << "Finding device in global list..." << RESET_COLOR << std::endl;
       unsigned int foundHidIdx;
       int returnCode = FindInputDeviceInList(&(g_deviceInfoList), deviceName, cbDeviceName, preparsedData, cbDataSize, &foundHidIdx);
-      if (returnCode != 0) {
+      if (returnCode != 0)
+      {
         std::cout << "FindInputDeviceInList failed at " << __FILE__ << ":" << __LINE__ << std::endl;
         throw;
         exit(-1);
@@ -109,30 +115,35 @@ void mParseConnectedInputDevices() {
       std::cout << FG_BRIGHT_RED << "current device name: " << RESET_COLOR;
       std::wcout << deviceName << std::endl;
 
-      if (caps.NumberInputValueCaps != 0) {
+      if (caps.NumberInputValueCaps != 0)
+      {
         const USHORT numValueCaps = caps.NumberInputValueCaps;
         USHORT _numValueCaps      = numValueCaps;
 
         PHIDP_VALUE_CAPS valueCaps = (PHIDP_VALUE_CAPS)mMalloc(sizeof(HIDP_VALUE_CAPS) * numValueCaps, __FILE__, __LINE__);
 
         hidpReturnCode = HidP_GetValueCaps(HidP_Input, valueCaps, &_numValueCaps, preparsedData);
-        if (hidpReturnCode != HIDP_STATUS_SUCCESS) {
+        if (hidpReturnCode != HIDP_STATUS_SUCCESS)
+        {
           print_HidP_errors(hidpReturnCode, __FILE__, __LINE__);
         }
 
         // x check if numValueCaps value has been changed
         std::cout << "NumberInputValueCaps: " << numValueCaps << " (old) vs " << _numValueCaps << " (new)" << std::endl;
 
-        for (USHORT valueCapIndex = 0; valueCapIndex < numValueCaps; valueCapIndex++) {
+        for (USHORT valueCapIndex = 0; valueCapIndex < numValueCaps; valueCapIndex++)
+        {
           HIDP_VALUE_CAPS cap = valueCaps[valueCapIndex];
 
-          if (cap.IsRange || !cap.IsAbsolute) {
+          if (cap.IsRange || !cap.IsAbsolute)
+          {
             continue;
           }
 
           unsigned int foundLinkColIdx;
           int returnCode = FindLinkCollectionInList(&(g_deviceInfoList.Entries[foundHidIdx].LinkColInfoList), cap.LinkCollection, &foundLinkColIdx);
-          if (returnCode != 0) {
+          if (returnCode != 0)
+          {
             std::cout << "FindLinkCollectionInList failed at " << __FILE__ << ":" << __LINE__ << std::endl;
             throw;
             exit(-1);
@@ -140,27 +151,36 @@ void mParseConnectedInputDevices() {
 
           std::cout << FG_GREEN << "[ValueCaps] foundLinkCollectionIndex: " << foundLinkColIdx << RESET_COLOR << std::endl;
 
-          if (cap.UsagePage == HID_USAGE_PAGE_GENERIC) {
+          if (cap.UsagePage == HID_USAGE_PAGE_GENERIC)
+          {
             std::cout << "=====================================================" << std::endl;
             std::cout << "LinkCollection: " << cap.LinkCollection << std::endl;
 
-            if (cap.NotRange.Usage == HID_USAGE_GENERIC_X) {
+            if (cap.NotRange.Usage == HID_USAGE_GENERIC_X)
+            {
               g_deviceInfoList.Entries[foundHidIdx].LinkColInfoList.Entries[foundLinkColIdx].HasX               = 1;
               g_deviceInfoList.Entries[foundHidIdx].LinkColInfoList.Entries[foundLinkColIdx].PhysicalRect.left  = cap.PhysicalMin;
               g_deviceInfoList.Entries[foundHidIdx].LinkColInfoList.Entries[foundLinkColIdx].PhysicalRect.right = cap.PhysicalMax;
               std::cout << "  Left: " << cap.PhysicalMin << std::endl;
               std::cout << "  Right: " << cap.PhysicalMax << std::endl;
-            } else if (cap.NotRange.Usage == HID_USAGE_GENERIC_Y) {
+            }
+            else if (cap.NotRange.Usage == HID_USAGE_GENERIC_Y)
+            {
               g_deviceInfoList.Entries[foundHidIdx].LinkColInfoList.Entries[foundLinkColIdx].HasY                = 1;
               g_deviceInfoList.Entries[foundHidIdx].LinkColInfoList.Entries[foundLinkColIdx].PhysicalRect.top    = cap.PhysicalMin;
               g_deviceInfoList.Entries[foundHidIdx].LinkColInfoList.Entries[foundLinkColIdx].PhysicalRect.bottom = cap.PhysicalMax;
               std::cout << "  Top: " << cap.PhysicalMin << std::endl;
               std::cout << "  Bottom: " << cap.PhysicalMax << std::endl;
             }
-          } else if (cap.UsagePage == HID_USAGE_PAGE_DIGITIZER) {
-            if (cap.NotRange.Usage == HID_USAGE_DIGITIZER_CONTACT_ID) {
+          }
+          else if (cap.UsagePage == HID_USAGE_PAGE_DIGITIZER)
+          {
+            if (cap.NotRange.Usage == HID_USAGE_DIGITIZER_CONTACT_ID)
+            {
               g_deviceInfoList.Entries[foundHidIdx].LinkColInfoList.Entries[foundLinkColIdx].HasContactID = 1;
-            } else if (cap.NotRange.Usage == HID_USAGE_DIGITIZER_CONTACT_COUNT) {
+            }
+            else if (cap.NotRange.Usage == HID_USAGE_DIGITIZER_CONTACT_COUNT)
+            {
               g_deviceInfoList.Entries[foundHidIdx].ContactCountLinkCollection = cap.LinkCollection;
             }
           }
@@ -169,34 +189,40 @@ void mParseConnectedInputDevices() {
         free(valueCaps);
       }
 
-      if (caps.NumberInputButtonCaps != 0) {
+      if (caps.NumberInputButtonCaps != 0)
+      {
         const USHORT numButtonCaps = caps.NumberInputButtonCaps;
         USHORT _numButtonCaps      = numButtonCaps;
 
         PHIDP_BUTTON_CAPS buttonCaps = (PHIDP_BUTTON_CAPS)mMalloc(sizeof(HIDP_BUTTON_CAPS) * numButtonCaps, __FILE__, __LINE__);
 
         hidpReturnCode = HidP_GetButtonCaps(HidP_Input, buttonCaps, &_numButtonCaps, preparsedData);
-        if (hidpReturnCode != HIDP_STATUS_SUCCESS) {
+        if (hidpReturnCode != HIDP_STATUS_SUCCESS)
+        {
           print_HidP_errors(hidpReturnCode, __FILE__, __LINE__);
           throw;
           exit(-1);
         }
 
-        for (USHORT buttonCapIndex = 0; buttonCapIndex < numButtonCaps; buttonCapIndex++) {
+        for (USHORT buttonCapIndex = 0; buttonCapIndex < numButtonCaps; buttonCapIndex++)
+        {
           HIDP_BUTTON_CAPS buttonCap = buttonCaps[buttonCapIndex];
 
           std::cout << FG_BLUE << "[ButtonCaps] Index: " << buttonCapIndex << ", UsagePage: " << buttonCap.UsagePage << " (DIGITIZER - " << HID_USAGE_PAGE_DIGITIZER << "), IsRange: ";
           printf("%d", buttonCap.IsRange);
           std::cout << RESET_COLOR << std::endl;
 
-          if (buttonCap.IsRange) {
+          if (buttonCap.IsRange)
+          {
             continue;
           }
 
           std::cout << BG_GREEN << "Usage: " << buttonCap.NotRange.Usage << RESET_COLOR << std::endl;
 
-          if (buttonCap.UsagePage == HID_USAGE_PAGE_DIGITIZER) {
-            if (buttonCap.NotRange.Usage == HID_USAGE_DIGITIZER_TIP_SWITCH) {
+          if (buttonCap.UsagePage == HID_USAGE_PAGE_DIGITIZER)
+          {
+            if (buttonCap.NotRange.Usage == HID_USAGE_DIGITIZER_TIP_SWITCH)
+            {
               unsigned int foundLinkColIdx;
               int returnCode = FindLinkCollectionInList(&(g_deviceInfoList.Entries[foundHidIdx].LinkColInfoList), buttonCap.LinkCollection, &foundLinkColIdx);
 
@@ -219,7 +245,8 @@ void mParseConnectedInputDevices() {
   free(rawInputDeviceList);
 }
 
-void mRegisterRawInput(HWND hwnd) {
+void mRegisterRawInput(HWND hwnd)
+{
   // register Windows Precision Touchpad top-level HID collection
   RAWINPUTDEVICE rid;
   clock_t ts = clock();
@@ -229,10 +256,13 @@ void mRegisterRawInput(HWND hwnd) {
   rid.dwFlags     = RIDEV_INPUTSINK;
   rid.hwndTarget  = hwnd;
 
-  if (RegisterRawInputDevices(&rid, 1, sizeof(RAWINPUTDEVICE))) {
+  if (RegisterRawInputDevices(&rid, 1, sizeof(RAWINPUTDEVICE)))
+  {
     std::cout << FG_GREEN << "[" << ts << "]"
               << "Successfully register touchpad!" << RESET_COLOR << std::endl;
-  } else {
+  }
+  else
+  {
     std::cout << FG_RED << "[" << ts << "]"
               << "Failed to register touchpad at " << __FILE__ << ":" << __LINE__ << RESET_COLOR << std::endl;
     mGetLastError();
@@ -241,19 +271,22 @@ void mRegisterRawInput(HWND hwnd) {
   }
 }
 
-void mHandleCreateMessage(HWND hwnd, UINT message, WPARAM wParam, LPARAM lParam) {
+void mHandleCreateMessage(HWND hwnd, UINT message, WPARAM wParam, LPARAM lParam)
+{
   HRESULT hr;
   mRegisterRawInput(hwnd);
 
   hr = D2D1CreateFactory(D2D1_FACTORY_TYPE_SINGLE_THREADED, &g_Direct2DFactory);
-  if (FAILED(hr)) {
+  if (FAILED(hr))
+  {
     std::cout << FG_RED << "D2D1CreateFactory failed at " << __FILE__ << ":" << __LINE__ << RESET_COLOR << std::endl;
     throw;
     exit(-1);
   }
 }
 
-void mHandleInputMessage(HWND hwnd, UINT message, WPARAM wParam, LPARAM lParam) {
+void mHandleInputMessage(HWND hwnd, UINT message, WPARAM wParam, LPARAM lParam)
+{
   clock_t ts = clock();
 
   // following guide: https://docs.microsoft.com/en-us/windows/win32/inputdev/using-raw-input#performing-a-standard-read-of-raw-input
@@ -266,12 +299,14 @@ void mHandleInputMessage(HWND hwnd, UINT message, WPARAM wParam, LPARAM lParam) 
   mGetRawInputData((HRAWINPUT)lParam, &rawInputSize, (LPVOID*)(&rawInputData));
 
   // Parse the RAWINPUT data.
-  if (rawInputData->header.dwType == RIM_TYPEHID) {
+  if (rawInputData->header.dwType == RIM_TYPEHID)
+  {
     // TODO what does `dwCount` represent?
     DWORD count   = rawInputData->data.hid.dwCount;
     BYTE* rawData = rawInputData->data.hid.bRawData;
 
-    if (count != 0) {
+    if (count != 0)
+    {
       UINT deviceNameLength;
       TCHAR* deviceName = NULL;
       unsigned int cbDeviceName;
@@ -282,12 +317,17 @@ void mHandleInputMessage(HWND hwnd, UINT message, WPARAM wParam, LPARAM lParam) 
 
       int isTouchpadsNull              = (g_deviceInfoList.Entries == NULL);
       int isTouchpadsRecordedSizeEmpty = (g_deviceInfoList.Size == 0);
-      if (isTouchpadsNull || isTouchpadsRecordedSizeEmpty) {
+      if (isTouchpadsNull || isTouchpadsRecordedSizeEmpty)
+      {
         // TODO parse new connected device data
-      } else {
-        for (unsigned int touchpadIndex = 0; touchpadIndex < g_deviceInfoList.Size; touchpadIndex++) {
+      }
+      else
+      {
+        for (unsigned int touchpadIndex = 0; touchpadIndex < g_deviceInfoList.Size; touchpadIndex++)
+        {
           int compareNameResult = _tcscmp(deviceName, g_deviceInfoList.Entries[touchpadIndex].Name);
-          if (compareNameResult == 0) {
+          if (compareNameResult == 0)
+          {
             foundHidIdx = touchpadIndex;
             break;
           }
@@ -296,18 +336,26 @@ void mHandleInputMessage(HWND hwnd, UINT message, WPARAM wParam, LPARAM lParam) 
 
       // std::cout << FG_GREEN << "Device index in stored global array: " << foundTouchpadIndex << RESET_COLOR << std::endl;
 
-      if (foundHidIdx == (unsigned int)-1) {
+      if (foundHidIdx == (unsigned int)-1)
+      {
         // TODO parse new connected device data
-      } else {
+      }
+      else
+      {
         int isLinkColArrayNull  = (g_deviceInfoList.Entries[foundHidIdx].LinkColInfoList.Entries == NULL);
         int isLinkColArrayEmpty = (g_deviceInfoList.Entries[foundHidIdx].LinkColInfoList.Size == 0);
         int isPreparsedDataNull = (g_deviceInfoList.Entries[foundHidIdx].PreparedData == NULL);
 
-        if (isLinkColArrayNull || isLinkColArrayEmpty) {
+        if (isLinkColArrayNull || isLinkColArrayEmpty)
+        {
           std::cout << FG_RED << "Cannot find any LinkCollection(s). Try parse the PREPARED_DATA may help. TODO" << RESET_COLOR << std::endl;
-        } else if (isPreparsedDataNull) {
+        }
+        else if (isPreparsedDataNull)
+        {
           std::cout << FG_RED << "Cannot find PreparsedData at " << __FILE__ << ":" << __LINE__ << RESET_COLOR << std::endl;
-        } else {
+        }
+        else
+        {
 #ifdef LOG_EVERY_INPUT_MESSAGES
           std::cout << "[" << ts << "]" << std::endl;
 #endif
@@ -316,12 +364,16 @@ void mHandleInputMessage(HWND hwnd, UINT message, WPARAM wParam, LPARAM lParam) 
 
           PHIDP_PREPARSED_DATA preparsedHIDData = g_deviceInfoList.Entries[foundHidIdx].PreparedData;
 
-          if (g_deviceInfoList.Entries[foundHidIdx].ContactCountLinkCollection == (USHORT)-1) {
+          if (g_deviceInfoList.Entries[foundHidIdx].ContactCountLinkCollection == (USHORT)-1)
+          {
             std::cout << FG_RED << "Cannot find contact count Link Collection!" << RESET_COLOR << std::endl;
-          } else {
+          }
+          else
+          {
             hidpReturnCode = HidP_GetUsageValue(HidP_Input, HID_USAGE_PAGE_DIGITIZER, g_deviceInfoList.Entries[foundHidIdx].ContactCountLinkCollection, HID_USAGE_DIGITIZER_CONTACT_COUNT, &usageValue, preparsedHIDData, (PCHAR)rawInputData->data.hid.bRawData, rawInputData->data.hid.dwSizeHid);
 
-            if (hidpReturnCode != HIDP_STATUS_SUCCESS) {
+            if (hidpReturnCode != HIDP_STATUS_SUCCESS)
+            {
               std::cout << FG_RED << "Failed to read number of contacts!" << RESET_COLOR << std::endl;
               print_HidP_errors(hidpReturnCode, __FILE__, __LINE__);
               throw;
@@ -334,19 +386,25 @@ void mHandleInputMessage(HWND hwnd, UINT message, WPARAM wParam, LPARAM lParam) 
             std::cout << FG_BRIGHT_BLUE << "numContacts: " << numContacts << RESET_COLOR << std::endl;
 #endif
 
-            if (numContacts > g_deviceInfoList.Entries[foundHidIdx].LinkColInfoList.Size) {
+            if (numContacts > g_deviceInfoList.Entries[foundHidIdx].LinkColInfoList.Size)
+            {
               // TODO how should we deal with this edge case
               std::cout << FG_RED << "number of contacts is greater than Link Collection Array size at " << __FILE__ << ":" << __LINE__ << RESET_COLOR << std::endl;
               throw;
               exit(-1);
-            } else {
-              for (unsigned int linkColIdx = 0; linkColIdx < numContacts; linkColIdx++) {
+            }
+            else
+            {
+              for (unsigned int linkColIdx = 0; linkColIdx < numContacts; linkColIdx++)
+              {
                 HID_TOUCH_LINK_COL_INFO collectionInfo = g_deviceInfoList.Entries[foundHidIdx].LinkColInfoList.Entries[linkColIdx];
 
-                if (collectionInfo.HasX && collectionInfo.HasY && collectionInfo.HasContactID && collectionInfo.HasTipSwitch) {
+                if (collectionInfo.HasX && collectionInfo.HasY && collectionInfo.HasContactID && collectionInfo.HasTipSwitch)
+                {
                   hidpReturnCode = HidP_GetUsageValue(HidP_Input, 0x01, collectionInfo.LinkColID, 0x30, &usageValue, preparsedHIDData, (PCHAR)rawInputData->data.hid.bRawData, rawInputData->data.hid.dwSizeHid);
 
-                  if (hidpReturnCode != HIDP_STATUS_SUCCESS) {
+                  if (hidpReturnCode != HIDP_STATUS_SUCCESS)
+                  {
                     std::cout << FG_RED << "Failed to read x position!" << RESET_COLOR << std::endl;
                     print_HidP_errors(hidpReturnCode, __FILE__, __LINE__);
                     throw;
@@ -356,7 +414,8 @@ void mHandleInputMessage(HWND hwnd, UINT message, WPARAM wParam, LPARAM lParam) 
                   ULONG xPos = usageValue;
 
                   hidpReturnCode = HidP_GetUsageValue(HidP_Input, 0x01, collectionInfo.LinkColID, 0x31, &usageValue, preparsedHIDData, (PCHAR)rawInputData->data.hid.bRawData, rawInputData->data.hid.dwSizeHid);
-                  if (hidpReturnCode != HIDP_STATUS_SUCCESS) {
+                  if (hidpReturnCode != HIDP_STATUS_SUCCESS)
+                  {
                     std::cout << FG_RED << "Failed to read y position!" << RESET_COLOR << std::endl;
                     print_HidP_errors(hidpReturnCode, __FILE__, __LINE__);
                     throw;
@@ -366,7 +425,8 @@ void mHandleInputMessage(HWND hwnd, UINT message, WPARAM wParam, LPARAM lParam) 
                   ULONG yPos = usageValue;
 
                   hidpReturnCode = HidP_GetUsageValue(HidP_Input, HID_USAGE_PAGE_DIGITIZER, collectionInfo.LinkColID, HID_USAGE_DIGITIZER_CONTACT_ID, &usageValue, preparsedHIDData, (PCHAR)rawInputData->data.hid.bRawData, rawInputData->data.hid.dwSizeHid);
-                  if (hidpReturnCode != HIDP_STATUS_SUCCESS) {
+                  if (hidpReturnCode != HIDP_STATUS_SUCCESS)
+                  {
                     std::cout << FG_RED << "Failed to read touch ID!" << RESET_COLOR << std::endl;
                     print_HidP_errors(hidpReturnCode, __FILE__, __LINE__);
                     throw;
@@ -384,7 +444,8 @@ void mHandleInputMessage(HWND hwnd, UINT message, WPARAM wParam, LPARAM lParam) 
 
                   hidpReturnCode = HidP_GetUsages(HidP_Input, HID_USAGE_PAGE_DIGITIZER, collectionInfo.LinkColID, buttonUsageArray, &_maxNumButtons, preparsedHIDData, (PCHAR)rawInputData->data.hid.bRawData, rawInputData->data.hid.dwSizeHid);
 
-                  if (hidpReturnCode != HIDP_STATUS_SUCCESS) {
+                  if (hidpReturnCode != HIDP_STATUS_SUCCESS)
+                  {
                     std::cout << FG_RED << "HidP_GetUsages failed!" << RESET_COLOR << std::endl;
                     print_HidP_errors(hidpReturnCode, __FILE__, __LINE__);
                     throw;
@@ -393,8 +454,10 @@ void mHandleInputMessage(HWND hwnd, UINT message, WPARAM wParam, LPARAM lParam) 
 
                   int isContactOnSurface = 0;
 
-                  for (ULONG usageIdx = 0; usageIdx < maxNumButtons; usageIdx++) {
-                    if (buttonUsageArray[usageIdx] == HID_USAGE_DIGITIZER_TIP_SWITCH) {
+                  for (ULONG usageIdx = 0; usageIdx < maxNumButtons; usageIdx++)
+                  {
+                    if (buttonUsageArray[usageIdx] == HID_USAGE_DIGITIZER_TIP_SWITCH)
+                    {
                       isContactOnSurface = 1;
                       break;
                     }
@@ -410,7 +473,8 @@ void mHandleInputMessage(HWND hwnd, UINT message, WPARAM wParam, LPARAM lParam) 
 
                   unsigned int touchType;
                   int cStyleFunctionReturnCode = mInterpretRawTouchInput(&g_LastRawInputMessageTouches, curTouch, &touchType);
-                  if (cStyleFunctionReturnCode != 0) {
+                  if (cStyleFunctionReturnCode != 0)
+                  {
                     std::cout << FG_RED << "mInterpretRawTouchInput failed at " << __FILE__ << ":" << __LINE__ << RESET_COLOR << std::endl;
                     throw;
                     exit(-1);
@@ -418,30 +482,42 @@ void mHandleInputMessage(HWND hwnd, UINT message, WPARAM wParam, LPARAM lParam) 
 
                   Point2D touchPos = {curTouch.X, curTouch.Y};
 
-                  if (g_TrackingTouchID == (ULONG)-1) {
-                    if (touchType == EVENT_TYPE_TOUCH_DOWN) {
+                  if (g_TrackingTouchID == (ULONG)-1)
+                  {
+                    if (touchType == EVENT_TYPE_TOUCH_DOWN)
+                    {
                       g_TrackingTouchID = curTouch.TouchID;
                       // TODO create new stroke
                       // TODO check return value for indication of errors
                       mCreateNewStroke(touchPos, &g_Strokes);
                       InvalidateRect(hwnd, NULL, FALSE);
-                    } else {
+                    }
+                    else
+                    {
                       // wait for touch down event to register new stroke
                     }
-                  } else if (curTouch.TouchID == g_TrackingTouchID) {
-                    if (touchType == EVENT_TYPE_TOUCH_MOVE) {
+                  }
+                  else if (curTouch.TouchID == g_TrackingTouchID)
+                  {
+                    if (touchType == EVENT_TYPE_TOUCH_MOVE)
+                    {
                       // we skip EVENT_TYPE_TOUCH_MOVE_UNCHANGED here
                       // TODO append touch position to the last stroke
-                      if ((g_Strokes.Entries == NULL) || (g_Strokes.Size == 0)) {
+                      if ((g_Strokes.Entries == NULL) || (g_Strokes.Size == 0))
+                      {
                         std::cout << FG_RED << "The application state is broken!" << RESET_COLOR << std::endl;
                         throw;
                         exit(-1);
-                      } else {
+                      }
+                      else
+                      {
                         // TODO check return value for indication of errors
                         mAppendPoint2DToList(touchPos, &g_Strokes.Entries[g_Strokes.Size - 1]);
                         InvalidateRect(hwnd, NULL, FALSE);
                       }
-                    } else if (touchType == EVENT_TYPE_TOUCH_UP) {
+                    }
+                    else if (touchType == EVENT_TYPE_TOUCH_UP)
+                    {
                       // I sure that the touch position is the same with the last touch position
                       g_TrackingTouchID = (ULONG)-1;
                     }
@@ -450,15 +526,24 @@ void mHandleInputMessage(HWND hwnd, UINT message, WPARAM wParam, LPARAM lParam) 
 #ifdef LOG_EVERY_INPUT_MESSAGES
                   const char* touchTypeStr;
 
-                  if (touchType == EVENT_TYPE_TOUCH_UP) {
+                  if (touchType == EVENT_TYPE_TOUCH_UP)
+                  {
                     touchTypeStr = "touch up";
-                  } else if (touchType == EVENT_TYPE_TOUCH_MOVE) {
+                  }
+                  else if (touchType == EVENT_TYPE_TOUCH_MOVE)
+                  {
                     touchTypeStr = "touch move";
-                  } else if (touchType == EVENT_TYPE_TOUCH_DOWN) {
+                  }
+                  else if (touchType == EVENT_TYPE_TOUCH_DOWN)
+                  {
                     touchTypeStr = "touch down";
-                  } else if (touchType == EVENT_TYPE_TOUCH_MOVE_UNCHANGED) {
+                  }
+                  else if (touchType == EVENT_TYPE_TOUCH_MOVE_UNCHANGED)
+                  {
                     touchTypeStr = "touch move unchanged";
-                  } else {
+                  }
+                  else
+                  {
                     std::cout << FG_RED << "unknown event type: " << touchType << RESET_COLOR << std::endl;
                     throw;
                     exit(-1);
@@ -480,16 +565,19 @@ void mHandleInputMessage(HWND hwnd, UINT message, WPARAM wParam, LPARAM lParam) 
   }
 }
 
-HRESULT mCreateGraphicsResources(HWND hwnd) {
+HRESULT mCreateGraphicsResources(HWND hwnd)
+{
   HRESULT hr = S_OK;
 
-  if (g_Direct2DHwndRenderTarget == NULL) {
+  if (g_Direct2DHwndRenderTarget == NULL)
+  {
     RECT rc;
     GetClientRect(hwnd, &rc);
 
     D2D1_SIZE_U size = D2D1::SizeU(rc.right, rc.bottom);
 
-    if (g_Direct2DFactory == NULL) {
+    if (g_Direct2DFactory == NULL)
+    {
       std::cout << FG_RED << "Direct2DFactory hasn't been initialized!" << RESET_COLOR << std::endl;
       throw;
       exit(-1);
@@ -497,16 +585,20 @@ HRESULT mCreateGraphicsResources(HWND hwnd) {
 
     hr = g_Direct2DFactory->CreateHwndRenderTarget(D2D1::RenderTargetProperties(), D2D1::HwndRenderTargetProperties(hwnd, size), &g_Direct2DHwndRenderTarget);
 
-    if (SUCCEEDED(hr)) {
+    if (SUCCEEDED(hr))
+    {
       const D2D1_COLOR_F color = {1.0f, 1.0f, 1.0f, 1.0f};
 
       hr = g_Direct2DHwndRenderTarget->CreateSolidColorBrush(color, &g_Direct2DSolidColorBrush);
-      if (FAILED(hr)) {
+      if (FAILED(hr))
+      {
         std::cout << FG_RED << "CreateSolidColorBrush failed at " << __FILE__ << ":" << __LINE__ << RESET_COLOR << std::endl;
         throw;
         exit(-1);
       }
-    } else {
+    }
+    else
+    {
       std::cout << FG_RED << "CreateHwndRenderTarget failed at " << __FILE__ << ":" << __LINE__ << RESET_COLOR << std::endl;
       throw;
       exit(-1);
@@ -516,21 +608,26 @@ HRESULT mCreateGraphicsResources(HWND hwnd) {
   return hr;
 }
 
-void mDiscardGraphicsResources() {
+void mDiscardGraphicsResources()
+{
   // TODO check to see if the order is matter
-  if (g_Direct2DHwndRenderTarget != NULL) {
+  if (g_Direct2DHwndRenderTarget != NULL)
+  {
     g_Direct2DHwndRenderTarget->Release();
     g_Direct2DHwndRenderTarget = NULL;
   }
 
-  if (g_Direct2DSolidColorBrush != NULL) {
+  if (g_Direct2DSolidColorBrush != NULL)
+  {
     g_Direct2DSolidColorBrush->Release();
     g_Direct2DSolidColorBrush = NULL;
   }
 }
 
-void mHandleResizeMessage(_In_ HWND hwnd, _In_ UINT uMsg, _In_ WPARAM wParam, _In_ LPARAM lParam) {
-  if (g_Direct2DHwndRenderTarget != NULL) {
+void mHandleResizeMessage(_In_ HWND hwnd, _In_ UINT uMsg, _In_ WPARAM wParam, _In_ LPARAM lParam)
+{
+  if (g_Direct2DHwndRenderTarget != NULL)
+  {
     RECT rc;
     GetClientRect(hwnd, &rc);
 
@@ -541,38 +638,54 @@ void mHandleResizeMessage(_In_ HWND hwnd, _In_ UINT uMsg, _In_ WPARAM wParam, _I
   }
 }
 
-void mHandlePaintMessage(_In_ HWND hwnd, _In_ UINT uMsg, _In_ WPARAM wParam, _In_ LPARAM lParam) {
+void mHandlePaintMessage(_In_ HWND hwnd, _In_ UINT uMsg, _In_ WPARAM wParam, _In_ LPARAM lParam)
+{
   HRESULT hr = mCreateGraphicsResources(hwnd);
-  if (SUCCEEDED(hr)) {
+  if (SUCCEEDED(hr))
+  {
     PAINTSTRUCT ps;
     BeginPaint(hwnd, &ps);
 
-    if (g_Direct2DHwndRenderTarget == NULL) {
+    if (g_Direct2DHwndRenderTarget == NULL)
+    {
       std::cout << FG_RED << "HwndRenderTarget is NULL!" << RESET_COLOR << std::endl;
       throw;
       exit(-1);
-    } else {
+    }
+    else
+    {
       g_Direct2DHwndRenderTarget->BeginDraw();
       g_Direct2DHwndRenderTarget->Clear();
 
-      if (g_Direct2DSolidColorBrush == NULL) {
+      if (g_Direct2DSolidColorBrush == NULL)
+      {
         std::cout << FG_RED << "SolidColorBrush is NULL!" << RESET_COLOR << std::endl;
         throw;
         exit(-1);
-      } else {
-        if ((g_Strokes.Entries == NULL) || (g_Strokes.Size == 0)) {
-        } else {
-          for (unsigned int strokeIdx = 0; strokeIdx < g_Strokes.Size; strokeIdx++) {
+      }
+      else
+      {
+        if ((g_Strokes.Entries == NULL) || (g_Strokes.Size == 0))
+        {
+        }
+        else
+        {
+          for (unsigned int strokeIdx = 0; strokeIdx < g_Strokes.Size; strokeIdx++)
+          {
             // TODO change rendering color for each strokes
             Point2DList strokeData = g_Strokes.Entries[strokeIdx];
-            if (strokeData.Size < 2) {
+            if (strokeData.Size < 2)
+            {
               // TODO improve rendering strokes logic
               continue;
-            } else {
+            }
+            else
+            {
               D2D1_POINT_2F firstPoint = {(FLOAT)strokeData.Entries[0].X, (FLOAT)strokeData.Entries[0].Y};
-              for (unsigned int pointIdx = 1; pointIdx < strokeData.Size; pointIdx++) {
+              for (unsigned int pointIdx = 1; pointIdx < strokeData.Size; pointIdx++)
+              {
                 D2D1_POINT_2F secondPoint = {(FLOAT)strokeData.Entries[pointIdx].X, (FLOAT)strokeData.Entries[pointIdx].Y};
-                g_Direct2DHwndRenderTarget->DrawLine(firstPoint, secondPoint, g_Direct2DSolidColorBrush, 5.0f);
+                g_Direct2DHwndRenderTarget->DrawLine(firstPoint, secondPoint, g_Direct2DSolidColorBrush, 25.0f);
                 firstPoint = secondPoint;
               }
             }
@@ -581,7 +694,8 @@ void mHandlePaintMessage(_In_ HWND hwnd, _In_ UINT uMsg, _In_ WPARAM wParam, _In
       }
 
       hr = g_Direct2DHwndRenderTarget->EndDraw();
-      if (FAILED(hr) || (hr == D2DERR_RECREATE_TARGET)) {
+      if (FAILED(hr) || (hr == D2DERR_RECREATE_TARGET))
+      {
         mDiscardGraphicsResources();
       }
     }
@@ -590,29 +704,37 @@ void mHandlePaintMessage(_In_ HWND hwnd, _In_ UINT uMsg, _In_ WPARAM wParam, _In
   }
 }
 
-LRESULT CALLBACK WndProc(_In_ HWND hwnd, _In_ UINT uMsg, _In_ WPARAM wParam, _In_ LPARAM lParam) {
-  switch (uMsg) {
-    case WM_CREATE: {
+LRESULT CALLBACK WndProc(_In_ HWND hwnd, _In_ UINT uMsg, _In_ WPARAM wParam, _In_ LPARAM lParam)
+{
+  switch (uMsg)
+  {
+    case WM_CREATE:
+    {
       mHandleCreateMessage(hwnd, uMsg, wParam, lParam);
       break;
     }
-    case WM_INPUT: {
+    case WM_INPUT:
+    {
       mHandleInputMessage(hwnd, uMsg, wParam, lParam);
       break;
     }
-    case WM_PAINT: {
+    case WM_PAINT:
+    {
       mHandlePaintMessage(hwnd, uMsg, wParam, lParam);
       break;
     }
-    case WM_SIZE: {
+    case WM_SIZE:
+    {
       mHandleResizeMessage(hwnd, uMsg, wParam, lParam);
       break;
     }
-    case WM_DESTROY: {
+    case WM_DESTROY:
+    {
       PostQuitMessage(0);
       break;
     }
-    default: {
+    default:
+    {
       return DefWindowProc(hwnd, uMsg, wParam, lParam);
     }
   }
@@ -620,7 +742,8 @@ LRESULT CALLBACK WndProc(_In_ HWND hwnd, _In_ UINT uMsg, _In_ WPARAM wParam, _In
   return 0;
 }
 
-int CALLBACK wWinMain(_In_ HINSTANCE hInstance, _In_opt_ HINSTANCE hPrevInstance, _In_ LPWSTR lpCmdLine, _In_ int nCmdShow) {
+int CALLBACK wWinMain(_In_ HINSTANCE hInstance, _In_opt_ HINSTANCE hPrevInstance, _In_ LPWSTR lpCmdLine, _In_ int nCmdShow)
+{
   mParseConnectedInputDevices();
 
   // TODO detect and prompt user to select touchpad device and parse its width and height
@@ -628,17 +751,23 @@ int CALLBACK wWinMain(_In_ HINSTANCE hInstance, _In_opt_ HINSTANCE hPrevInstance
   int nWidth  = 720;
   int nHeight = 480;
 
-  if ((g_deviceInfoList.Entries != NULL) && (g_deviceInfoList.Size != 0)) {
+  if ((g_deviceInfoList.Entries != NULL) && (g_deviceInfoList.Size != 0))
+  {
     // TODO check for valid touchpad device
     HID_DEVICE_INFO inputDevice = g_deviceInfoList.Entries[0];
 
-    if ((inputDevice.LinkColInfoList.Entries == NULL) || (inputDevice.LinkColInfoList.Size == 0)) {
+    if ((inputDevice.LinkColInfoList.Entries == NULL) || (inputDevice.LinkColInfoList.Size == 0))
+    {
       std::cout << FG_RED << "Failed to parse link collections of input device!" << RESET_COLOR << std::endl;
       return -1;
-    } else {
-      for (unsigned int linkColIdx = 0; linkColIdx < inputDevice.LinkColInfoList.Size; linkColIdx++) {
+    }
+    else
+    {
+      for (unsigned int linkColIdx = 0; linkColIdx < inputDevice.LinkColInfoList.Size; linkColIdx++)
+      {
         HID_TOUCH_LINK_COL_INFO linkCollectionInfo = inputDevice.LinkColInfoList.Entries[linkColIdx];
-        if (linkCollectionInfo.HasX && linkCollectionInfo.HasY) {
+        if (linkCollectionInfo.HasX && linkCollectionInfo.HasY)
+        {
           // TODO Should we need to parse every single touch link collections? For now, I think one is sufficient.
           // TODO validate values (e.g. 0 or > screen size)
           nWidth  = linkCollectionInfo.PhysicalRect.right;
@@ -647,7 +776,9 @@ int CALLBACK wWinMain(_In_ HINSTANCE hInstance, _In_opt_ HINSTANCE hPrevInstance
         }
       }
     }
-  } else {
+  }
+  else
+  {
     std::cout << FG_RED << "Failed to parse input devices!" << RESET_COLOR << std::endl;
     return -1;
   }
@@ -667,7 +798,8 @@ int CALLBACK wWinMain(_In_ HINSTANCE hInstance, _In_opt_ HINSTANCE hPrevInstance
   wcex.lpszClassName = szWindowClass;
   wcex.hIconSm       = LoadIcon(wcex.hInstance, IDI_APPLICATION);
 
-  if (!RegisterClassEx(&wcex)) {
+  if (!RegisterClassEx(&wcex))
+  {
     std::cout << "RegisterClassEx filed at " << __FILE__ << ":" << __LINE__ << std::endl;
     mGetLastError();
     return -1;
@@ -675,7 +807,8 @@ int CALLBACK wWinMain(_In_ HINSTANCE hInstance, _In_opt_ HINSTANCE hPrevInstance
 
   HWND hwnd = CreateWindow(szWindowClass, szTitle, WS_OVERLAPPEDWINDOW | WS_EX_LAYERED, CW_USEDEFAULT, CW_USEDEFAULT, nWidth, nHeight, NULL, NULL, hInstance, NULL);
 
-  if (!hwnd) {
+  if (!hwnd)
+  {
     std::cout << "CreateWindow filed at " << __FILE__ << ":" << __LINE__ << std::endl;
     mGetLastError();
     return -1;
@@ -689,7 +822,8 @@ int CALLBACK wWinMain(_In_ HINSTANCE hInstance, _In_opt_ HINSTANCE hPrevInstance
   UpdateWindow(hwnd);
 
   MSG msg;
-  while (GetMessage(&msg, NULL, 0, 0)) {
+  while (GetMessage(&msg, NULL, 0, 0))
+  {
     TranslateMessage(&msg);
     DispatchMessage(&msg);
   }
@@ -697,7 +831,8 @@ int CALLBACK wWinMain(_In_ HINSTANCE hInstance, _In_opt_ HINSTANCE hPrevInstance
   return (int)msg.wParam;
 }
 
-int main() {
+int main()
+{
 //#define TEST
 #ifdef TEST
   test_mAppendPoint2DToList();

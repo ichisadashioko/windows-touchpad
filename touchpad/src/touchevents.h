@@ -7,14 +7,16 @@ static const unsigned int EVENT_TYPE_TOUCH_MOVE           = 1;
 static const unsigned int EVENT_TYPE_TOUCH_UP             = 2;
 static const unsigned int EVENT_TYPE_TOUCH_MOVE_UNCHANGED = 3;
 
-struct TOUCH_DATA {
+struct TOUCH_DATA
+{
   ULONG TouchID;
   ULONG X;
   ULONG Y;
   int OnSurface;
 };
 
-struct TOUCH_DATA_LIST {
+struct TOUCH_DATA_LIST
+{
   TOUCH_DATA* Entries;
   unsigned int Size;
 };

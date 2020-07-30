@@ -6,14 +6,17 @@
 #include "basewin.h"
 
 template <class T>
-void SafeRelease(T** ppT) {
-  if (*ppT) {
+void SafeRelease(T** ppT)
+{
+  if (*ppT)
+  {
     (*ppT)->Release();
     *ppT = NULL;
   }
 }
 
-class MainWindow : public BaseWindow<MainWindow> {
+class MainWindow : public BaseWindow<MainWindow>
+{
   ID2D1Factory* pFactory;
   ID2D1HwndRenderTarget* pRenderTarget;
   ID2D1SolidColorBrush* pBrush;
@@ -34,8 +37,10 @@ class MainWindow : public BaseWindow<MainWindow> {
 
 // Recalculate drawing layout when the size of the window changes.
 
-void MainWindow::CalculateLayout() {
-  if (pRenderTarget != NULL) {
+void MainWindow::CalculateLayout()
+{
+  if (pRenderTarget != NULL)
+  {
     D2D1_SIZE_F size   = pRenderTarget->GetSize();
     const float x      = size.width / 2;
     const float y      = size.height / 2;
@@ -44,9 +49,11 @@ void MainWindow::CalculateLayout() {
   }
 }
 
-HRESULT MainWindow::CreateGraphicsResources() {
+HRESULT MainWindow::CreateGraphicsResources()
+{
   HRESULT hr = S_OK;
-  if (pRenderTarget == NULL) {
+  if (pRenderTarget == NULL)
+  {
     RECT rc;
     GetClientRect(m_hwnd, &rc);
 
@@ -54,11 +61,13 @@ HRESULT MainWindow::CreateGraphicsResources() {
 
     hr = pFactory->CreateHwndRenderTarget(D2D1::RenderTargetProperties(), D2D1::HwndRenderTargetProperties(m_hwnd, size), &pRenderTarget);
 
-    if (SUCCEEDED(hr)) {
+    if (SUCCEEDED(hr))
+    {
       const D2D1_COLOR_F color = D2D1::ColorF(1.0f, 1.0f, 0);
       hr                       = pRenderTarget->CreateSolidColorBrush(color, &pBrush);
 
-      if (SUCCEEDED(hr)) {
+      if (SUCCEEDED(hr))
+      {
         CalculateLayout();
       }
     }
@@ -67,14 +76,17 @@ HRESULT MainWindow::CreateGraphicsResources() {
   return hr;
 }
 
-void MainWindow::DiscardGraphicsResources() {
+void MainWindow::DiscardGraphicsResources()
+{
   SafeRelease(&pRenderTarget);
   SafeRelease(&pBrush);
 }
 
-void MainWindow::OnPaint() {
+void MainWindow::OnPaint()
+{
   HRESULT hr = CreateGraphicsResources();
-  if (SUCCEEDED(hr)) {
+  if (SUCCEEDED(hr))
+  {
     PAINTSTRUCT ps;
     BeginPaint(m_hwnd, &ps);
 
@@ -84,7 +96,8 @@ void MainWindow::OnPaint() {
     pRenderTarget->FillEllipse(ellipse, pBrush);
 
     hr = pRenderTarget->EndDraw();
-    if (FAILED(hr) || (hr == D2DERR_RECREATE_TARGET)) {
+    if (FAILED(hr) || (hr == D2DERR_RECREATE_TARGET))
+    {
       DiscardGraphicsResources();
     }
 
@@ -92,8 +105,10 @@ void MainWindow::OnPaint() {
   }
 }
 
-void MainWindow::Resize() {
-  if (pRenderTarget != NULL) {
+void MainWindow::Resize()
+{
+  if (pRenderTarget != NULL)
+  {
     RECT rc;
     GetClientRect(m_hwnd, &rc);
 
@@ -105,10 +120,12 @@ void MainWindow::Resize() {
   }
 }
 
-int WINAPI wWinMain(HINSTANCE hInstance, HINSTANCE, PWSTR, int nCmdShow) {
+int WINAPI wWinMain(HINSTANCE hInstance, HINSTANCE, PWSTR, int nCmdShow)
+{
   MainWindow win;
 
-  if (!win.Create(L"Circle", WS_OVERLAPPEDWINDOW)) {
+  if (!win.Create(L"Circle", WS_OVERLAPPEDWINDOW))
+  {
     return 0;
   }
 
@@ -117,7 +134,8 @@ int WINAPI wWinMain(HINSTANCE hInstance, HINSTANCE, PWSTR, int nCmdShow) {
   // run the message loop
 
   MSG msg = {};
-  while (GetMessageW(&msg, NULL, 0, 0)) {
+  while (GetMessageW(&msg, NULL, 0, 0))
+  {
     TranslateMessage(&msg);
     DispatchMessageW(&msg);
   }
@@ -125,10 +143,13 @@ int WINAPI wWinMain(HINSTANCE hInstance, HINSTANCE, PWSTR, int nCmdShow) {
   return 0;
 }
 
-LRESULT MainWindow::HandleMessage(UINT uMsg, WPARAM wParam, LPARAM lParam) {
-  switch (uMsg) {
+LRESULT MainWindow::HandleMessage(UINT uMsg, WPARAM wParam, LPARAM lParam)
+{
+  switch (uMsg)
+  {
     case WM_CREATE:
-      if (FAILED(D2D1CreateFactory(D2D1_FACTORY_TYPE_SINGLE_THREADED, &pFactory))) {
+      if (FAILED(D2D1CreateFactory(D2D1_FACTORY_TYPE_SINGLE_THREADED, &pFactory)))
+      {
         return -1;  // fail CreateWindowEx
       }
 
@@ -152,6 +173,7 @@ LRESULT MainWindow::HandleMessage(UINT uMsg, WPARAM wParam, LPARAM lParam) {
   return DefWindowProcW(m_hwnd, uMsg, wParam, lParam);
 }
 
-int main() {
+int main()
+{
   return wWinMain(GetModuleHandle(NULL), NULL, GetCommandLine(), SW_SHOWNORMAL);
 }

@@ -110,6 +110,10 @@ def find_all_files(infile):
     return retval
 
 
+def check_clang_format():
+    pass
+
+
 if __name__ == '__main__':
     # all files
     # file_list = find_all_files('.')

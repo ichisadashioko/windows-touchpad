@@ -2,7 +2,8 @@
 #define _STROKE_H_
 #include "point2d.h"
 
-struct StrokeList {
+struct StrokeList
+{
   Point2DList* Entries;
   unsigned int Size;
 };

@@ -6,7 +6,8 @@
 #include <hidpi.h>
 #include <tchar.h>
 
-struct HID_TOUCH_LINK_COL_INFO {
+struct HID_TOUCH_LINK_COL_INFO
+{
   // LinkColID is an ID to parse HID report
   USHORT LinkColID;
   RECT PhysicalRect;
@@ -25,13 +26,15 @@ struct HID_TOUCH_LINK_COL_INFO {
   int HasPressure;
 };
 
-struct HID_LINK_COL_INFO_LIST {
+struct HID_LINK_COL_INFO_LIST
+{
   HID_TOUCH_LINK_COL_INFO* Entries;
   unsigned int Size;
 };
 
 // C doesn't have map or dictionary so we are going to use array of struct to replace that
-struct HID_DEVICE_INFO {
+struct HID_DEVICE_INFO
+{
   TCHAR* Name;
   unsigned int cbName;
   HID_LINK_COL_INFO_LIST LinkColInfoList;
@@ -40,14 +43,15 @@ struct HID_DEVICE_INFO {
   USHORT ContactCountLinkCollection;
 };
 
-struct HID_DEVICE_INFO_LIST {
+struct HID_DEVICE_INFO_LIST
+{
   HID_DEVICE_INFO* Entries;
   unsigned int Size;
 };
 
 void mGetLastError();
 
-void print_HidP_errors(NTSTATUS hidpReturnCode, std::string filePath, int lineNumber);
+void print_HidP_errors(NTSTATUS hidpReturnCode, const char* filePath, int lineNumber);
 
 int FindInputDeviceInList(HID_DEVICE_INFO_LIST* hidInfoList, TCHAR* deviceName, const unsigned int cbDeviceName, PHIDP_PREPARSED_DATA preparsedData, const UINT cbPreparsedData, unsigned int* foundHidIndex);
 
