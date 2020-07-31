@@ -20,7 +20,7 @@ For information in which operating systems are required to use a particular func
 
 ## In this section
 
-- Bitmaps
+- [Bitmaps](./bitmaps/readme.md)
 - Brushes
 - Clipping
 - Colors
