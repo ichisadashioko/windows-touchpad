@@ -10,8 +10,13 @@ I am a fan of practicing writing those crazy difficult Japanese Kanji. As a Japa
 
 - [x] Retrieve absolute touchpad touches' positions
 - [ ] Block mouse movement while using trackpad for handwriting (`BlockInput` API call)
-- [ ] Visualize touch input position on GUI
+- [x] Visualize touch input position on GUI
 - [ ] Integrate with TensorFlow (threading)
+
+## Current progress
+
+- We have been able to get the absolute touchpad input positions and visualize them on a UI window.
+- We are having some problem with rendering the UI because the rendering workload is too heavy and the UI is re-rendered for every touch input events.
 
 ## CI status
 
