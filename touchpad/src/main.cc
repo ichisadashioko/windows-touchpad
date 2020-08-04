@@ -4,9 +4,6 @@
 #include <hidpi.h>
 #pragma comment(lib, "hid.lib")
 
-#include <d2d1.h>
-#pragma comment(lib, "d2d1.lib")
-
 #include <iostream>
 #include <time.h>
 #include <stdio.h>
@@ -33,10 +30,6 @@ static HID_DEVICE_INFO_LIST g_deviceInfoList = {NULL, 0};
 static clock_t g_LastRawInputMessageProcessedTime   = 0;
 static TCHAR g_LastRawInputMessageDeviceName        = NULL;
 static TOUCH_DATA_LIST g_LastRawInputMessageTouches = {NULL, 0};
-
-ID2D1Factory* g_Direct2DFactory                   = NULL;
-ID2D1HwndRenderTarget* g_Direct2DHwndRenderTarget = NULL;
-ID2D1SolidColorBrush* g_Direct2DSolidColorBrush   = NULL;
 
 static StrokeList g_Strokes    = {NULL, 0};
 static ULONG g_TrackingTouchID = (ULONG)-1;
@@ -273,16 +266,7 @@ void mRegisterRawInput(HWND hwnd)
 
 void mHandleCreateMessage(HWND hwnd, UINT message, WPARAM wParam, LPARAM lParam)
 {
-  HRESULT hr;
   mRegisterRawInput(hwnd);
-
-  hr = D2D1CreateFactory(D2D1_FACTORY_TYPE_SINGLE_THREADED, &g_Direct2DFactory);
-  if (FAILED(hr))
-  {
-    std::cout << FG_RED << "D2D1CreateFactory failed at " << __FILE__ << ":" << __LINE__ << RESET_COLOR << std::endl;
-    throw;
-    exit(-1);
-  }
 }
 
 void mHandleInputMessage(HWND hwnd, UINT message, WPARAM wParam, LPARAM lParam)
@@ -565,143 +549,61 @@ void mHandleInputMessage(HWND hwnd, UINT message, WPARAM wParam, LPARAM lParam)
   }
 }
 
-HRESULT mCreateGraphicsResources(HWND hwnd)
-{
-  HRESULT hr = S_OK;
-
-  if (g_Direct2DHwndRenderTarget == NULL)
-  {
-    RECT rc;
-    GetClientRect(hwnd, &rc);
-
-    D2D1_SIZE_U size = D2D1::SizeU(rc.right, rc.bottom);
-
-    if (g_Direct2DFactory == NULL)
-    {
-      std::cout << FG_RED << "Direct2DFactory hasn't been initialized!" << RESET_COLOR << std::endl;
-      throw;
-      exit(-1);
-    }
-
-    hr = g_Direct2DFactory->CreateHwndRenderTarget(D2D1::RenderTargetProperties(), D2D1::HwndRenderTargetProperties(hwnd, size), &g_Direct2DHwndRenderTarget);
-
-    if (SUCCEEDED(hr))
-    {
-      const D2D1_COLOR_F color = {1.0f, 1.0f, 1.0f, 1.0f};
-
-      hr = g_Direct2DHwndRenderTarget->CreateSolidColorBrush(color, &g_Direct2DSolidColorBrush);
-      if (FAILED(hr))
-      {
-        std::cout << FG_RED << "CreateSolidColorBrush failed at " << __FILE__ << ":" << __LINE__ << RESET_COLOR << std::endl;
-        throw;
-        exit(-1);
-      }
-    }
-    else
-    {
-      std::cout << FG_RED << "CreateHwndRenderTarget failed at " << __FILE__ << ":" << __LINE__ << RESET_COLOR << std::endl;
-      throw;
-      exit(-1);
-    }
-  }
-
-  return hr;
-}
-
-void mDiscardGraphicsResources()
-{
-  // TODO check to see if the order is matter
-  if (g_Direct2DHwndRenderTarget != NULL)
-  {
-    g_Direct2DHwndRenderTarget->Release();
-    g_Direct2DHwndRenderTarget = NULL;
-  }
-
-  if (g_Direct2DSolidColorBrush != NULL)
-  {
-    g_Direct2DSolidColorBrush->Release();
-    g_Direct2DSolidColorBrush = NULL;
-  }
-}
-
 void mHandleResizeMessage(_In_ HWND hwnd, _In_ UINT uMsg, _In_ WPARAM wParam, _In_ LPARAM lParam)
 {
-  if (g_Direct2DHwndRenderTarget != NULL)
-  {
-    RECT rc;
-    GetClientRect(hwnd, &rc);
-
-    D2D1_SIZE_U size = D2D1::SizeU(rc.right, rc.bottom);
-
-    g_Direct2DHwndRenderTarget->Resize(size);
-    InvalidateRect(hwnd, NULL, FALSE);
-  }
+  InvalidateRect(hwnd, NULL, FALSE);
 }
 
 void mHandlePaintMessage(_In_ HWND hwnd, _In_ UINT uMsg, _In_ WPARAM wParam, _In_ LPARAM lParam)
 {
-  HRESULT hr = mCreateGraphicsResources(hwnd);
-  if (SUCCEEDED(hr))
+  // clock_t ts = clock();
+  HDC hdc;
+  PAINTSTRUCT ps;
+  RECT rc;
+
+  GetClientRect(hwnd, &rc);
+
+  if (rc.bottom == 0)
   {
-    PAINTSTRUCT ps;
-    BeginPaint(hwnd, &ps);
+    return;
+  }
 
-    if (g_Direct2DHwndRenderTarget == NULL)
-    {
-      std::cout << FG_RED << "HwndRenderTarget is NULL!" << RESET_COLOR << std::endl;
-      throw;
-      exit(-1);
-    }
-    else
-    {
-      g_Direct2DHwndRenderTarget->BeginDraw();
-      g_Direct2DHwndRenderTarget->Clear();
+  // std::cout << FG_GREEN << "[" << ts << "] Painting (" << rc.left << "," << rc.top << "," << rc.right << "," << rc.bottom << ")" << RESET_COLOR << std::endl;
 
-      if (g_Direct2DSolidColorBrush == NULL)
+  hdc = BeginPaint(hwnd, &ps);
+
+  // draw black background
+  HBRUSH bgBrush = CreateSolidBrush(RGB(0, 0, 0));
+  FillRect(hdc, &rc, bgBrush);
+
+  // TODO change color for every strokes
+  HPEN strokePen = CreatePen(PS_SOLID, 20, RGB(255, 255, 255));
+  SelectObject(hdc, strokePen);
+
+  if ((g_Strokes.Entries != NULL) && (g_Strokes.Size != 0))
+  {
+    for (unsigned int strokeIdx = 0; strokeIdx < g_Strokes.Size; strokeIdx++)
+    {
+      // TODO change rendering color for each strokes
+      Point2DList strokeData = g_Strokes.Entries[strokeIdx];
+      if (strokeData.Size < 2)
       {
-        std::cout << FG_RED << "SolidColorBrush is NULL!" << RESET_COLOR << std::endl;
-        throw;
-        exit(-1);
+        // TODO improve rendering strokes logic
+        continue;
       }
       else
       {
-        if ((g_Strokes.Entries == NULL) || (g_Strokes.Size == 0))
-        {
-        }
-        else
-        {
-          for (unsigned int strokeIdx = 0; strokeIdx < g_Strokes.Size; strokeIdx++)
-          {
-            // TODO change rendering color for each strokes
-            Point2DList strokeData = g_Strokes.Entries[strokeIdx];
-            if (strokeData.Size < 2)
-            {
-              // TODO improve rendering strokes logic
-              continue;
-            }
-            else
-            {
-              D2D1_POINT_2F firstPoint = {(FLOAT)strokeData.Entries[0].X, (FLOAT)strokeData.Entries[0].Y};
-              for (unsigned int pointIdx = 1; pointIdx < strokeData.Size; pointIdx++)
-              {
-                D2D1_POINT_2F secondPoint = {(FLOAT)strokeData.Entries[pointIdx].X, (FLOAT)strokeData.Entries[pointIdx].Y};
-                g_Direct2DHwndRenderTarget->DrawLine(firstPoint, secondPoint, g_Direct2DSolidColorBrush, 25.0f);
-                firstPoint = secondPoint;
-              }
-            }
-          }
-        }
-      }
+        MoveToEx(hdc, (int)strokeData.Entries[0].X, (int)strokeData.Entries[0].Y, (LPPOINT)NULL);
 
-      hr = g_Direct2DHwndRenderTarget->EndDraw();
-      if (FAILED(hr) || (hr == D2DERR_RECREATE_TARGET))
-      {
-        mDiscardGraphicsResources();
+        for (unsigned int pointIdx = 1; pointIdx < strokeData.Size; pointIdx++)
+        {
+          LineTo(hdc, (int)strokeData.Entries[pointIdx].X, (int)strokeData.Entries[pointIdx].Y);
+        }
       }
     }
-
-    EndPaint(hwnd, &ps);
   }
+
+  EndPaint(hwnd, &ps);
 }
 
 LRESULT CALLBACK WndProc(_In_ HWND hwnd, _In_ UINT uMsg, _In_ WPARAM wParam, _In_ LPARAM lParam)
@@ -815,8 +717,8 @@ int CALLBACK wWinMain(_In_ HINSTANCE hInstance, _In_opt_ HINSTANCE hPrevInstance
   }
 
   // make the window transparent
-  // SetWindowLong(hwnd, GWL_EXSTYLE, GetWindowLong(hwnd, GWL_EXSTYLE) | WS_EX_LAYERED);
-  // SetLayeredWindowAttributes(hwnd, RGB(0, 0, 0), 255, LWA_ALPHA | LWA_COLORKEY);
+  SetWindowLong(hwnd, GWL_EXSTYLE, GetWindowLong(hwnd, GWL_EXSTYLE) | WS_EX_LAYERED);
+  SetLayeredWindowAttributes(hwnd, RGB(0, 0, 0), 255, LWA_ALPHA | LWA_COLORKEY);
 
   ShowWindow(hwnd, nCmdShow);
   UpdateWindow(hwnd);
@@ -833,7 +735,8 @@ int CALLBACK wWinMain(_In_ HINSTANCE hInstance, _In_opt_ HINSTANCE hPrevInstance
 
 int main()
 {
-//#define TEST
+#define TEST
+#undef TEST
 #ifdef TEST
   test_mAppendPoint2DToList();
   return 0;

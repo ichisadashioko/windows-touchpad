@@ -18,8 +18,10 @@ void mHandlePaintMessage(_In_ HWND hwnd, _In_ UINT uMsg, _In_ WPARAM wParam, _In
   HDC hdc;
   HPEN pen;
   RECT rc;
+  PAINTSTRUCT ps;
 
-  hdc = GetDC(hwnd);
+  hdc = BeginPaint(hwnd, &ps);
+
   GetClientRect(hwnd, &rc);
   FillRect(hdc, &rc, (HBRUSH)(COLOR_WINDOW + 1));
 
@@ -30,7 +32,7 @@ void mHandlePaintMessage(_In_ HWND hwnd, _In_ UINT uMsg, _In_ WPARAM wParam, _In
   LineTo(hdc, 20, 200);
   LineTo(hdc, 200, 200);
 
-  ReleaseDC(hwnd, hdc);
+  EndPaint(hwnd, &ps);
 }
 
 LRESULT CALLBACK WndProc(_In_ HWND hwnd, _In_ UINT uMsg, _In_ WPARAM wParam, _In_ LPARAM lParam)
