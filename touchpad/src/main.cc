@@ -474,7 +474,6 @@ void mHandleInputMessage(HWND hwnd, UINT message, WPARAM wParam, LPARAM lParam)
                       // TODO create new stroke
                       // TODO check return value for indication of errors
                       mCreateNewStroke(touchPos, &g_Strokes);
-                      InvalidateRect(hwnd, NULL, FALSE);
                     }
                     else
                     {
@@ -497,7 +496,23 @@ void mHandleInputMessage(HWND hwnd, UINT message, WPARAM wParam, LPARAM lParam)
                       {
                         // TODO check return value for indication of errors
                         mAppendPoint2DToList(touchPos, &g_Strokes.Entries[g_Strokes.Size - 1]);
-                        InvalidateRect(hwnd, NULL, FALSE);
+
+                        Point2DList stroke = g_Strokes.Entries[g_Strokes.Size - 1];
+                        if (stroke.Size < 2)
+                        {
+                          std::cout << FG_RED << "The application state is broken!" << RESET_COLOR << std::endl;
+                          throw;
+                          exit(-1);
+                        }
+                        else
+                        {
+                          HDC hdc        = GetDC(hwnd);
+                          HPEN strokePen = CreatePen(PS_SOLID, 20, RGB(255, 255, 255));
+                          SelectObject(hdc, strokePen);
+                          MoveToEx(hdc, (int)stroke.Entries[stroke.Size - 2].X, (int)stroke.Entries[stroke.Size - 2].Y, (LPPOINT)NULL);
+                          LineTo(hdc, (int)stroke.Entries[stroke.Size - 1].X, (int)stroke.Entries[stroke.Size - 1].Y);
+                          ReleaseDC(hwnd, hdc);
+                        }
                       }
                     }
                     else if (touchType == EVENT_TYPE_TOUCH_UP)
