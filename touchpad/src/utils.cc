@@ -26,30 +26,35 @@ void mGetLastError()
 
 void print_HidP_errors(NTSTATUS hidpReturnCode, const char* filePath, int lineNumber)
 {
+  printf(FG_RED);
+
   if (hidpReturnCode == HIDP_STATUS_INVALID_REPORT_LENGTH)
   {
-    std::cout << FG_RED << "The report length is not valid. HidP function failed at " << filePath << ":" << lineNumber << RESET_COLOR << std::endl;
+    printf("The report length is not valid. HidP function failed at ");
   }
   else if (hidpReturnCode == HIDP_STATUS_INVALID_REPORT_TYPE)
   {
-    std::cout << FG_RED << "The specified report type is not valid. HidP function failed at " << filePath << ":" << lineNumber << RESET_COLOR << std::endl;
+    printf("The specified report type is not valid. HidP function failed at ");
   }
   else if (hidpReturnCode == HIDP_STATUS_INCOMPATIBLE_REPORT_ID)
   {
-    std::cout << FG_RED << "The collection contains a value on the specified usage page in a report of the specified type, but there are no such usages in the specified report. HidP function failed at " << filePath << ":" << lineNumber << RESET_COLOR << std::endl;
+    printf("The collection contains a value on the specified usage page in a report of the specified type, but there are no such usages in the specified report. HidP function failed at ");
   }
   else if (hidpReturnCode == HIDP_STATUS_INVALID_PREPARSED_DATA)
   {
-    std::cout << FG_RED << "The preparsed data is not valid. HidP function failed at " << filePath << ":" << lineNumber << RESET_COLOR << std::endl;
+    printf("The preparsed data is not valid. HidP function failed at ");
   }
   else if (hidpReturnCode == HIDP_STATUS_USAGE_NOT_FOUND)
   {
-    std::cout << FG_RED << "The collection does not contain a value on the specified usage page in any report of the specified report type. HidP function failed at " << filePath << ":" << lineNumber << RESET_COLOR << std::endl;
+    printf("The collection does not contain a value on the specified usage page in any report of the specified report type. HidP function failed at ");
   }
   else
   {
-    std::cout << FG_RED << "Unknown error code: " << hidpReturnCode << ". HidP function failed at " << filePath << ":" << lineNumber << RESET_COLOR << std::endl;
+    printf("Unknown error code: %d. HidP function failed at ", hidpReturnCode);
   }
+
+  printf("%s:%d\n", filePath, lineNumber);
+  printf(RESET_COLOR);
 }
 
 int FindInputDeviceInList(HID_DEVICE_INFO_LIST* hidInfoList, TCHAR* deviceName, const unsigned int cbDeviceName, PHIDP_PREPARSED_DATA preparsedData, const UINT cbPreparsedData, unsigned int* foundHidIndex)

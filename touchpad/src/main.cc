@@ -831,7 +831,7 @@ int CALLBACK wWinMain(_In_ HINSTANCE hInstance, _In_opt_ HINSTANCE hPrevInstance
   ShowWindow(hwnd, nCmdShow);
   UpdateWindow(hwnd);
 
-  BOOL block_input_retval;
+  // BOOL block_input_retval;
   MSG msg;
   while (GetMessage(&msg, NULL, 0, 0))
   {
@@ -840,29 +840,35 @@ int CALLBACK wWinMain(_In_ HINSTANCE hInstance, _In_opt_ HINSTANCE hPrevInstance
 
     if (g_call_block_input_flag != 0)
     {
-      block_input_retval = BlockInput(TRUE);
-      printf(FG_YELLOW);
-      printf("BlockInput(TRUE): %d\n", block_input_retval);
-      printf(RESET_COLOR);
-      g_call_block_input_flag = 0;
+      // TODO find a way to call BlockInput without the need of UAC permission as KeyFreeze
+      // block_input_retval = BlockInput(TRUE);
+      // printf(FG_YELLOW);
+      // printf("BlockInput(TRUE): %d\n", block_input_retval);
+      // printf(RESET_COLOR);
+      // if (block_input_retval == 0)
+      //{
+      //  mGetLastError();
+      //}
 
-      if (block_input_retval == 0)
-      {
-        mGetLastError();
-      }
+      RECT lockCursorRect = {0, 0, 1, 1};
+      ClipCursor(&lockCursorRect);
+
+      g_call_block_input_flag = 0;
     }
     else if (g_call_unblock_input_flag != 0)
     {
-      block_input_retval = BlockInput(FALSE);
-      printf(FG_YELLOW);
-      printf("BlockInput(FALSE): %d\n", block_input_retval);
-      printf(RESET_COLOR);
-      g_call_unblock_input_flag = 0;
+      // TODO find a way to detect keyboard state while blocking input
+      // block_input_retval = BlockInput(FALSE);
+      // printf(FG_YELLOW);
+      // printf("BlockInput(FALSE): %d\n", block_input_retval);
+      // printf(RESET_COLOR);
+      // if (block_input_retval == 0)
+      //{
+      //  mGetLastError();
+      //}
 
-      if (block_input_retval == 0)
-      {
-        mGetLastError();
-      }
+      ClipCursor(NULL);
+      g_call_unblock_input_flag = 0;
     }
   }
 

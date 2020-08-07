@@ -13,6 +13,14 @@ I am a fan of practicing writing those crazy difficult Japanese Kanji. As a Japa
 - [x] Visualize touch input position on GUI
 - [ ] Integrate with TensorFlow (threading)
 
+## User guide
+
+- The application can only be focused using `Alt+Tab`.
+- Press `F3` to enter touchpad writing mode. __CAUTION__ Your mouse movement will be locked while you are in touchpad writing mode.
+- Press `ESC` to exit touchpad writing mode.
+- Press `c` to clear the canvas.
+- The application currently can only be resized consistently with `Windows Key` + `Arrow Keys` as the application does not handle clicking properly.
+
 ## Current progress
 
 - We have been able to get the absolute touchpad input positions and visualize them on a UI window.
