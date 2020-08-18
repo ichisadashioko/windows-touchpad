@@ -1,6 +1,8 @@
 #include <Windows.h>
+
 #include <hidusage.h>
 #include <hidpi.h>
+#pragma comment(lib, "hid.lib")
 
 #include <time.h>
 #include <stdio.h>

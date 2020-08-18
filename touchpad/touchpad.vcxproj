@@ -44,13 +44,13 @@
     </Link>
   </ItemDefinitionGroup>
   <ItemGroup>
-    <ClCompile Include="src\point2d.cc" />
-    <ClCompile Include="src\stroke.cc" />
-    <ClCompile Include="src\touchevents.cc" />
-    <ClCompile Include="src\touchpad.cc" />
-    <ClCompile Include="src\utils.cc" />
+    <ClCompile Include="src\point2d.c" />
+    <ClCompile Include="src\stroke.c" />
+    <ClCompile Include="src\touchevents.c" />
+    <ClCompile Include="src\touchpad.c" />
+    <ClCompile Include="src\utils.c" />
     <ClCompile Include="src\termcolor.h" />
-    <ClCompile Include="src\main.cc" />
+    <ClCompile Include="src\main.c" />
     <ClInclude Include="src\point2d.h" />
     <ClInclude Include="src\stroke.h" />
     <ClInclude Include="src\touchevents.h" />

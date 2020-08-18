@@ -1,8 +1,11 @@
 #ifndef __UTILS_H__
 #define __UTILS_H__
 #include <Windows.h>
+
 #include <hidusage.h>
 #include <hidpi.h>
+#pragma comment(lib, "hid.lib")
+
 #include <tchar.h>
 
 struct HID_TOUCH_LINK_COL_INFO
