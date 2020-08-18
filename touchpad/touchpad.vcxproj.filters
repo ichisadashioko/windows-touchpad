@@ -18,22 +18,22 @@
     <ClCompile Include="src\termcolor.h">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="src\main.cc">
+    <ClCompile Include="src\point2d.c">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="src\utils.cc">
+    <ClCompile Include="src\main.c">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="src\point2d.cc">
+    <ClCompile Include="src\stroke.c">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="src\stroke.cc">
+    <ClCompile Include="src\touchevents.c">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="src\touchpad.cc">
+    <ClCompile Include="src\touchpad.c">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="src\touchevents.cc">
+    <ClCompile Include="src\utils.c">
       <Filter>Source Files</Filter>
     </ClCompile>
   </ItemGroup>

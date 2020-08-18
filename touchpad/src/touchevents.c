@@ -1,24 +1,26 @@
-#include <iostream>
+#include <stdio.h>
 
+#include "touchevents.h"
 #include "termcolor.h"
 #include "utils.h"
-#include "touchevents.h"
 
 int mInterpretRawTouchInput(TOUCH_DATA_LIST* prevTouchesList, TOUCH_DATA curTouch, unsigned int* eventType)
 {
   // check arguments
   if (eventType == NULL)
   {
-    std::cout << FG_RED << "You must pass a unsigned int pointer eventType. It's NULL right now!" << RESET_COLOR << std::endl;
-    throw;
+    printf(FG_RED);
+    printf("You must pass a unsigned int pointer eventType. It's NULL right now!\n");
+    printf(RESET_COLOR);
     exit(-1);
     return -1;
   }
 
   if (prevTouchesList == NULL)
   {
-    std::cout << FG_RED << "You must pass a valid pointer for prevTouchesList. It's NULL right now!" << RESET_COLOR << std::endl;
-    throw;
+    printf(FG_RED);
+    printf("You must pass a valid pointer for prevTouchesList. It's NULL right now!\n");
+    printf(RESET_COLOR);
     exit(-1);
     return -1;
   }

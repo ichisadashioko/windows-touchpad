@@ -1,6 +1,7 @@
-#ifndef _TOUCHPAD_H_
-#define _TOUCHPAD_H_
+#ifndef __TOUCHPAD_H__
+#define __TOUCHPAD_H__
 #include <Windows.h>
+#include <tchar.h>
 
 #include <hidusage.h>
 #include <hidpi.h>
@@ -21,4 +22,4 @@ int mGetRawInputDeviceName(_In_ HANDLE hDevice, _Out_ TCHAR** deviceName, _Out_ 
 int mGetRawInputDevicePreparsedData(_In_ HANDLE hDevice, _Out_ PHIDP_PREPARSED_DATA* data, _Out_ UINT* cbSize);
 int mGetRawInputDeviceList(_Out_ UINT* numDevices, _Out_ RAWINPUTDEVICELIST** deviceList);
 int mGetRawInputData(_In_ HRAWINPUT hRawInput, _Out_ PUINT pcbSize, _Out_ LPVOID* pData);
-#endif  // _TOUCHPAD_H_
+#endif  // __TOUCHPAD_H__

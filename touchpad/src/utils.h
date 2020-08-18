@@ -1,9 +1,11 @@
-#pragma once
-#ifndef _UTILS_H_
-#define _UTILS_H_
+#ifndef __UTILS_H__
+#define __UTILS_H__
 #include <Windows.h>
+
 #include <hidusage.h>
 #include <hidpi.h>
+#pragma comment(lib, "hid.lib")
+
 #include <tchar.h>
 
 struct HID_TOUCH_LINK_COL_INFO
@@ -26,11 +28,15 @@ struct HID_TOUCH_LINK_COL_INFO
   int HasPressure;
 };
 
+typedef struct HID_TOUCH_LINK_COL_INFO HID_TOUCH_LINK_COL_INFO;
+
 struct HID_LINK_COL_INFO_LIST
 {
   HID_TOUCH_LINK_COL_INFO* Entries;
   unsigned int Size;
 };
+
+typedef struct HID_LINK_COL_INFO_LIST HID_LINK_COL_INFO_LIST;
 
 // C doesn't have map or dictionary so we are going to use array of struct to replace that
 struct HID_DEVICE_INFO
@@ -43,11 +49,15 @@ struct HID_DEVICE_INFO
   USHORT ContactCountLinkCollection;
 };
 
+typedef struct HID_DEVICE_INFO HID_DEVICE_INFO;
+
 struct HID_DEVICE_INFO_LIST
 {
   HID_DEVICE_INFO* Entries;
   unsigned int Size;
 };
+
+typedef struct HID_DEVICE_INFO_LIST HID_DEVICE_INFO_LIST;
 
 void mGetLastError();
 
@@ -57,5 +67,5 @@ int FindInputDeviceInList(HID_DEVICE_INFO_LIST* hidInfoList, TCHAR* deviceName, 
 
 int FindLinkCollectionInList(HID_LINK_COL_INFO_LIST* linkColInfoList, USHORT linkCollection, unsigned int* foundLinkColIdx);
 
-void* mMalloc(size_t size, std::string filePath, int lineNumber);
-#endif  // _UTILS_H_
+void* mMalloc(size_t size, char* filePath, int lineNumber);
+#endif  // __UTILS_H__

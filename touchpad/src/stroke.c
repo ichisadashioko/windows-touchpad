@@ -1,5 +1,6 @@
 #include <Windows.h>
-#include <iostream>
+
+#include <stdio.h>
 
 #include "termcolor.h"
 #include "utils.h"
@@ -9,8 +10,9 @@ int mCreateNewStroke(Point2D point, StrokeList* strokes)
 {
   if (strokes == NULL)
   {
-    std::cout << FG_RED << "strokes argument is NULL!" << RESET_COLOR << std::endl;
-    throw;
+    printf(FG_RED);
+    printf("strokes argument is NULL!\n");
+    printf(RESET_COLOR);
     exit(-1);
     return -1;
   }
@@ -40,7 +42,7 @@ int mCreateNewStroke(Point2D point, StrokeList* strokes)
 
     strokes->Entries                    = newStrokeArray;
     strokes->Size                       = newStrokeArraySize;
-    strokes->Entries[strokes->Size - 1] = {NULL, 0};
+    strokes->Entries[strokes->Size - 1] = (Point2DList){.Entries = NULL, .Size = 0};
     return mAppendPoint2DToList(point, &(strokes->Entries[strokes->Size - 1]));
   }
 

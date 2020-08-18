@@ -1,5 +1,5 @@
-#ifndef _TOUCHEVENTS_H_
-#define _TOUCHEVENTS_H_
+#ifndef __TOUCHEVENTS_H__
+#define __TOUCHEVENTS_H__
 #include <Windows.h>
 
 static const unsigned int EVENT_TYPE_TOUCH_DOWN           = 0;
@@ -15,12 +15,16 @@ struct TOUCH_DATA
   int OnSurface;
 };
 
+typedef struct TOUCH_DATA TOUCH_DATA;
+
 struct TOUCH_DATA_LIST
 {
   TOUCH_DATA* Entries;
   unsigned int Size;
 };
 
+typedef struct TOUCH_DATA_LIST TOUCH_DATA_LIST;
+
 int mInterpretRawTouchInput(TOUCH_DATA_LIST* prevTouchesList, TOUCH_DATA curTouch, unsigned int* eventType);
 
-#endif  // _TOUCHEVENTS_H_
+#endif  // __TOUCHEVENTS_H__
