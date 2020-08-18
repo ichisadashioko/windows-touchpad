@@ -140,7 +140,7 @@ int FindInputDeviceInList(HID_DEVICE_INFO_LIST* hidInfoList, TCHAR* deviceName, 
     hidInfoArray = tmpHidInfoArray;
 
     hidInfoArray[(*foundHidIndex)].cbName          = cbDeviceName;
-    hidInfoArray[(*foundHidIndex)].LinkColInfoList = {NULL, 0};
+    hidInfoArray[(*foundHidIndex)].LinkColInfoList = (HID_LINK_COL_INFO_LIST){.Entries = NULL, .Size = 0};
     hidInfoArray[(*foundHidIndex)].cbPreparsedData = cbPreparsedData;
 
     hidInfoArray[(*foundHidIndex)].Name = (TCHAR*)mMalloc(cbDeviceName, __FILE__, __LINE__);
