@@ -1,5 +1,5 @@
-#ifndef _STROKE_H_
-#define _STROKE_H_
+#ifndef __STROKE_H__
+#define __STROKE_H__
 #include "point2d.h"
 
 struct StrokeList
@@ -8,5 +8,7 @@ struct StrokeList
   unsigned int Size;
 };
 
+typedef struct StrokeList StrokeList;
+
 int mCreateNewStroke(Point2D point, StrokeList* strokes);
-#endif  // _STROKE_H_
+#endif  // __STROKE_H__
