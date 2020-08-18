@@ -1,10 +1,9 @@
 #include <Windows.h>
+#include <tchar.h>
 
 #include <hidusage.h>
 #include <hidpi.h>
 #pragma comment(lib, "hid.lib")
-
-#include <iostream>
 
 #include "termcolor.h"
 #include "utils.h"
@@ -19,29 +18,33 @@ int mGetRawInputDeviceName(_In_ HANDLE hDevice, _Out_ TCHAR** deviceName, _Out_ 
   if (deviceName == NULL)
   {
     retval = -1;
-    std::cout << FG_RED << "(TCHAR**) deviceName is NULL!" << RESET_COLOR << std::endl;
-    throw;
+    printf(FG_RED);
+    printf("(TCHAR**) deviceName is NULL!\n");
+    printf(RESET_COLOR);
     exit(-1);
   }
   else if (nameSize == NULL)
   {
     retval = -1;
-    std::cout << FG_RED << "nameSize is NULL! You will not able to know the number of characters in deviceName string." << RESET_COLOR << std::endl;
-    throw;
+    printf(FG_RED);
+    printf("nameSize is NULL! You will not able to know the number of characters in deviceName string.\n");
+    printf(RESET_COLOR);
     exit(-1);
   }
   else if ((*deviceName) != NULL)
   {
     retval = -1;
-    std::cout << FG_RED << "(TCHAR*) deviceName is not NULL! Please free your memory and set the pointer value to NULL." << RESET_COLOR << std::endl;
-    throw;
+    printf(FG_RED);
+    printf("(TCHAR*) deviceName is not NULL! Please free your memory and set the pointer value to NULL.\n");
+    printf(RESET_COLOR);
     exit(-1);
   }
   else if (cbDeviceName == NULL)
   {
     retval = -1;
-    std::cout << FG_RED << "cbDeviceName is NULL! You will not able to know the size of the return array." << RESET_COLOR << std::endl;
-    throw;
+    printf(FG_RED);
+    printf("cbDeviceName is NULL! You will not able to know the size of the return array.\n");
+    printf(RESET_COLOR);
     exit(-1);
   }
   else
@@ -51,9 +54,10 @@ int mGetRawInputDeviceName(_In_ HANDLE hDevice, _Out_ TCHAR** deviceName, _Out_ 
     if (winReturnCode == (UINT)-1)
     {
       retval = -1;
-      std::cout << FG_RED << "GetRawInputDeviceInfo failed at " << __FILE__ << ":" << __LINE__ << RESET_COLOR << std::endl;
+      printf(FG_RED);
+      printf("GetRawInputDeviceInfo failed at &s:&d\n", __FILE__, __LINE__);
+      printf(RESET_COLOR);
       mGetLastError();
-      throw;
       exit(-1);
     }
     else
@@ -67,16 +71,17 @@ int mGetRawInputDeviceName(_In_ HANDLE hDevice, _Out_ TCHAR** deviceName, _Out_ 
       if (winReturnCode == (UINT)-1)
       {
         retval = -1;
-        std::cout << FG_RED << "GetRawInputDeviceInfo failed at " << __FILE__ << ":" << __LINE__ << RESET_COLOR << std::endl;
-        mGetLastError();
-        throw;
+        printf(FG_RED);
+        printf("GetRawInputDeviceInfo failed at &s:&d\n", __FILE__, __LINE__);
+        printf(RESET_COLOR);
         exit(-1);
       }
       else if (winReturnCode != (*nameSize))
       {
         retval = -1;
-        std::cout << FG_RED << "GetRawInputDeviceInfo does not return the expected size " << winReturnCode << " (actual) vs " << (*nameSize) << " (expected) at " << __FILE__ << ":" << __LINE__ << RESET_COLOR << std::endl;
-        throw;
+        printf(FG_RED);
+        printf("GetRawInputDeviceInfo does not return the expected size %d (actual) vs %d (expected) at  &s:&d\n", winReturnCode, (*nameSize), __FILE__, __LINE__);
+        printf(RESET_COLOR);
         exit(-1);
       }
     }
@@ -93,21 +98,24 @@ int mGetRawInputDeviceList(_Out_ UINT* numDevices, _Out_ RAWINPUTDEVICELIST** de
   if (numDevices == NULL)
   {
     retval = -1;
-    std::cout << FG_RED << "numDevices is NULL!" << RESET_COLOR << std::endl;
-    throw;
+    printf(FG_RED);
+    printf("numDevices is NULL!\n");
+    printf(RESET_COLOR);
     exit(-1);
   }
   else if (deviceList == NULL)
   {
     retval = -1;
-    std::cout << FG_RED << "(RAWINPUTDEVICELIST**) deviceList is NULL!" << RESET_COLOR << std::endl;
-    throw;
+    printf(FG_RED);
+    printf("(RAWINPUTDEVICELIST**) deviceList is NULL!\n");
+    printf(RESET_COLOR);
     exit(-1);
   }
   else if ((*deviceList) != NULL)
   {
-    std::cout << FG_RED << "(RAWINPUTDEVICELIST*) deviceList is not NULL! Please free your memory and set the pointer to NULL." << RESET_COLOR << std::endl;
-    throw;
+    printf(FG_RED);
+    printf("(RAWINPUTDEVICELIST*) deviceList is not NULL! Please free your memory and set the pointer to NULL.\n");
+    printf(RESET_COLOR);
     exit(-1);
   }
   else
@@ -116,9 +124,10 @@ int mGetRawInputDeviceList(_Out_ UINT* numDevices, _Out_ RAWINPUTDEVICELIST** de
     if (winReturnCode == (UINT)-1)
     {
       retval = -1;
-      std::cout << FG_RED << "GetRawInputDeviceList failed at " << __FILE__ << ":" << __LINE__ << RESET_COLOR << std::endl;
+      printf(FG_RED);
+      printf("GetRawInputDeviceList failed at %s:%d\n", __FILE__, __LINE__);
+      printf(RESET_COLOR);
       mGetLastError();
-      throw;
       exit(-1);
     }
     else
@@ -128,10 +137,11 @@ int mGetRawInputDeviceList(_Out_ UINT* numDevices, _Out_ RAWINPUTDEVICELIST** de
       if (winReturnCode == (UINT)-1)
       {
         retval = -1;
-        std::cout << "GetRawInputDeviceList failed at " << __FILE__ << ":" << __LINE__ << std::endl;
+        printf(FG_RED);
+        printf("GetRawInputDeviceList failed at %s:%d\n", __FILE__, __LINE__);
+        printf(RESET_COLOR);
         mGetLastError();
         // TODO should we also free (*deviceList) here?
-        throw;
         exit(-1);
       }
     }
@@ -148,25 +158,28 @@ int mGetRawInputDevicePreparsedData(_In_ HANDLE hDevice, _Out_ PHIDP_PREPARSED_D
   if (data == NULL)
   {
     retval = -1;
-    std::cout << FG_RED << "(PHIDP_PREPARSED_DATA*) data parameter is NULL!" << RESET_COLOR << std::endl;
+    printf(FG_RED);
+    printf("(PHIDP_PREPARSED_DATA*) data parameter is NULL!\n");
+    printf(RESET_COLOR);
 
-    throw;
     exit(-1);
   }
   else if (cbSize == NULL)
   {
     retval = -1;
-    std::cout << FG_RED << "The cbSize parameter is NULL!" << RESET_COLOR << std::endl;
+    printf(FG_RED);
+    printf("The cbSize parameter is NULL!\n");
+    printf(RESET_COLOR);
 
-    throw;
     exit(-1);
   }
   else if ((*data) != NULL)
   {
     retval = -1;
-    std::cout << FG_RED << "(PHIDP_PREPARSED_DATA) data parameter is not NULL! Please free your memory and set the point to NULL." << RESET_COLOR << std::endl;
+    printf(FG_RED);
+    printf("(PHIDP_PREPARSED_DATA) data parameter is not NULL! Please free your memory and set the point to NULL.\n");
+    printf(RESET_COLOR);
 
-    throw;
     exit(-1);
   }
   else
@@ -175,10 +188,11 @@ int mGetRawInputDevicePreparsedData(_In_ HANDLE hDevice, _Out_ PHIDP_PREPARSED_D
     if (winReturnCode == (UINT)-1)
     {
       retval = -1;
-      std::cout << FG_RED << "GetRawInputDeviceInfo failed at " << __FILE__ << ":" << __LINE__ << RESET_COLOR << std::endl;
+      printf(FG_RED);
+      printf("GetRawInputDeviceInfo failed at %s:%d\n", __FILE__, __LINE__);
+      printf(RESET_COLOR);
       mGetLastError();
 
-      throw;
       exit(-1);
     }
     else
@@ -189,10 +203,11 @@ int mGetRawInputDevicePreparsedData(_In_ HANDLE hDevice, _Out_ PHIDP_PREPARSED_D
       if (winReturnCode == (UINT)-1)
       {
         retval = -1;
-        std::cout << FG_RED << "GetRawInputDeviceInfo failed at " << __FILE__ << ":" << __LINE__ << RESET_COLOR << std::endl;
+        printf(FG_RED);
+        printf("GetRawInputDeviceInfo failed at %s:%d\n", __FILE__, __LINE__);
+        printf(RESET_COLOR);
         mGetLastError();
 
-        throw;
         exit(-1);
       }
     }
@@ -209,25 +224,28 @@ int mGetRawInputData(_In_ HRAWINPUT hRawInput, _Out_ PUINT pcbSize, _Out_ LPVOID
   if (pcbSize == NULL)
   {
     retval = -1;
-    std::cout << FG_RED << "pcbSize parameter is NULL!" << RESET_COLOR << std::endl;
+    printf(FG_RED);
+    printf("pcbSize parameter is NULL!\n");
+    printf(RESET_COLOR);
 
-    throw;
     exit(-1);
   }
   else if (pData == NULL)
   {
     retval = -1;
-    std::cout << FG_RED << "(LPVOID*) pData parameter is NULL!" << RESET_COLOR << std::endl;
+    printf(FG_RED);
+    printf("(LPVOID*) pData parameter is NULL!\n");
+    printf(RESET_COLOR);
 
-    throw;
     exit(-1);
   }
   else if ((*pData) != NULL)
   {
     retval = -1;
-    std::cout << FG_RED << "(LPVOID) pData value is not NULL! Please free your memory and set the pointer value to NULL." << RESET_COLOR << std::endl;
+    printf(FG_RED);
+    printf("(LPVOID) pData value is not NULL! Please free your memory and set the pointer value to NULL.\n");
+    printf(RESET_COLOR);
 
-    throw;
     exit(-1);
   }
   else
@@ -236,10 +254,11 @@ int mGetRawInputData(_In_ HRAWINPUT hRawInput, _Out_ PUINT pcbSize, _Out_ LPVOID
     if (winReturnCode == (UINT)-1)
     {
       retval = -1;
-      std::cout << FG_RED << "GetRawInputData failed at " << __FILE__ << ":" << __LINE__ << RESET_COLOR << std::endl;
+      printf(FG_RED);
+      printf("GetRawInputData failed at %s:%d\n", __FILE__, __LINE__);
+      printf(RESET_COLOR);
       mGetLastError();
 
-      throw;
       exit(-1);
     }
     else
@@ -250,18 +269,20 @@ int mGetRawInputData(_In_ HRAWINPUT hRawInput, _Out_ PUINT pcbSize, _Out_ LPVOID
       if (winReturnCode == (UINT)-1)
       {
         retval = -1;
-        std::cout << FG_RED << "GetRawInputData failed at " << __FILE__ << ":" << __LINE__ << RESET_COLOR << std::endl;
+        printf(FG_RED);
+        printf("GetRawInputData failed at %s:%d\n", __FILE__, __LINE__);
+        printf(RESET_COLOR);
         mGetLastError();
 
-        throw;
         exit(-1);
       }
       else if (winReturnCode != (*pcbSize))
       {
         retval = -1;
-        std::cout << FG_RED << "GetRawInputData failed at " << __FILE__ << ":" << __LINE__ << ". The return value - the number of byte(s) copied into pData (" << winReturnCode << ") is not equal the expected value (" << (*pcbSize) << ")." << RESET_COLOR << std::endl;
-
-        throw;
+        printf(FG_RED);
+        printf("GetRawInputData failed at %s:%d.\n", __FILE__, __LINE__);
+        printf("The return value - the number of byte(s) copied into pData (%d) is not equal the expected value (%d).\n", winReturnCode, (*pcbSize));
+        printf(RESET_COLOR);
         exit(-1);
       }
     }
