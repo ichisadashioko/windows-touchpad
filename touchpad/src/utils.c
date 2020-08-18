@@ -1,11 +1,10 @@
 #include <Windows.h>
 #include <hidusage.h>
 #include <hidpi.h>
-#include <iostream>
+
 #include <time.h>
 #include <stdio.h>
 #include <stdlib.h>
-#include <string.h>
 #include <tchar.h>
 
 #include "termcolor.h"
@@ -80,7 +79,7 @@ int FindInputDeviceInList(HID_DEVICE_INFO_LIST* hidInfoList, TCHAR* deviceName, 
     hidInfoArray = (HID_DEVICE_INFO*)mMalloc(sizeof(HID_DEVICE_INFO), __FILE__, __LINE__);
 
     hidInfoArray[(*foundHidIndex)].cbName          = cbDeviceName;
-    hidInfoArray[(*foundHidIndex)].LinkColInfoList = {NULL, 0};
+    hidInfoArray[(*foundHidIndex)].LinkColInfoList = (HID_LINK_COL_INFO_LIST){.Entries = NULL, .Size = 0};
     hidInfoArray[(*foundHidIndex)].PreparedData    = preparsedData;
     hidInfoArray[(*foundHidIndex)].cbPreparsedData = cbPreparsedData;
 
@@ -185,7 +184,6 @@ int FindLinkCollectionInList(HID_LINK_COL_INFO_LIST* linkColInfoList, USHORT lin
   }
   else
   {
-    // std::cout << BG_BLUE << "NumCollections: " << linkColInfoList->Size << RESET_COLOR << std::endl;
     for (unsigned int linkColIdx = 0; linkColIdx < linkColInfoList->Size; linkColIdx++)
     {
       if (linkColInfoList->Entries[linkColIdx].LinkColID == linkCollection)
@@ -225,13 +223,14 @@ int FindLinkCollectionInList(HID_LINK_COL_INFO_LIST* linkColInfoList, USHORT lin
   return 0;
 }
 
-void* mMalloc(size_t size, std::string filePath, int lineNumber)
+void* mMalloc(size_t size, char* filePath, int lineNumber)
 {
   void* retval = malloc(size);
   if (retval == NULL)
   {
-    std::cout << FG_RED << "malloc failed to allocate " << size << " byte(s) at " << filePath << ":" << lineNumber << RESET_COLOR << std::endl;
-    throw;
+    printf(FG_RED);
+    printf("malloc failed to allocate %d byte(s) at %s:%d\n", size, filePath, lineNumber);
+    printf(RESET_COLOR);
     exit(-1);
   }
 
