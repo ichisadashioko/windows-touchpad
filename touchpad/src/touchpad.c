@@ -5,9 +5,12 @@
 #include <hidpi.h>
 #pragma comment(lib, "hid.lib")
 
+#include <stdio.h>
+
+#include "touchpad.h"
+
 #include "termcolor.h"
 #include "utils.h"
-#include "touchpad.h"
 
 int mGetRawInputDeviceName(_In_ HANDLE hDevice, _Out_ TCHAR** deviceName, _Out_ UINT* nameSize, _Out_ unsigned int* cbDeviceName)
 {
@@ -55,7 +58,7 @@ int mGetRawInputDeviceName(_In_ HANDLE hDevice, _Out_ TCHAR** deviceName, _Out_ 
     {
       retval = -1;
       printf(FG_RED);
-      printf("GetRawInputDeviceInfo failed at &s:&d\n", __FILE__, __LINE__);
+      printf("GetRawInputDeviceInfo failed at %s:%d\n", __FILE__, __LINE__);
       printf(RESET_COLOR);
       mGetLastError();
       exit(-1);
@@ -72,7 +75,7 @@ int mGetRawInputDeviceName(_In_ HANDLE hDevice, _Out_ TCHAR** deviceName, _Out_ 
       {
         retval = -1;
         printf(FG_RED);
-        printf("GetRawInputDeviceInfo failed at &s:&d\n", __FILE__, __LINE__);
+        printf("GetRawInputDeviceInfo failed at %s:%d\n", __FILE__, __LINE__);
         printf(RESET_COLOR);
         exit(-1);
       }
@@ -80,7 +83,7 @@ int mGetRawInputDeviceName(_In_ HANDLE hDevice, _Out_ TCHAR** deviceName, _Out_ 
       {
         retval = -1;
         printf(FG_RED);
-        printf("GetRawInputDeviceInfo does not return the expected size %d (actual) vs %d (expected) at  &s:&d\n", winReturnCode, (*nameSize), __FILE__, __LINE__);
+        printf("GetRawInputDeviceInfo does not return the expected size %d (actual) vs %d (expected) at  %s:%d\n", winReturnCode, (*nameSize), __FILE__, __LINE__);
         printf(RESET_COLOR);
         exit(-1);
       }
