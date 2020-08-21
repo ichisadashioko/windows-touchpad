@@ -23,7 +23,7 @@
 #undef LOG_EVERY_INPUT_MESSAGES
 
 static TCHAR szWindowClass[] = _T("DesktopApp");
-static TCHAR szTitle[]       = _T("use touchpad for handwriting");
+static TCHAR szTitle[]       = _T("F3: start writing - ESC: stop writing - C: clear - Q: close the application");
 
 #define VK_C_KEY 0x43;
 #define VK_Q_KEY 0x51;
