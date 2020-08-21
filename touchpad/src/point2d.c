@@ -1,5 +1,11 @@
+#include <Windows.h>
+
+#include <stdio.h>
+
 #include "point2d.h"
+
 #include "utils.h"
+#include "termcolor.h"
 
 int mInitializePoint2DList(Point2D point, Point2DList* list)
 {

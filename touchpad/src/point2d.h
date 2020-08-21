@@ -2,8 +2,6 @@
 #define __POINT2D_H__
 #include <Windows.h>
 
-#include "termcolor.h"
-
 struct Point2D
 {
   ULONG X;
