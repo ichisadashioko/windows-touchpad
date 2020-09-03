@@ -47,6 +47,8 @@ struct ApplicationState
   int clear_drawing_canvas_key_code;
   int call_block_input_flag;
   int call_unblock_input_flag;
+
+  RECT window_rect;
 };
 
 typedef struct ApplicationState ApplicationState;
@@ -300,6 +302,7 @@ void mRegisterRawInput(HWND hwnd)
 void mHandleCreateMessage(HWND hwnd, UINT message, WPARAM wParam, LPARAM lParam)
 {
   mRegisterRawInput(hwnd);
+  GetWindowRect(hwnd, &(g_app_state->window_rect));
 }
 
 void mHandleInputMessage(HWND hwnd, UINT message, WPARAM wParam, LPARAM lParam)
@@ -620,6 +623,7 @@ void mHandleInputMessage(HWND hwnd, UINT message, WPARAM wParam, LPARAM lParam)
 void mHandleResizeMessage(_In_ HWND hwnd, _In_ UINT uMsg, _In_ WPARAM wParam, _In_ LPARAM lParam)
 {
   InvalidateRect(hwnd, NULL, FALSE);
+  GetWindowRect(hwnd, &(g_app_state->window_rect));
 }
 
 void mHandlePaintMessage(_In_ HWND hwnd, _In_ UINT uMsg, _In_ WPARAM wParam, _In_ LPARAM lParam)
@@ -884,7 +888,17 @@ int CALLBACK wWinMain(_In_ HINSTANCE hInstance, _In_opt_ HINSTANCE hPrevInstance
       //  mGetLastError();
       //}
 
-      RECT lockCursorRect = (RECT){.left = 0, .top = 400, .right = 1, .bottom = 401};
+      RECT window_rect = g_app_state->window_rect;
+
+      LONG center_x = window_rect.left + ((window_rect.right - window_rect.left) / 2);
+      LONG center_y = window_rect.top + ((window_rect.bottom - window_rect.top) / 2);
+
+      printf(FG_BRIGHT_BLUE);
+      printf("[window_rect] left: %d, right: %d, top: %d, bottom: %d\n", window_rect.left, window_rect.right, window_rect.top, window_rect.bottom);
+      printf("[caculated_center] x: %d, y: %d\n", center_x, center_y);
+      printf(RESET_COLOR);
+
+      RECT lockCursorRect = (RECT){.left = center_x, .top = center_y, .right = center_x + 1, .bottom = center_y + 1};
       ClipCursor(&lockCursorRect);
 
       g_app_state->call_block_input_flag = 0;
@@ -932,6 +946,11 @@ int main()
   g_app_state->clear_drawing_canvas_key_code = VK_C_KEY;
   g_app_state->call_block_input_flag         = 0;
   g_app_state->call_unblock_input_flag       = 0;
+
+  g_app_state->window_rect.left   = 0;
+  g_app_state->window_rect.right  = 0;
+  g_app_state->window_rect.top    = 0;
+  g_app_state->window_rect.bottom = 0;
 
   return wWinMain(GetModuleHandle(NULL), NULL, GetCommandLine(), SW_SHOWNORMAL);
 };
