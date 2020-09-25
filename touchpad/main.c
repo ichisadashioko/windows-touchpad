@@ -797,7 +797,9 @@ int CALLBACK wWinMain(_In_ HINSTANCE hInstance, _In_opt_ HINSTANCE hPrevInstance
   mParseConnectedInputDevices();
 
   // TODO detect and prompt user to select touchpad device and parse its width and height
-  // default values
+
+  // default window width and height values
+
   int nWidth  = 720;
   int nHeight = 480;
 
@@ -867,7 +869,7 @@ int CALLBACK wWinMain(_In_ HINSTANCE hInstance, _In_opt_ HINSTANCE hPrevInstance
 
   if (!RegisterClassEx(&wcex))
   {
-    printf("RegisterClassEx filed at %s:%d\n", __FILE__, __LINE__);
+    printf("RegisterClassEx failed at %s:%d\n", __FILE__, __LINE__);
     mGetLastError();
     return -1;
   }
@@ -876,7 +878,7 @@ int CALLBACK wWinMain(_In_ HINSTANCE hInstance, _In_opt_ HINSTANCE hPrevInstance
 
   if (!hwnd)
   {
-    printf("CreateWindow filed at %s:%d\n", __FILE__, __LINE__);
+    printf("CreateWindow failed at %s:%d\n", __FILE__, __LINE__);
     mGetLastError();
     return -1;
   }
