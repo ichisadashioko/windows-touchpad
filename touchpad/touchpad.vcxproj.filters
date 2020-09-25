@@ -15,42 +15,42 @@
     </Filter>
   </ItemGroup>
   <ItemGroup>
-    <ClCompile Include="src\termcolor.h">
+    <ClCompile Include="main.c">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="src\point2d.c">
+    <ClCompile Include="point2d.c">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="src\main.c">
+    <ClCompile Include="stroke.c">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="src\stroke.c">
+    <ClCompile Include="termcolor.h">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="src\touchevents.c">
+    <ClCompile Include="touchevents.c">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="src\touchpad.c">
+    <ClCompile Include="touchpad.c">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="src\utils.c">
+    <ClCompile Include="utils.c">
       <Filter>Source Files</Filter>
     </ClCompile>
   </ItemGroup>
   <ItemGroup>
-    <ClInclude Include="src\utils.h">
+    <ClInclude Include="point2d.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="src\point2d.h">
+    <ClInclude Include="stroke.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="src\stroke.h">
+    <ClInclude Include="touchevents.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="src\touchpad.h">
+    <ClInclude Include="touchpad.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="src\touchevents.h">
+    <ClInclude Include="utils.h">
       <Filter>Header Files</Filter>
     </ClInclude>
   </ItemGroup>

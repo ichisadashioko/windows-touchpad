@@ -1,8 +1,5 @@
 #include <Windows.h>
 
-#include <WinUser.h>
-#pragma comment(lib, "User32.lib")
-
 #include <hidusage.h>
 #include <hidpi.h>
 #pragma comment(lib, "hid.lib")
@@ -47,13 +44,24 @@ struct ApplicationState
   int clear_drawing_canvas_key_code;
   int call_block_input_flag;
   int call_unblock_input_flag;
-
-  RECT window_rect;
 };
 
 typedef struct ApplicationState ApplicationState;
 
 static ApplicationState* g_app_state = NULL;
+
+LRESULT CALLBACK mBlockMouseInputHookProc(_In_ int nCode, _In_ WPARAM wParam, _In_ LPARAM lParam)
+{
+  // https://docs.microsoft.com/en-us/previous-versions/windows/desktop/legacy/ms644986(v=vs.85)
+  if (nCode < 0)
+  {
+    return CallNextHookEx(NULL, nCode, wParam, lParam);
+  }
+  else
+  {
+    return -1;
+  }
+}
 
 void mParseConnectedInputDevices()
 {
@@ -302,7 +310,6 @@ void mRegisterRawInput(HWND hwnd)
 void mHandleCreateMessage(HWND hwnd, UINT message, WPARAM wParam, LPARAM lParam)
 {
   mRegisterRawInput(hwnd);
-  GetWindowRect(hwnd, &(g_app_state->window_rect));
 }
 
 void mHandleInputMessage(HWND hwnd, UINT message, WPARAM wParam, LPARAM lParam)
@@ -623,7 +630,6 @@ void mHandleInputMessage(HWND hwnd, UINT message, WPARAM wParam, LPARAM lParam)
 void mHandleResizeMessage(_In_ HWND hwnd, _In_ UINT uMsg, _In_ WPARAM wParam, _In_ LPARAM lParam)
 {
   InvalidateRect(hwnd, NULL, FALSE);
-  GetWindowRect(hwnd, &(g_app_state->window_rect));
 }
 
 void mHandlePaintMessage(_In_ HWND hwnd, _In_ UINT uMsg, _In_ WPARAM wParam, _In_ LPARAM lParam)
@@ -795,30 +801,43 @@ int CALLBACK wWinMain(_In_ HINSTANCE hInstance, _In_opt_ HINSTANCE hPrevInstance
   int nWidth  = 720;
   int nHeight = 480;
 
-  if ((g_app_state->device_info_list.Entries != NULL) && (g_app_state->device_info_list.Size != 0))
+  HID_DEVICE_INFO* inputDevices = g_app_state->device_info_list.Entries;
+  unsigned int numInputDevices  = g_app_state->device_info_list.Size;
+  if ((inputDevices != NULL) && (numInputDevices != 0))
   {
     // TODO check for valid touchpad device
-    HID_DEVICE_INFO inputDevice = g_app_state->device_info_list.Entries[0];
+    for (unsigned int deviceIdx = 0; deviceIdx < numInputDevices; deviceIdx++)
+    {
+      HID_DEVICE_INFO inputDevice = g_app_state->device_info_list.Entries[deviceIdx];
 
-    if ((inputDevice.LinkColInfoList.Entries == NULL) || (inputDevice.LinkColInfoList.Size == 0))
-    {
-      printf(FG_RED);
-      printf("Failed to parse link collections of input device!\n");
-      printf(RESET_COLOR);
-      return -1;
-    }
-    else
-    {
-      for (unsigned int linkColIdx = 0; linkColIdx < inputDevice.LinkColInfoList.Size; linkColIdx++)
+      if ((inputDevice.LinkColInfoList.Entries == NULL) || (inputDevice.LinkColInfoList.Size == 0))
       {
-        HID_TOUCH_LINK_COL_INFO linkCollectionInfo = inputDevice.LinkColInfoList.Entries[linkColIdx];
-        if (linkCollectionInfo.HasX && linkCollectionInfo.HasY)
+        printf(FG_BRIGHT_YELLOW);
+        printf("Skipping input device #%d at %s:%d!\n", deviceIdx, __FILE__, __LINE__);
+        printf(RESET_COLOR);
+        continue;
+      }
+      else
+      {
+        for (unsigned int linkColIdx = 0; linkColIdx < inputDevice.LinkColInfoList.Size; linkColIdx++)
         {
-          // TODO Should we need to parse every single touch link collections? For now, I think one is sufficient.
-          // TODO validate values (e.g. 0 or > screen size)
-          nWidth  = linkCollectionInfo.PhysicalRect.right;
-          nHeight = linkCollectionInfo.PhysicalRect.bottom;
-          break;
+          HID_TOUCH_LINK_COL_INFO linkCollectionInfo = inputDevice.LinkColInfoList.Entries[linkColIdx];
+          if (linkCollectionInfo.HasX && linkCollectionInfo.HasY)
+          {
+            // TODO Should we need to parse every single touch link collections? For now, I think one is sufficient.
+            // TODO validate values (e.g. 0 or > screen size)
+            if (linkCollectionInfo.PhysicalRect.right > nWidth)
+            {
+              nWidth = linkCollectionInfo.PhysicalRect.right;
+            }
+
+            if (linkCollectionInfo.PhysicalRect.bottom > nHeight)
+            {
+              nHeight = linkCollectionInfo.PhysicalRect.bottom;
+            }
+
+            break;
+          }
         }
       }
     }
@@ -826,7 +845,7 @@ int CALLBACK wWinMain(_In_ HINSTANCE hInstance, _In_opt_ HINSTANCE hPrevInstance
   else
   {
     printf(FG_RED);
-    printf("Failed to parse input devices!\n");
+    printf("Failed to parse input devices at %s:%d!\n", __FILE__, __LINE__);
     printf(RESET_COLOR);
     return -1;
   }
@@ -869,6 +888,9 @@ int CALLBACK wWinMain(_In_ HINSTANCE hInstance, _In_opt_ HINSTANCE hPrevInstance
   ShowWindow(hwnd, nCmdShow);
   UpdateWindow(hwnd);
 
+  HOOKPROC llMouseHookProc = mBlockMouseInputHookProc;
+  HHOOK llMouseHookHandle  = NULL;
+
   // BOOL block_input_retval;
   MSG msg;
   while (GetMessage(&msg, NULL, 0, 0))
@@ -878,44 +900,22 @@ int CALLBACK wWinMain(_In_ HINSTANCE hInstance, _In_opt_ HINSTANCE hPrevInstance
 
     if (g_app_state->call_block_input_flag != 0)
     {
-      // TODO find a way to call BlockInput without the need of UAC permission as KeyFreeze
-      // block_input_retval = BlockInput(TRUE);
-      // printf(FG_YELLOW);
-      // printf("BlockInput(TRUE): %d\n", block_input_retval);
-      // printf(RESET_COLOR);
-      // if (block_input_retval == 0)
-      //{
-      //  mGetLastError();
-      //}
-
-      RECT window_rect = g_app_state->window_rect;
-
-      LONG center_x = window_rect.left + ((window_rect.right - window_rect.left) / 2);
-      LONG center_y = window_rect.top + ((window_rect.bottom - window_rect.top) / 2);
-
-      printf(FG_BRIGHT_BLUE);
-      printf("[window_rect] left: %d, right: %d, top: %d, bottom: %d\n", window_rect.left, window_rect.right, window_rect.top, window_rect.bottom);
-      printf("[caculated_center] x: %d, y: %d\n", center_x, center_y);
-      printf(RESET_COLOR);
-
-      RECT lockCursorRect = (RECT){.left = center_x, .top = center_y, .right = center_x + 1, .bottom = center_y + 1};
-      ClipCursor(&lockCursorRect);
+      if (llMouseHookHandle == NULL)
+      {
+        llMouseHookHandle = SetWindowsHookEx(WH_MOUSE_LL, llMouseHookProc, NULL, 0);
+      }
 
       g_app_state->call_block_input_flag = 0;
     }
     else if (g_app_state->call_unblock_input_flag != 0)
     {
-      // TODO find a way to detect keyboard state while blocking input
-      // block_input_retval = BlockInput(FALSE);
-      // printf(FG_YELLOW);
-      // printf("BlockInput(FALSE): %d\n", block_input_retval);
-      // printf(RESET_COLOR);
-      // if (block_input_retval == 0)
-      //{
-      //  mGetLastError();
-      //}
+      if (llMouseHookHandle != NULL)
+      {
+        // TODO how to unhook?
+        UnhookWindowsHookEx(llMouseHookHandle);
+        llMouseHookHandle = NULL;
+      }
 
-      ClipCursor(NULL);
       g_app_state->call_unblock_input_flag = 0;
     }
   }
@@ -946,11 +946,6 @@ int main()
   g_app_state->clear_drawing_canvas_key_code = VK_C_KEY;
   g_app_state->call_block_input_flag         = 0;
   g_app_state->call_unblock_input_flag       = 0;
-
-  g_app_state->window_rect.left   = 0;
-  g_app_state->window_rect.right  = 0;
-  g_app_state->window_rect.top    = 0;
-  g_app_state->window_rect.bottom = 0;
 
   return wWinMain(GetModuleHandle(NULL), NULL, GetCommandLine(), SW_SHOWNORMAL);
 };
