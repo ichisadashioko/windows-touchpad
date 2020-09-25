@@ -2,6 +2,8 @@
 #define __TERMCOLOR_H__
 // https://en.wikipedia.org/wiki/ANSI_escape_code#Colors
 
+static const char RESET_COLOR[] = "\033[0m";
+
 static const char FG_BLACK[]          = "\033[30m";
 static const char FG_RED[]            = "\033[31m";
 static const char FG_GREEN[]          = "\033[32m";
@@ -35,7 +37,6 @@ static const char BG_BRIGHT_BLUE[]    = "\033[104m";
 static const char BG_BRIGHT_MAGENTA[] = "\033[105m";
 static const char BG_BRIGHT_CYAN[]    = "\033[106m";
 static const char BG_BRIGHT_WHITE[]   = "\033[107m";
-static const char RESET_COLOR[]       = "\033[0m";
 
 static const char SGR_RESET         = 0;
 static const char SGR_BOLD          = 1;

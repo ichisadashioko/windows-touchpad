@@ -44,18 +44,18 @@
     </Link>
   </ItemDefinitionGroup>
   <ItemGroup>
-    <ClCompile Include="src\point2d.c" />
-    <ClCompile Include="src\stroke.c" />
-    <ClCompile Include="src\touchevents.c" />
-    <ClCompile Include="src\touchpad.c" />
-    <ClCompile Include="src\utils.c" />
-    <ClCompile Include="src\termcolor.h" />
-    <ClCompile Include="src\main.c" />
-    <ClInclude Include="src\point2d.h" />
-    <ClInclude Include="src\stroke.h" />
-    <ClInclude Include="src\touchevents.h" />
-    <ClInclude Include="src\touchpad.h" />
-    <ClInclude Include="src\utils.h" />
+    <ClCompile Include="point2d.c" />
+    <ClCompile Include="stroke.c" />
+    <ClCompile Include="touchevents.c" />
+    <ClCompile Include="touchpad.c" />
+    <ClCompile Include="utils.c" />
+    <ClCompile Include="termcolor.h" />
+    <ClCompile Include="main.c" />
+    <ClInclude Include="point2d.h" />
+    <ClInclude Include="stroke.h" />
+    <ClInclude Include="touchevents.h" />
+    <ClInclude Include="touchpad.h" />
+    <ClInclude Include="utils.h" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">
