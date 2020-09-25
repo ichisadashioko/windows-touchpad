@@ -907,13 +907,14 @@ int CALLBACK wWinMain(_In_ HINSTANCE hInstance, _In_opt_ HINSTANCE hPrevInstance
         llMouseHookHandle = SetWindowsHookEx(WH_MOUSE_LL, llMouseHookProc, NULL, 0);
       }
 
+      SetCursor(NULL);
+
       g_app_state->call_block_input_flag = 0;
     }
     else if (g_app_state->call_unblock_input_flag != 0)
     {
       if (llMouseHookHandle != NULL)
       {
-        // TODO how to unhook?
         UnhookWindowsHookEx(llMouseHookHandle);
         llMouseHookHandle = NULL;
       }
