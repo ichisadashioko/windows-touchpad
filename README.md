@@ -9,7 +9,7 @@ I am a fan of practicing writing those crazy difficult Japanese Kanji. As a Japa
 ## Goal
 
 - [x] Retrieve absolute touchpad touches' positions
-- [ ] Block mouse movement while using trackpad for handwriting (`BlockInput` API call)
+- [x] Block mouse movement while using trackpad for handwriting. We use Windows Hooks to block mouse input (#5). Thanks to @alvinhochun.
 - [x] Visualize touch input position on GUI
 - [ ] Integrate with TensorFlow (threading)
 
