@@ -9,7 +9,7 @@
   <PropertyGroup Label="Globals">
     <VCProjectVersion>16.0</VCProjectVersion>
     <ProjectGuid>{F0864556-571D-40E5-B26E-BFC962239610}</ProjectGuid>
-    <RootNamespace>touchpad</RootNamespace>
+    <RootNamespace>daemon</RootNamespace>
     <WindowsTargetPlatformVersion>10.0</WindowsTargetPlatformVersion>
   </PropertyGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.Default.props" />
@@ -45,14 +45,12 @@
   </ItemDefinitionGroup>
   <ItemGroup>
     <ClCompile Include="point2d.c" />
-    <ClCompile Include="stroke.c" />
     <ClCompile Include="touchevents.c" />
     <ClCompile Include="touchpad.c" />
     <ClCompile Include="utils.c" />
     <ClCompile Include="termcolor.h" />
     <ClCompile Include="main.c" />
     <ClInclude Include="point2d.h" />
-    <ClInclude Include="stroke.h" />
     <ClInclude Include="touchevents.h" />
     <ClInclude Include="touchpad.h" />
     <ClInclude Include="utils.h" />

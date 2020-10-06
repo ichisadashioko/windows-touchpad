@@ -14,7 +14,6 @@
 #include "touchpad.h"
 #include "touchevents.h"
 #include "point2d.h"
-#include "stroke.h"
 
 #define LOG_EVERY_INPUT_MESSAGES
 #undef LOG_EVERY_INPUT_MESSAGES

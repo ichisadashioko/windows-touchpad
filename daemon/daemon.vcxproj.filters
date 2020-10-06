@@ -21,9 +21,6 @@
     <ClCompile Include="point2d.c">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="stroke.c">
-      <Filter>Source Files</Filter>
-    </ClCompile>
     <ClCompile Include="termcolor.h">
       <Filter>Source Files</Filter>
     </ClCompile>
@@ -39,9 +36,6 @@
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="point2d.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
-    <ClInclude Include="stroke.h">
       <Filter>Header Files</Filter>
     </ClInclude>
     <ClInclude Include="touchevents.h">
