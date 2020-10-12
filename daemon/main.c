@@ -624,5 +624,46 @@ int main()
   g_app_state->tracking_touch_id      = -1;
   g_app_state->is_capturing_raw_input = 0;
 
+  HANDLE hPipe;
+  LPTSTR lpszPipename = TEXT("\\\\.\\pipe\\touchpad");
+
+  // try to open a named pipe
+  // wait for it if necessary
+
+  while (1)
+  {
+    hPipe = CreateFile(lpszPipename, GENERIC_READ | GENERIC_WRITE, 0, NULL, OPEN_EXISTING, 0, NULL);
+
+    if (hPipe != INVALID_HANDLE_VALUE)
+    {
+      break;
+    }
+
+    if (GetLastError() != ERROR_PIPE_BUSY)
+    {
+      _tprintf(TEXT("Could not open pipe. GLE=%d\n"), GetLastError());
+      return -1;
+    }
+
+    // all pipe instances are busy, so wait for a few seconds
+
+    if (!WaitNamedPipe(lpszPipename, 5000))
+    {
+      printf("Could not open pipe: 5 seconds wait time out.\n");
+      return -1;
+    }
+  }
+
+  // the pipe connected
+
+  DWORD dwPipeReadMode = PIPE_READMODE_BYTE;
+  BOOL fSuccess        = SetNamedPipeHandleState(hPipe, &dwPipeReadMode, NULL, NULL);
+
+  if (!fSuccess)
+  {
+    _tprintf(TEXT("SetNamedPipeHandleState failed. GLE=%d\n"), GetLastError());
+    return -1;
+  }
+
   return wWinMain(GetModuleHandle(NULL), NULL, GetCommandLine(), SW_SHOWNORMAL);
 };
