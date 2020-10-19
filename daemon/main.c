@@ -28,6 +28,9 @@ struct ApplicationState
   ULONG tracking_touch_id;
   // flag to toggle drawing state
   int is_capturing_raw_input;
+  HANDLE pipe_handle;
+  int send_touch_events_flag;
+  int is_pipe_alive;
 };
 
 typedef struct ApplicationState ApplicationState;
@@ -623,8 +626,9 @@ int main()
   g_app_state->previous_touches       = (TOUCH_DATA_LIST){.Entries = NULL, .Size = 0};
   g_app_state->tracking_touch_id      = -1;
   g_app_state->is_capturing_raw_input = 0;
+  g_app_state->is_pipe_alive          = 0;
+  g_app_state->pipe_handle            = INVALID_HANDLE_VALUE;
 
-  HANDLE hPipe;
   LPTSTR lpszPipename = TEXT("\\\\.\\pipe\\touchpad");
 
   // try to open a named pipe
@@ -632,10 +636,11 @@ int main()
 
   while (1)
   {
-    hPipe = CreateFile(lpszPipename, GENERIC_READ | GENERIC_WRITE, 0, NULL, OPEN_EXISTING, 0, NULL);
+    g_app_state->pipe_handle = CreateFile(lpszPipename, GENERIC_READ | GENERIC_WRITE, 0, NULL, OPEN_EXISTING, 0, NULL);
 
-    if (hPipe != INVALID_HANDLE_VALUE)
+    if (g_app_state->pipe_handle != INVALID_HANDLE_VALUE)
     {
+      // connect to the named pipe successfully
       break;
     }
 
@@ -657,13 +662,15 @@ int main()
   // the pipe connected
 
   DWORD dwPipeReadMode = PIPE_READMODE_BYTE;
-  BOOL fSuccess        = SetNamedPipeHandleState(hPipe, &dwPipeReadMode, NULL, NULL);
+  BOOL fSuccess        = SetNamedPipeHandleState(g_app_state->pipe_handle, &dwPipeReadMode, NULL, NULL);
 
   if (!fSuccess)
   {
     _tprintf(TEXT("SetNamedPipeHandleState failed. GLE=%d\n"), GetLastError());
     return -1;
   }
+
+  g_app_state->is_pipe_alive = 1;
 
   return wWinMain(GetModuleHandle(NULL), NULL, GetCommandLine(), SW_SHOWNORMAL);
 };
