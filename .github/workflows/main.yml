@@ -1,6 +1,10 @@
-name: C/C++ CI
+name: CI
 
-on: [push, pull_request]
+on:
+  push:
+    branches: [ master ]
+  pull_request:
+    branches: [ master ]
 
 jobs:
   build:
@@ -19,3 +23,9 @@ jobs:
 
     - name: Show build directory structure
       run: tree . /a /f
+
+    - name: upload artifacts
+      uses: actions/upload-artifact@v2.2.0
+      with:
+        name: windows-touchpad-binaries
+        path: Debug/*.exe
