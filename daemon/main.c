@@ -14,54 +14,28 @@
 #include "touchpad.h"
 #include "touchevents.h"
 #include "point2d.h"
-#include "stroke.h"
 
 #define LOG_EVERY_INPUT_MESSAGES
 #undef LOG_EVERY_INPUT_MESSAGES
 
 static TCHAR szWindowClass[] = _T("DesktopApp");
-static TCHAR szTitle[]       = _T("F3: start writing - ESC: stop writing - C: clear - Q: close the application");
-
-#define VK_C_KEY 0x43;
-#define VK_Q_KEY 0x51;
+static TCHAR szTitle[]       = _T("");
 
 struct ApplicationState
 {
   HID_DEVICE_INFO_LIST device_info_list;
   TOUCH_DATA_LIST previous_touches;
-  StrokeList strokes;
   ULONG tracking_touch_id;
   // flag to toggle drawing state
-  int is_drawing;
-
-  // https://docs.microsoft.com/en-us/windows/win32/inputdev/virtual-key-codes
-  // TODO add option to change the key bindings
-  // TODO add option to add multiple key bindings (array of key bindings for each actions)
-
-  int turn_off_drawing_key_code;
-  int turn_on_drawing_key_code;
-  int quit_application_key_code;
-  int clear_drawing_canvas_key_code;
-  int call_block_input_flag;
-  int call_unblock_input_flag;
+  int is_capturing_raw_input;
+  HANDLE pipe_handle;
+  int send_touch_events_flag;
+  int is_pipe_alive;
 };
 
 typedef struct ApplicationState ApplicationState;
 
 static ApplicationState* g_app_state = NULL;
-
-LRESULT CALLBACK mBlockMouseInputHookProc(_In_ int nCode, _In_ WPARAM wParam, _In_ LPARAM lParam)
-{
-  // https://docs.microsoft.com/en-us/previous-versions/windows/desktop/legacy/ms644986(v=vs.85)
-  if (nCode < 0)
-  {
-    return CallNextHookEx(NULL, nCode, wParam, lParam);
-  }
-  else
-  {
-    return -1;
-  }
-}
 
 void mParseConnectedInputDevices()
 {
@@ -320,7 +294,7 @@ void mHandleInputMessage(HWND hwnd, UINT message, WPARAM wParam, LPARAM lParam)
 
   // Get the size of RAWINPUT by calling GetRawInputData() with pData = NULL
 
-  if (g_app_state->is_drawing != 0)
+  if (g_app_state->is_capturing_raw_input != 0)
   {
     UINT rawInputSize;
     PRAWINPUT rawInputData = NULL;
@@ -528,9 +502,6 @@ void mHandleInputMessage(HWND hwnd, UINT message, WPARAM wParam, LPARAM lParam)
                       if (touchType == EVENT_TYPE_TOUCH_DOWN)
                       {
                         g_app_state->tracking_touch_id = curTouch.TouchID;
-                        // TODO create new stroke
-                        // TODO check return value for indication of errors
-                        mCreateNewStroke(touchPos, &g_app_state->strokes);
                       }
                       else
                       {
@@ -541,38 +512,6 @@ void mHandleInputMessage(HWND hwnd, UINT message, WPARAM wParam, LPARAM lParam)
                     {
                       if (touchType == EVENT_TYPE_TOUCH_MOVE)
                       {
-                        // we skip EVENT_TYPE_TOUCH_MOVE_UNCHANGED here
-                        // TODO append touch position to the last stroke
-                        if ((g_app_state->strokes.Entries == NULL) || (g_app_state->strokes.Size == 0))
-                        {
-                          printf(FG_RED);
-                          printf("The application state is broken!\n");
-                          printf(RESET_COLOR);
-                          exit(-1);
-                        }
-                        else
-                        {
-                          // TODO check return value for indication of errors
-                          mAppendPoint2DToList(touchPos, &g_app_state->strokes.Entries[g_app_state->strokes.Size - 1]);
-
-                          Point2DList stroke = g_app_state->strokes.Entries[g_app_state->strokes.Size - 1];
-                          if (stroke.Size < 2)
-                          {
-                            printf(FG_RED);
-                            printf("The application state is broken!\n");
-                            printf(RESET_COLOR);
-                            exit(-1);
-                          }
-                          else
-                          {
-                            HDC hdc        = GetDC(hwnd);
-                            HPEN strokePen = CreatePen(PS_SOLID, 20, RGB(255, 255, 255));
-                            SelectObject(hdc, strokePen);
-                            MoveToEx(hdc, (int)stroke.Entries[stroke.Size - 2].X, (int)stroke.Entries[stroke.Size - 2].Y, (LPPOINT)NULL);
-                            LineTo(hdc, (int)stroke.Entries[stroke.Size - 1].X, (int)stroke.Entries[stroke.Size - 1].Y);
-                            ReleaseDC(hwnd, hdc);
-                          }
-                        }
                       }
                       else if (touchType == EVENT_TYPE_TOUCH_UP)
                       {
@@ -580,38 +519,6 @@ void mHandleInputMessage(HWND hwnd, UINT message, WPARAM wParam, LPARAM lParam)
                         g_app_state->tracking_touch_id = (ULONG)-1;
                       }
                     }
-
-#ifdef LOG_EVERY_INPUT_MESSAGES
-                    const char* touchTypeStr;
-
-                    if (touchType == EVENT_TYPE_TOUCH_UP)
-                    {
-                      touchTypeStr = "touch up";
-                    }
-                    else if (touchType == EVENT_TYPE_TOUCH_MOVE)
-                    {
-                      touchTypeStr = "touch move";
-                    }
-                    else if (touchType == EVENT_TYPE_TOUCH_DOWN)
-                    {
-                      touchTypeStr = "touch down";
-                    }
-                    else if (touchType == EVENT_TYPE_TOUCH_MOVE_UNCHANGED)
-                    {
-                      touchTypeStr = "touch move unchanged";
-                    }
-                    else
-                    {
-                      printf(FG_RED);
-                      printf("unknown event type: %d\n", touchType);
-                      printf(RESET_COLOR);
-                      exit(-1);
-                    }
-
-                    printf(FG_GREEN);
-                    printf("LinkColId: %d, touchID: %d, tipSwitch: %d, position: (%d, %d), eventType: %s\n", collectionInfo.LinkColID, touchId, isContactOnSurface, xPos, yPos, touchTypeStr);
-                    printf(RESET_COLOR);
-#endif
                   }
                 }
               }
@@ -624,119 +531,6 @@ void mHandleInputMessage(HWND hwnd, UINT message, WPARAM wParam, LPARAM lParam)
 
       free(rawInputData);
     }
-  }
-}
-
-void mHandleResizeMessage(_In_ HWND hwnd, _In_ UINT uMsg, _In_ WPARAM wParam, _In_ LPARAM lParam)
-{
-  InvalidateRect(hwnd, NULL, FALSE);
-}
-
-void mHandlePaintMessage(_In_ HWND hwnd, _In_ UINT uMsg, _In_ WPARAM wParam, _In_ LPARAM lParam)
-{
-  // clock_t ts = clock();
-  HDC hdc;
-  PAINTSTRUCT ps;
-  RECT rc;
-
-  GetClientRect(hwnd, &rc);
-
-  if (rc.bottom == 0)
-  {
-    return;
-  }
-
-  hdc = BeginPaint(hwnd, &ps);
-
-  // draw black background
-  HBRUSH bgBrush = CreateSolidBrush(RGB(0, 0, 0));
-  FillRect(hdc, &rc, bgBrush);
-
-  // TODO change color for every strokes
-  HPEN strokePen = CreatePen(PS_SOLID, 20, RGB(255, 255, 255));
-  SelectObject(hdc, strokePen);
-
-  if ((g_app_state->strokes.Entries != NULL) && (g_app_state->strokes.Size != 0))
-  {
-    for (unsigned int strokeIdx = 0; strokeIdx < g_app_state->strokes.Size; strokeIdx++)
-    {
-      // TODO change rendering color for each strokes
-      Point2DList strokeData = g_app_state->strokes.Entries[strokeIdx];
-      if (strokeData.Size < 2)
-      {
-        // TODO improve rendering strokes logic
-        continue;
-      }
-      else
-      {
-        MoveToEx(hdc, (int)strokeData.Entries[0].X, (int)strokeData.Entries[0].Y, (LPPOINT)NULL);
-
-        for (unsigned int pointIdx = 1; pointIdx < strokeData.Size; pointIdx++)
-        {
-          LineTo(hdc, (int)strokeData.Entries[pointIdx].X, (int)strokeData.Entries[pointIdx].Y);
-        }
-      }
-    }
-  }
-
-  EndPaint(hwnd, &ps);
-}
-
-void mHandleKeyUpMessage(_In_ HWND hwnd, _In_ UINT uMsg, _In_ WPARAM wParam, _In_ LPARAM lParam)
-{
-  clock_t ts = clock();
-
-  printf(FG_GREEN);
-  printf("[%d] WM_KEYUP: 0x%x\n", ts, wParam);
-  printf(RESET_COLOR);
-
-  int virtual_key_code = (int)wParam;
-  if (virtual_key_code == g_app_state->turn_off_drawing_key_code)
-  {
-    g_app_state->is_drawing = 0;
-
-    g_app_state->call_unblock_input_flag = 1;
-  }
-  else if (virtual_key_code == g_app_state->turn_on_drawing_key_code)
-  {
-    g_app_state->is_drawing = 1;
-
-    g_app_state->call_block_input_flag = 1;
-  }
-  else if (virtual_key_code == g_app_state->clear_drawing_canvas_key_code)
-  {
-    g_app_state->tracking_touch_id = (ULONG)-1;
-
-    if (g_app_state->previous_touches.Entries != NULL)
-    {
-      free(g_app_state->previous_touches.Entries);
-      g_app_state->previous_touches.Entries = NULL;
-      g_app_state->previous_touches.Size    = 0;
-    }
-
-    if (g_app_state->strokes.Entries != NULL)
-    {
-      for (unsigned int strokeIdx = 0; strokeIdx < g_app_state->strokes.Size; strokeIdx++)
-      {
-        Point2DList stroke = g_app_state->strokes.Entries[strokeIdx];
-        if (stroke.Entries != NULL)
-        {
-          free(stroke.Entries);
-          stroke.Entries = NULL;
-          stroke.Size    = 0;
-        }
-      }
-
-      free(g_app_state->strokes.Entries);
-      g_app_state->strokes.Entries = NULL;
-      g_app_state->strokes.Size    = 0;
-    }
-
-    InvalidateRect(hwnd, NULL, FALSE);
-  }
-  else if (virtual_key_code == g_app_state->quit_application_key_code)
-  {
-    PostQuitMessage(0);
   }
 }
 
@@ -754,28 +548,6 @@ LRESULT CALLBACK WndProc(_In_ HWND hwnd, _In_ UINT uMsg, _In_ WPARAM wParam, _In
     case WM_INPUT:
     {
       mHandleInputMessage(hwnd, uMsg, wParam, lParam);
-      break;
-    }
-    case WM_PAINT:
-    {
-      mHandlePaintMessage(hwnd, uMsg, wParam, lParam);
-      break;
-    }
-    case WM_SIZE:
-    {
-      mHandleResizeMessage(hwnd, uMsg, wParam, lParam);
-      break;
-    }
-    case WM_KEYUP:
-    {
-      mHandleKeyUpMessage(hwnd, uMsg, wParam, lParam);
-      break;
-    }
-    case WM_SYSKEYUP:
-    {
-      printf(FG_GREEN);
-      printf("[%d] WM_SYSKEYUP: 0x%x\n", ts, wParam);
-      printf(RESET_COLOR);
       break;
     }
     case WM_DESTROY:
@@ -800,57 +572,8 @@ int CALLBACK wWinMain(_In_ HINSTANCE hInstance, _In_opt_ HINSTANCE hPrevInstance
 
   // default window width and height values
 
-  int nWidth  = 720;
-  int nHeight = 480;
-
-  HID_DEVICE_INFO* inputDevices = g_app_state->device_info_list.Entries;
-  unsigned int numInputDevices  = g_app_state->device_info_list.Size;
-  if ((inputDevices != NULL) && (numInputDevices != 0))
-  {
-    // TODO check for valid touchpad device
-    for (unsigned int deviceIdx = 0; deviceIdx < numInputDevices; deviceIdx++)
-    {
-      HID_DEVICE_INFO inputDevice = g_app_state->device_info_list.Entries[deviceIdx];
-
-      if ((inputDevice.LinkColInfoList.Entries == NULL) || (inputDevice.LinkColInfoList.Size == 0))
-      {
-        printf(FG_BRIGHT_YELLOW);
-        printf("Skipping input device #%d at %s:%d!\n", deviceIdx, __FILE__, __LINE__);
-        printf(RESET_COLOR);
-        continue;
-      }
-      else
-      {
-        for (unsigned int linkColIdx = 0; linkColIdx < inputDevice.LinkColInfoList.Size; linkColIdx++)
-        {
-          HID_TOUCH_LINK_COL_INFO linkCollectionInfo = inputDevice.LinkColInfoList.Entries[linkColIdx];
-          if (linkCollectionInfo.HasX && linkCollectionInfo.HasY)
-          {
-            // TODO Should we need to parse every single touch link collections? For now, I think one is sufficient.
-            // TODO validate values (e.g. 0 or > screen size)
-            if (linkCollectionInfo.PhysicalRect.right > nWidth)
-            {
-              nWidth = linkCollectionInfo.PhysicalRect.right;
-            }
-
-            if (linkCollectionInfo.PhysicalRect.bottom > nHeight)
-            {
-              nHeight = linkCollectionInfo.PhysicalRect.bottom;
-            }
-
-            break;
-          }
-        }
-      }
-    }
-  }
-  else
-  {
-    printf(FG_RED);
-    printf("Failed to parse input devices at %s:%d!\n", __FILE__, __LINE__);
-    printf(RESET_COLOR);
-    return -1;
-  }
+  int windowWidth  = 0;
+  int windowHeight = 0;
 
   WNDCLASSEX wcex;
 
@@ -874,7 +597,9 @@ int CALLBACK wWinMain(_In_ HINSTANCE hInstance, _In_opt_ HINSTANCE hPrevInstance
     return -1;
   }
 
-  HWND hwnd = CreateWindow(szWindowClass, szTitle, WS_OVERLAPPEDWINDOW | WS_EX_LAYERED, CW_USEDEFAULT, CW_USEDEFAULT, nWidth, nHeight, NULL, NULL, hInstance, NULL);
+  // https://stackoverflow.com/a/2122531
+  // https://stackoverflow.com/a/3920427
+  HWND hwnd = CreateWindow(szWindowClass, szTitle, WS_OVERLAPPEDWINDOW & (~WS_VISIBLE), CW_USEDEFAULT, CW_USEDEFAULT, windowWidth, windowHeight, NULL, NULL, hInstance, NULL);
 
   if (!hwnd)
   {
@@ -883,44 +608,11 @@ int CALLBACK wWinMain(_In_ HINSTANCE hInstance, _In_opt_ HINSTANCE hPrevInstance
     return -1;
   }
 
-  // make the window transparent
-  SetWindowLong(hwnd, GWL_EXSTYLE, GetWindowLong(hwnd, GWL_EXSTYLE) | WS_EX_LAYERED);
-  SetLayeredWindowAttributes(hwnd, RGB(0, 0, 0), 255, LWA_ALPHA | LWA_COLORKEY);
-
-  ShowWindow(hwnd, nCmdShow);
-  UpdateWindow(hwnd);
-
-  HOOKPROC llMouseHookProc = mBlockMouseInputHookProc;
-  HHOOK llMouseHookHandle  = NULL;
-
-  // BOOL block_input_retval;
   MSG msg;
   while (GetMessage(&msg, NULL, 0, 0))
   {
     TranslateMessage(&msg);
     DispatchMessage(&msg);
-
-    if (g_app_state->call_block_input_flag != 0)
-    {
-      if (llMouseHookHandle == NULL)
-      {
-        llMouseHookHandle = SetWindowsHookEx(WH_MOUSE_LL, llMouseHookProc, NULL, 0);
-      }
-
-      SetCursor(NULL);
-
-      g_app_state->call_block_input_flag = 0;
-    }
-    else if (g_app_state->call_unblock_input_flag != 0)
-    {
-      if (llMouseHookHandle != NULL)
-      {
-        UnhookWindowsHookEx(llMouseHookHandle);
-        llMouseHookHandle = NULL;
-      }
-
-      g_app_state->call_unblock_input_flag = 0;
-    }
   }
 
   return (int)msg.wParam;
@@ -928,27 +620,57 @@ int CALLBACK wWinMain(_In_ HINSTANCE hInstance, _In_opt_ HINSTANCE hPrevInstance
 
 int main()
 {
-#define TEST
-#undef TEST
-#ifdef TEST
-  test_mAppendPoint2DToList();
-  return 0;
-#endif
-
   g_app_state = (ApplicationState*)mMalloc(sizeof(ApplicationState), __FILE__, __LINE__);
 
-  g_app_state->device_info_list  = (HID_DEVICE_INFO_LIST){.Entries = NULL, .Size = 0};
-  g_app_state->previous_touches  = (TOUCH_DATA_LIST){.Entries = NULL, .Size = 0};
-  g_app_state->strokes           = (StrokeList){.Entries = NULL, .Size = 0};
-  g_app_state->tracking_touch_id = -1;
-  g_app_state->is_drawing        = 0;
+  g_app_state->device_info_list       = (HID_DEVICE_INFO_LIST){.Entries = NULL, .Size = 0};
+  g_app_state->previous_touches       = (TOUCH_DATA_LIST){.Entries = NULL, .Size = 0};
+  g_app_state->tracking_touch_id      = -1;
+  g_app_state->is_capturing_raw_input = 0;
+  g_app_state->is_pipe_alive          = 0;
+  g_app_state->pipe_handle            = INVALID_HANDLE_VALUE;
 
-  g_app_state->turn_off_drawing_key_code     = VK_ESCAPE;
-  g_app_state->turn_on_drawing_key_code      = VK_F3;
-  g_app_state->quit_application_key_code     = VK_Q_KEY;
-  g_app_state->clear_drawing_canvas_key_code = VK_C_KEY;
-  g_app_state->call_block_input_flag         = 0;
-  g_app_state->call_unblock_input_flag       = 0;
+  LPTSTR lpszPipename = TEXT("\\\\.\\pipe\\touchpad");
+
+  // try to open a named pipe
+  // wait for it if necessary
+
+  while (1)
+  {
+    g_app_state->pipe_handle = CreateFile(lpszPipename, GENERIC_READ | GENERIC_WRITE, 0, NULL, OPEN_EXISTING, 0, NULL);
+
+    if (g_app_state->pipe_handle != INVALID_HANDLE_VALUE)
+    {
+      // connect to the named pipe successfully
+      break;
+    }
+
+    if (GetLastError() != ERROR_PIPE_BUSY)
+    {
+      _tprintf(TEXT("Could not open pipe. GLE=%d\n"), GetLastError());
+      return -1;
+    }
+
+    // all pipe instances are busy, so wait for a few seconds
+
+    if (!WaitNamedPipe(lpszPipename, 5000))
+    {
+      printf("Could not open pipe: 5 seconds wait time out.\n");
+      return -1;
+    }
+  }
+
+  // the pipe connected
+
+  DWORD dwPipeReadMode = PIPE_READMODE_BYTE;
+  BOOL fSuccess        = SetNamedPipeHandleState(g_app_state->pipe_handle, &dwPipeReadMode, NULL, NULL);
+
+  if (!fSuccess)
+  {
+    _tprintf(TEXT("SetNamedPipeHandleState failed. GLE=%d\n"), GetLastError());
+    return -1;
+  }
+
+  g_app_state->is_pipe_alive = 1;
 
   return wWinMain(GetModuleHandle(NULL), NULL, GetCommandLine(), SW_SHOWNORMAL);
 };

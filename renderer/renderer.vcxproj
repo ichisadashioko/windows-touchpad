@@ -6,10 +6,13 @@
       <Platform>Win32</Platform>
     </ProjectConfiguration>
   </ItemGroup>
+  <ItemGroup>
+    <ClCompile Include="main.c" />
+  </ItemGroup>
   <PropertyGroup Label="Globals">
     <VCProjectVersion>16.0</VCProjectVersion>
-    <ProjectGuid>{F0864556-571D-40E5-B26E-BFC962239610}</ProjectGuid>
-    <RootNamespace>touchpad</RootNamespace>
+    <ProjectGuid>{E295E31E-EA45-4EB9-8ED9-9E77D13FDF8C}</ProjectGuid>
+    <RootNamespace>renderer</RootNamespace>
     <WindowsTargetPlatformVersion>10.0</WindowsTargetPlatformVersion>
   </PropertyGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.Default.props" />
@@ -43,20 +46,6 @@
       <GenerateDebugInformation>true</GenerateDebugInformation>
     </Link>
   </ItemDefinitionGroup>
-  <ItemGroup>
-    <ClCompile Include="point2d.c" />
-    <ClCompile Include="stroke.c" />
-    <ClCompile Include="touchevents.c" />
-    <ClCompile Include="touchpad.c" />
-    <ClCompile Include="utils.c" />
-    <ClCompile Include="termcolor.h" />
-    <ClCompile Include="main.c" />
-    <ClInclude Include="point2d.h" />
-    <ClInclude Include="stroke.h" />
-    <ClInclude Include="touchevents.h" />
-    <ClInclude Include="touchpad.h" />
-    <ClInclude Include="utils.h" />
-  </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">
   </ImportGroup>
