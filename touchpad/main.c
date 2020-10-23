@@ -22,8 +22,10 @@
 static TCHAR szWindowClass[] = _T("DesktopApp");
 static TCHAR szTitle[]       = _T("F3: start writing - ESC: stop writing - C: clear - Q: close the application");
 
+// https://docs.microsoft.com/en-us/windows/win32/inputdev/virtual-key-codes
 #define VK_C_KEY 0x43;
 #define VK_Q_KEY 0x51;
+#define VK_S_KEY 0x53;
 
 struct ApplicationState
 {
@@ -34,12 +36,12 @@ struct ApplicationState
   // flag to toggle drawing state
   int is_drawing;
 
-  // https://docs.microsoft.com/en-us/windows/win32/inputdev/virtual-key-codes
   // TODO add option to change the key bindings
   // TODO add option to add multiple key bindings (array of key bindings for each actions)
 
   int turn_off_drawing_key_code;
   int turn_on_drawing_key_code;
+  int export_writing_data_key_code;
   int quit_application_key_code;
   int clear_drawing_canvas_key_code;
   int call_block_input_flag;
@@ -928,13 +930,6 @@ int CALLBACK wWinMain(_In_ HINSTANCE hInstance, _In_opt_ HINSTANCE hPrevInstance
 
 int main()
 {
-#define TEST
-#undef TEST
-#ifdef TEST
-  test_mAppendPoint2DToList();
-  return 0;
-#endif
-
   g_app_state = (ApplicationState*)mMalloc(sizeof(ApplicationState), __FILE__, __LINE__);
 
   g_app_state->device_info_list  = (HID_DEVICE_INFO_LIST){.Entries = NULL, .Size = 0};
@@ -946,9 +941,11 @@ int main()
   g_app_state->turn_off_drawing_key_code     = VK_ESCAPE;
   g_app_state->turn_on_drawing_key_code      = VK_F3;
   g_app_state->quit_application_key_code     = VK_Q_KEY;
+  g_app_state->export_writing_data_key_code  = VK_S_KEY;
   g_app_state->clear_drawing_canvas_key_code = VK_C_KEY;
-  g_app_state->call_block_input_flag         = 0;
-  g_app_state->call_unblock_input_flag       = 0;
+
+  g_app_state->call_block_input_flag   = 0;
+  g_app_state->call_unblock_input_flag = 0;
 
   return wWinMain(GetModuleHandle(NULL), NULL, GetCommandLine(), SW_SHOWNORMAL);
 };
