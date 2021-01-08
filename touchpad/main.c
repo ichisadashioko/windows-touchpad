@@ -736,6 +736,10 @@ void mHandleKeyUpMessage(_In_ HWND hwnd, _In_ UINT uMsg, _In_ WPARAM wParam, _In
 
     InvalidateRect(hwnd, NULL, FALSE);
   }
+  else if (virtual_key_code == g_app_state->export_writing_data_key_code)
+  {
+    printf("Unimplemented export image feature!\n");
+  }
   else if (virtual_key_code == g_app_state->quit_application_key_code)
   {
     PostQuitMessage(0);
