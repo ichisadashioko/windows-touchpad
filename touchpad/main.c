@@ -53,7 +53,7 @@ typedef struct ApplicationState ApplicationState;
 
 static ApplicationState* g_app_state = NULL;
 
-LRESULT CALLBACK mBlockMouseInputHookProc(_In_ int nCode, _In_ WPARAM wParam, _In_ LPARAM lParam)
+LRESULT CALLBACK main_block_mouse_input_hook_callback(_In_ int nCode, _In_ WPARAM wParam, _In_ LPARAM lParam)
 {
   // https://docs.microsoft.com/en-us/previous-versions/windows/desktop/legacy/ms644986(v=vs.85)
   if (nCode < 0)
@@ -66,7 +66,7 @@ LRESULT CALLBACK mBlockMouseInputHookProc(_In_ int nCode, _In_ WPARAM wParam, _I
   }
 }
 
-void mParseConnectedInputDevices()
+void main_parse_connected_input_devices()
 {
   printf(FG_BLUE);
   printf("Parsing all HID devices...\n");
@@ -283,7 +283,7 @@ void mParseConnectedInputDevices()
   free(rawInputDeviceList);
 }
 
-void mRegisterRawInput(HWND hwnd)
+void main_register_input_devices(HWND hwnd)
 {
   // register Windows Precision Touchpad top-level HID collection
   RAWINPUTDEVICE rid;
@@ -310,12 +310,12 @@ void mRegisterRawInput(HWND hwnd)
   }
 }
 
-void mHandleCreateMessage(HWND hwnd, UINT message, WPARAM wParam, LPARAM lParam)
+void main_handle_wm_create(HWND hwnd, UINT message, WPARAM wParam, LPARAM lParam)
 {
-  mRegisterRawInput(hwnd);
+  main_register_input_devices(hwnd);
 }
 
-void mHandleInputMessage(HWND hwnd, UINT message, WPARAM wParam, LPARAM lParam)
+void main_handle_wm_input(HWND hwnd, UINT message, WPARAM wParam, LPARAM lParam)
 {
   clock_t ts = clock();
 
@@ -630,12 +630,12 @@ void mHandleInputMessage(HWND hwnd, UINT message, WPARAM wParam, LPARAM lParam)
   }
 }
 
-void mHandleResizeMessage(_In_ HWND hwnd, _In_ UINT uMsg, _In_ WPARAM wParam, _In_ LPARAM lParam)
+void main_handle_wm_resize(_In_ HWND hwnd, _In_ UINT uMsg, _In_ WPARAM wParam, _In_ LPARAM lParam)
 {
   InvalidateRect(hwnd, NULL, FALSE);
 }
 
-void mHandlePaintMessage(_In_ HWND hwnd, _In_ UINT uMsg, _In_ WPARAM wParam, _In_ LPARAM lParam)
+void main_handle_wm_paint(_In_ HWND hwnd, _In_ UINT uMsg, _In_ WPARAM wParam, _In_ LPARAM lParam)
 {
   // clock_t ts = clock();
   HDC hdc;
@@ -685,7 +685,7 @@ void mHandlePaintMessage(_In_ HWND hwnd, _In_ UINT uMsg, _In_ WPARAM wParam, _In
   EndPaint(hwnd, &ps);
 }
 
-void mHandleKeyUpMessage(_In_ HWND hwnd, _In_ UINT uMsg, _In_ WPARAM wParam, _In_ LPARAM lParam)
+void main_handle_wm_keyup(_In_ HWND hwnd, _In_ UINT uMsg, _In_ WPARAM wParam, _In_ LPARAM lParam)
 {
   clock_t ts = clock();
 
@@ -747,7 +747,7 @@ void mHandleKeyUpMessage(_In_ HWND hwnd, _In_ UINT uMsg, _In_ WPARAM wParam, _In
   }
 }
 
-LRESULT CALLBACK WndProc(_In_ HWND hwnd, _In_ UINT uMsg, _In_ WPARAM wParam, _In_ LPARAM lParam)
+LRESULT CALLBACK main_process_window_message(_In_ HWND hwnd, _In_ UINT uMsg, _In_ WPARAM wParam, _In_ LPARAM lParam)
 {
   clock_t ts = clock();
 
@@ -755,27 +755,27 @@ LRESULT CALLBACK WndProc(_In_ HWND hwnd, _In_ UINT uMsg, _In_ WPARAM wParam, _In
   {
     case WM_CREATE:
     {
-      mHandleCreateMessage(hwnd, uMsg, wParam, lParam);
+      main_handle_wm_create(hwnd, uMsg, wParam, lParam);
       break;
     }
     case WM_INPUT:
     {
-      mHandleInputMessage(hwnd, uMsg, wParam, lParam);
+      main_handle_wm_input(hwnd, uMsg, wParam, lParam);
       break;
     }
     case WM_PAINT:
     {
-      mHandlePaintMessage(hwnd, uMsg, wParam, lParam);
+      main_handle_wm_paint(hwnd, uMsg, wParam, lParam);
       break;
     }
     case WM_SIZE:
     {
-      mHandleResizeMessage(hwnd, uMsg, wParam, lParam);
+      main_handle_wm_resize(hwnd, uMsg, wParam, lParam);
       break;
     }
     case WM_KEYUP:
     {
-      mHandleKeyUpMessage(hwnd, uMsg, wParam, lParam);
+      main_handle_wm_keyup(hwnd, uMsg, wParam, lParam);
       break;
     }
     case WM_SYSKEYUP:
@@ -799,9 +799,9 @@ LRESULT CALLBACK WndProc(_In_ HWND hwnd, _In_ UINT uMsg, _In_ WPARAM wParam, _In
   return 0;
 }
 
-int CALLBACK wWinMain(_In_ HINSTANCE hInstance, _In_opt_ HINSTANCE hPrevInstance, _In_ LPWSTR lpCmdLine, _In_ int nCmdShow)
+int CALLBACK main_winmain(_In_ HINSTANCE hInstance, _In_opt_ HINSTANCE hPrevInstance, _In_ LPWSTR lpCmdLine, _In_ int nCmdShow)
 {
-  mParseConnectedInputDevices();
+  main_parse_connected_input_devices();
 
   // TODO detect and prompt user to select touchpad device and parse its width and height
 
@@ -863,7 +863,7 @@ int CALLBACK wWinMain(_In_ HINSTANCE hInstance, _In_opt_ HINSTANCE hPrevInstance
 
   wcex.cbSize        = sizeof(WNDCLASSEX);
   wcex.style         = CS_HREDRAW | CS_VREDRAW;
-  wcex.lpfnWndProc   = WndProc;
+  wcex.lpfnWndProc   = main_process_window_message;
   wcex.cbClsExtra    = 0;
   wcex.cbWndExtra    = 0;
   wcex.hInstance     = hInstance;
@@ -897,7 +897,7 @@ int CALLBACK wWinMain(_In_ HINSTANCE hInstance, _In_opt_ HINSTANCE hPrevInstance
   ShowWindow(hwnd, nCmdShow);
   UpdateWindow(hwnd);
 
-  HOOKPROC llMouseHookProc = mBlockMouseInputHookProc;
+  HOOKPROC llMouseHookProc = main_block_mouse_input_hook_callback;
   HHOOK llMouseHookHandle  = NULL;
 
   // BOOL block_input_retval;
@@ -954,5 +954,5 @@ int main()
   g_app_state->call_block_input_flag   = 0;
   g_app_state->call_unblock_input_flag = 0;
 
-  return wWinMain(GetModuleHandle(NULL), NULL, GetCommandLine(), SW_SHOWNORMAL);
+  return main_winmain(GetModuleHandle(NULL), NULL, GetCommandLine(), SW_SHOWNORMAL);
 };
