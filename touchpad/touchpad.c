@@ -102,7 +102,7 @@ int mGetRawInputDeviceList(_Out_ UINT* numDevices, _Out_ RAWINPUTDEVICELIST** de
   {
     retval = -1;
     printf(FG_RED);
-    printf("numDevices is NULL!\n");
+    printf("(UINT*) numDevices is NULL!\n");
     printf(RESET_COLOR);
     exit(-1);
   }
