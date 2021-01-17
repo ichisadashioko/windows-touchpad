@@ -15,6 +15,7 @@
 #include "touchevents.h"
 #include "point2d.h"
 #include "stroke.h"
+#include "kankaku_tensorflow.h"
 
 #define LOG_EVERY_INPUT_MESSAGES
 #undef LOG_EVERY_INPUT_MESSAGES
@@ -934,6 +935,8 @@ int CALLBACK wWinMain(_In_ HINSTANCE hInstance, _In_opt_ HINSTANCE hPrevInstance
 
 int main()
 {
+  kankaku_tensorflow_hello_world();
+
   g_app_state = (ApplicationState*)mMalloc(sizeof(ApplicationState), __FILE__, __LINE__);
 
   g_app_state->device_info_list  = (HID_DEVICE_INFO_LIST){.Entries = NULL, .Size = 0};
