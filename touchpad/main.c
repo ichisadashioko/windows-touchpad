@@ -690,7 +690,7 @@ void mHandleKeyUpMessage(_In_ HWND hwnd, _In_ UINT uMsg, _In_ WPARAM wParam, _In
   clock_t ts = clock();
 
   printf(FG_GREEN);
-  printf("[%d] WM_KEYUP: 0x%x\n", ts, wParam);
+  printf("[%d] WM_KEYUP: %I64u\n", ts, wParam);
   printf(RESET_COLOR);
 
   int virtual_key_code = (int)wParam;
@@ -781,7 +781,7 @@ LRESULT CALLBACK WndProc(_In_ HWND hwnd, _In_ UINT uMsg, _In_ WPARAM wParam, _In
     case WM_SYSKEYUP:
     {
       printf(FG_GREEN);
-      printf("[%d] WM_SYSKEYUP: 0x%x\n", ts, wParam);
+      printf("[%d] WM_SYSKEYUP: %I64u\n", ts, wParam);
       printf(RESET_COLOR);
       break;
     }
