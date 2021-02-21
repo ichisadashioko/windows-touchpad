@@ -1,4 +1,6 @@
+#pragma once
 #include <Windows.h>
+#include <sal.h>
 
 #include <hidusage.h>
 #include <hidpi.h>
@@ -105,7 +107,7 @@ void main_parse_connected_input_devices()
     hidpReturnCode = HidP_GetCaps(preparsedData, &caps);
     if (hidpReturnCode != HIDP_STATUS_SUCCESS)
     {
-      print_HidP_errors(hidpReturnCode, __FILE__, __LINE__);
+      utils_print_hidp_error(hidpReturnCode, __FILE__, __LINE__);
       exit(-1);
     }
 
@@ -130,10 +132,10 @@ void main_parse_connected_input_devices()
       printf("Finding device in global list...\n");
       printf(RESET_COLOR);
       unsigned int foundHidIdx;
-      int returnCode = FindInputDeviceInList(&(g_app_state->device_info_list), deviceName, cbDeviceName, preparsedData, cbDataSize, &foundHidIdx);
+      int returnCode = utils_find_input_device_index_by_name(&(g_app_state->device_info_list), deviceName, cbDeviceName, preparsedData, cbDataSize, &foundHidIdx);
       if (returnCode != 0)
       {
-        printf("FindInputDeviceInList failed at %s:%d\n", __FILE__, __LINE__);
+        printf("utils_find_input_device_index_by_name failed at %s:%d\n", __FILE__, __LINE__);
         exit(-1);
       }
 
@@ -158,12 +160,12 @@ void main_parse_connected_input_devices()
         const USHORT numValueCaps = caps.NumberInputValueCaps;
         USHORT _numValueCaps      = numValueCaps;
 
-        PHIDP_VALUE_CAPS valueCaps = (PHIDP_VALUE_CAPS)mMalloc(sizeof(HIDP_VALUE_CAPS) * numValueCaps, __FILE__, __LINE__);
+        PHIDP_VALUE_CAPS valueCaps = (PHIDP_VALUE_CAPS)utils_malloc(sizeof(HIDP_VALUE_CAPS) * numValueCaps, __FILE__, __LINE__);
 
         hidpReturnCode = HidP_GetValueCaps(HidP_Input, valueCaps, &_numValueCaps, preparsedData);
         if (hidpReturnCode != HIDP_STATUS_SUCCESS)
         {
-          print_HidP_errors(hidpReturnCode, __FILE__, __LINE__);
+          utils_print_hidp_error(hidpReturnCode, __FILE__, __LINE__);
         }
 
         // x check if numValueCaps value has been changed
@@ -233,12 +235,12 @@ void main_parse_connected_input_devices()
         const USHORT numButtonCaps = caps.NumberInputButtonCaps;
         USHORT _numButtonCaps      = numButtonCaps;
 
-        PHIDP_BUTTON_CAPS buttonCaps = (PHIDP_BUTTON_CAPS)mMalloc(sizeof(HIDP_BUTTON_CAPS) * numButtonCaps, __FILE__, __LINE__);
+        PHIDP_BUTTON_CAPS buttonCaps = (PHIDP_BUTTON_CAPS)utils_malloc(sizeof(HIDP_BUTTON_CAPS) * numButtonCaps, __FILE__, __LINE__);
 
         hidpReturnCode = HidP_GetButtonCaps(HidP_Input, buttonCaps, &_numButtonCaps, preparsedData);
         if (hidpReturnCode != HIDP_STATUS_SUCCESS)
         {
-          print_HidP_errors(hidpReturnCode, __FILE__, __LINE__);
+          utils_print_hidp_error(hidpReturnCode, __FILE__, __LINE__);
           exit(-1);
         }
 
@@ -305,7 +307,7 @@ void main_register_input_devices(HWND hwnd)
     printf(FG_RED);
     printf("[%d] Failed to register touchpad at %s:%d\n", ts, __FILE__, __LINE__);
     printf(RESET_COLOR);
-    mGetLastError();
+    utils_print_win32_last_error();
     exit(-1);
   }
 }
@@ -413,7 +415,7 @@ void main_handle_wm_input(HWND hwnd, UINT message, WPARAM wParam, LPARAM lParam)
                 printf(FG_RED);
                 printf("Failed to read number of contacts!\n");
                 printf(RESET_COLOR);
-                print_HidP_errors(hidpReturnCode, __FILE__, __LINE__);
+                utils_print_hidp_error(hidpReturnCode, __FILE__, __LINE__);
                 exit(-1);
               }
 
@@ -448,7 +450,7 @@ void main_handle_wm_input(HWND hwnd, UINT message, WPARAM wParam, LPARAM lParam)
                       printf(FG_RED);
                       printf("Failed to read x position!\n");
                       printf(RESET_COLOR);
-                      print_HidP_errors(hidpReturnCode, __FILE__, __LINE__);
+                      utils_print_hidp_error(hidpReturnCode, __FILE__, __LINE__);
                       exit(-1);
                     }
 
@@ -460,7 +462,7 @@ void main_handle_wm_input(HWND hwnd, UINT message, WPARAM wParam, LPARAM lParam)
                       printf(FG_RED);
                       printf("Failed to read y position!\n");
                       printf(RESET_COLOR);
-                      print_HidP_errors(hidpReturnCode, __FILE__, __LINE__);
+                      utils_print_hidp_error(hidpReturnCode, __FILE__, __LINE__);
                       exit(-1);
                     }
 
@@ -472,7 +474,7 @@ void main_handle_wm_input(HWND hwnd, UINT message, WPARAM wParam, LPARAM lParam)
                       printf(FG_RED);
                       printf("Failed to read touch ID!\n");
                       printf(RESET_COLOR);
-                      print_HidP_errors(hidpReturnCode, __FILE__, __LINE__);
+                      utils_print_hidp_error(hidpReturnCode, __FILE__, __LINE__);
                       exit(-1);
                     }
 
@@ -482,7 +484,7 @@ void main_handle_wm_input(HWND hwnd, UINT message, WPARAM wParam, LPARAM lParam)
 
                     ULONG _maxNumButtons = maxNumButtons;
 
-                    USAGE* buttonUsageArray = (USAGE*)mMalloc(sizeof(USAGE) * maxNumButtons, __FILE__, __LINE__);
+                    USAGE* buttonUsageArray = (USAGE*)utils_malloc(sizeof(USAGE) * maxNumButtons, __FILE__, __LINE__);
 
                     hidpReturnCode = HidP_GetUsages(HidP_Input, HID_USAGE_PAGE_DIGITIZER, collectionInfo.LinkColID, buttonUsageArray, &_maxNumButtons, preparsedHIDData, (PCHAR)rawInputData->data.hid.bRawData, rawInputData->data.hid.dwSizeHid);
 
@@ -491,7 +493,7 @@ void main_handle_wm_input(HWND hwnd, UINT message, WPARAM wParam, LPARAM lParam)
                       printf(FG_RED);
                       printf("HidP_GetUsages failed!\n");
                       printf(RESET_COLOR);
-                      print_HidP_errors(hidpReturnCode, __FILE__, __LINE__);
+                      utils_print_hidp_error(hidpReturnCode, __FILE__, __LINE__);
                       exit(-1);
                     }
 
@@ -877,7 +879,7 @@ int CALLBACK main_winmain(_In_ HINSTANCE hInstance, _In_opt_ HINSTANCE hPrevInst
   if (!RegisterClassEx(&wcex))
   {
     printf("RegisterClassEx failed at %s:%d\n", __FILE__, __LINE__);
-    mGetLastError();
+    utils_print_win32_last_error();
     return -1;
   }
 
@@ -886,7 +888,7 @@ int CALLBACK main_winmain(_In_ HINSTANCE hInstance, _In_opt_ HINSTANCE hPrevInst
   if (!hwnd)
   {
     printf("CreateWindow failed at %s:%d\n", __FILE__, __LINE__);
-    mGetLastError();
+    utils_print_win32_last_error();
     return -1;
   }
 
@@ -937,7 +939,8 @@ int main()
 {
   kankaku_tensorflow_hello_world();
 
-  g_app_state = (ApplicationState*)mMalloc(sizeof(ApplicationState), __FILE__, __LINE__);
+  // initialize application's states
+  g_app_state = (ApplicationState*)utils_malloc(sizeof(ApplicationState), __FILE__, __LINE__);
 
   g_app_state->device_info_list  = (HID_DEVICE_INFO_LIST){.Entries = NULL, .Size = 0};
   g_app_state->previous_touches  = (TOUCH_DATA_LIST){.Entries = NULL, .Size = 0};

@@ -59,13 +59,16 @@ struct HID_DEVICE_INFO_LIST
 
 typedef struct HID_DEVICE_INFO_LIST HID_DEVICE_INFO_LIST;
 
-void mGetLastError();
+void utils_print_win32_last_error();
 
-void print_HidP_errors(NTSTATUS hidpReturnCode, const char* filePath, int lineNumber);
+void utils_print_hidp_error(NTSTATUS hidpReturnCode, const char* filePath, int lineNumber);
 
-int FindInputDeviceInList(HID_DEVICE_INFO_LIST* hidInfoList, TCHAR* deviceName, const unsigned int cbDeviceName, PHIDP_PREPARSED_DATA preparsedData, const UINT cbPreparsedData, unsigned int* foundHidIndex);
+// TODO refactor the create entry if not found feature to another function
+int utils_find_input_device_index_by_name(HID_DEVICE_INFO_LIST* hidInfoList, TCHAR* deviceName, const unsigned int cbDeviceName, PHIDP_PREPARSED_DATA preparsedData, const UINT cbPreparsedData, unsigned int* foundHidIndex);
 
+// TODO refactor the create entry if not found feature to another function
 int FindLinkCollectionInList(HID_LINK_COL_INFO_LIST* linkColInfoList, USHORT linkCollection, unsigned int* foundLinkColIdx);
 
-void* mMalloc(size_t size, char* filePath, int lineNumber);
+void* utils_malloc(size_t size, char* filePath, int lineNumber);
+
 #endif  // __UTILS_H__

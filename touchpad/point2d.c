@@ -21,7 +21,7 @@ int mInitializePoint2DList(Point2D point, Point2DList* list)
   else
   {
     list->Size    = 1;
-    list->Entries = (Point2D*)mMalloc(sizeof(Point2D), __FILE__, __LINE__);
+    list->Entries = (Point2D*)utils_malloc(sizeof(Point2D), __FILE__, __LINE__);
 
     list->Entries[0].X = point.X;
     list->Entries[0].Y = point.Y;
@@ -50,7 +50,7 @@ int mAppendPoint2DToList(Point2D point, Point2DList* list)
     else
     {
       unsigned int newArraySize = list->Size + 1;
-      Point2D* newArray         = (Point2D*)mMalloc(sizeof(Point2D) * newArraySize, __FILE__, __LINE__);
+      Point2D* newArray         = (Point2D*)utils_malloc(sizeof(Point2D) * newArraySize, __FILE__, __LINE__);
 
       for (unsigned int pIdx = 0; pIdx < list->Size; pIdx++)
       {

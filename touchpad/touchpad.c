@@ -1,13 +1,15 @@
+#pragma once
+#include "touchpad.h"
+
 #include <Windows.h>
 #include <tchar.h>
+#include <sal.h>
 
 #include <hidusage.h>
 #include <hidpi.h>
 #pragma comment(lib, "hid.lib")
 
 #include <stdio.h>
-
-#include "touchpad.h"
 
 #include "termcolor.h"
 #include "utils.h"
@@ -60,13 +62,13 @@ int mGetRawInputDeviceName(_In_ HANDLE hDevice, _Out_ TCHAR** deviceName, _Out_ 
       printf(FG_RED);
       printf("GetRawInputDeviceInfo failed at %s:%d\n", __FILE__, __LINE__);
       printf(RESET_COLOR);
-      mGetLastError();
+      utils_print_win32_last_error();
       exit(-1);
     }
     else
     {
       (*cbDeviceName) = (unsigned int)(sizeof(TCHAR) * ((*nameSize) + 1));
-      (*deviceName)   = (TCHAR*)mMalloc((*cbDeviceName), __FILE__, __LINE__);
+      (*deviceName)   = (TCHAR*)utils_malloc((*cbDeviceName), __FILE__, __LINE__);
 
       (*deviceName)[(*nameSize)] = 0;
 
@@ -130,12 +132,12 @@ int mGetRawInputDeviceList(_Out_ UINT* numDevices, _Out_ RAWINPUTDEVICELIST** de
       printf(FG_RED);
       printf("GetRawInputDeviceList failed at %s:%d\n", __FILE__, __LINE__);
       printf(RESET_COLOR);
-      mGetLastError();
+      utils_print_win32_last_error();
       exit(-1);
     }
     else
     {
-      (*deviceList) = (RAWINPUTDEVICELIST*)mMalloc(sizeof(RAWINPUTDEVICELIST) * (*numDevices), __FILE__, __LINE__);
+      (*deviceList) = (RAWINPUTDEVICELIST*)utils_malloc(sizeof(RAWINPUTDEVICELIST) * (*numDevices), __FILE__, __LINE__);
       winReturnCode = GetRawInputDeviceList((*deviceList), numDevices, sizeof(RAWINPUTDEVICELIST));
       if (winReturnCode == (UINT)-1)
       {
@@ -143,7 +145,7 @@ int mGetRawInputDeviceList(_Out_ UINT* numDevices, _Out_ RAWINPUTDEVICELIST** de
         printf(FG_RED);
         printf("GetRawInputDeviceList failed at %s:%d\n", __FILE__, __LINE__);
         printf(RESET_COLOR);
-        mGetLastError();
+        utils_print_win32_last_error();
         // TODO should we also free (*deviceList) here?
         exit(-1);
       }
@@ -194,13 +196,13 @@ int mGetRawInputDevicePreparsedData(_In_ HANDLE hDevice, _Out_ PHIDP_PREPARSED_D
       printf(FG_RED);
       printf("GetRawInputDeviceInfo failed at %s:%d\n", __FILE__, __LINE__);
       printf(RESET_COLOR);
-      mGetLastError();
+      utils_print_win32_last_error();
 
       exit(-1);
     }
     else
     {
-      (*data) = (PHIDP_PREPARSED_DATA)mMalloc((*cbSize), __FILE__, __LINE__);
+      (*data) = (PHIDP_PREPARSED_DATA)utils_malloc((*cbSize), __FILE__, __LINE__);
 
       winReturnCode = GetRawInputDeviceInfo(hDevice, RIDI_PREPARSEDDATA, (*data), cbSize);
       if (winReturnCode == (UINT)-1)
@@ -209,7 +211,7 @@ int mGetRawInputDevicePreparsedData(_In_ HANDLE hDevice, _Out_ PHIDP_PREPARSED_D
         printf(FG_RED);
         printf("GetRawInputDeviceInfo failed at %s:%d\n", __FILE__, __LINE__);
         printf(RESET_COLOR);
-        mGetLastError();
+        utils_print_win32_last_error();
 
         exit(-1);
       }
@@ -260,13 +262,13 @@ int mGetRawInputData(_In_ HRAWINPUT hRawInput, _Out_ PUINT pcbSize, _Out_ LPVOID
       printf(FG_RED);
       printf("GetRawInputData failed at %s:%d\n", __FILE__, __LINE__);
       printf(RESET_COLOR);
-      mGetLastError();
+      utils_print_win32_last_error();
 
       exit(-1);
     }
     else
     {
-      (*pData) = (LPVOID)mMalloc((*pcbSize), __FILE__, __LINE__);
+      (*pData) = (LPVOID)utils_malloc((*pcbSize), __FILE__, __LINE__);
 
       winReturnCode = GetRawInputData(hRawInput, RID_INPUT, (*pData), pcbSize, sizeof(RAWINPUTHEADER));
       if (winReturnCode == (UINT)-1)
@@ -275,7 +277,7 @@ int mGetRawInputData(_In_ HRAWINPUT hRawInput, _Out_ PUINT pcbSize, _Out_ LPVOID
         printf(FG_RED);
         printf("GetRawInputData failed at %s:%d\n", __FILE__, __LINE__);
         printf(RESET_COLOR);
-        mGetLastError();
+        utils_print_win32_last_error();
 
         exit(-1);
       }

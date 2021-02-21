@@ -20,7 +20,7 @@ int mCreateNewStroke(Point2D point, StrokeList* strokes)
   if ((strokes->Entries == NULL) || (strokes->Size == 0))
   {
     strokes->Size    = 1;
-    strokes->Entries = (Point2DList*)mMalloc(sizeof(Point2DList), __FILE__, __LINE__);
+    strokes->Entries = (Point2DList*)utils_malloc(sizeof(Point2DList), __FILE__, __LINE__);
 
     // TODO check for memory access violation
     strokes->Entries[0].Entries = NULL;
@@ -30,7 +30,7 @@ int mCreateNewStroke(Point2D point, StrokeList* strokes)
   else
   {
     unsigned int newStrokeArraySize = strokes->Size + 1;
-    Point2DList* newStrokeArray     = (Point2DList*)mMalloc(sizeof(Point2DList) * newStrokeArraySize, __FILE__, __LINE__);
+    Point2DList* newStrokeArray     = (Point2DList*)utils_malloc(sizeof(Point2DList) * newStrokeArraySize, __FILE__, __LINE__);
 
     for (unsigned int strokeIdx = 0; strokeIdx < strokes->Size; strokeIdx++)
     {
