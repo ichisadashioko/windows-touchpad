@@ -41,7 +41,7 @@
     </ClCompile>
   </ItemGroup>
   <ItemGroup>
-    <ClInclude Include="point2d.h">
+    <ClInclude Include="kankaku_point2d.h">
       <Filter>Header Files</Filter>
     </ClInclude>
     <ClInclude Include="stroke.h">

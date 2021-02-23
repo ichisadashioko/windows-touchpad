@@ -56,7 +56,7 @@
     <ClCompile Include="termcolor.h" />
     <ClCompile Include="main.c" />
     <ClInclude Include="kankaku_tensorflow.h" />
-    <ClInclude Include="point2d.h" />
+    <ClInclude Include="kankaku_point2d.h" />
     <ClInclude Include="stroke.h" />
     <ClInclude Include="touchevents.h" />
     <ClInclude Include="touchpad.h" />

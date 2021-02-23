@@ -1,13 +1,14 @@
+#pragma once
+#include "kankaku_point2d.h"
+
 #include <Windows.h>
 
 #include <stdio.h>
 
-#include "point2d.h"
-
 #include "utils.h"
 #include "termcolor.h"
 
-int mInitializePoint2DList(Point2D point, Point2DList* list)
+int kankaku_point2d_initialize_list_with_a_single_element(Point2D point, Point2DList* list)
 {
   int retval = 0;
   if (list == NULL)
@@ -30,7 +31,7 @@ int mInitializePoint2DList(Point2D point, Point2DList* list)
   return retval;
 }
 
-int mAppendPoint2DToList(Point2D point, Point2DList* list)
+int kankaku_point2d_append_element(Point2D point, Point2DList* list)
 {
   int retval = 0;
   if (list == NULL)
@@ -45,7 +46,7 @@ int mAppendPoint2DToList(Point2D point, Point2DList* list)
   {
     if ((list->Entries == NULL) || (list->Size == 0))
     {
-      retval = mInitializePoint2DList(point, list);
+      retval = kankaku_point2d_initialize_list_with_a_single_element(point, list);
     }
     else
     {

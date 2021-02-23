@@ -15,7 +15,7 @@
 #include "utils.h"
 #include "touchpad.h"
 #include "touchevents.h"
-#include "point2d.h"
+#include "kankaku_point2d.h"
 #include "stroke.h"
 #include "kankaku_tensorflow.h"
 
@@ -558,7 +558,7 @@ void main_handle_wm_input(HWND hwnd, UINT message, WPARAM wParam, LPARAM lParam)
                         else
                         {
                           // TODO check return value for indication of errors
-                          mAppendPoint2DToList(touchPos, &g_app_state->strokes.Entries[g_app_state->strokes.Size - 1]);
+                          kankaku_point2d_append_element(touchPos, &g_app_state->strokes.Entries[g_app_state->strokes.Size - 1]);
 
                           Point2DList stroke = g_app_state->strokes.Entries[g_app_state->strokes.Size - 1];
                           if (stroke.Size < 2)

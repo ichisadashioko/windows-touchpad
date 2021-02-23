@@ -1,6 +1,6 @@
 #ifndef __STROKE_H__
 #define __STROKE_H__
-#include "point2d.h"
+#include "kankaku_point2d.h"
 
 struct StrokeList
 {

@@ -25,7 +25,7 @@ int mCreateNewStroke(Point2D point, StrokeList* strokes)
     // TODO check for memory access violation
     strokes->Entries[0].Entries = NULL;
     strokes->Entries[0].Size    = 0;
-    return mAppendPoint2DToList(point, &(strokes->Entries[0]));
+    return kankaku_point2d_append_element(point, &(strokes->Entries[0]));
   }
   else
   {
@@ -43,7 +43,7 @@ int mCreateNewStroke(Point2D point, StrokeList* strokes)
     strokes->Entries                    = newStrokeArray;
     strokes->Size                       = newStrokeArraySize;
     strokes->Entries[strokes->Size - 1] = (Point2DList){.Entries = NULL, .Size = 0};
-    return mAppendPoint2DToList(point, &(strokes->Entries[strokes->Size - 1]));
+    return kankaku_point2d_append_element(point, &(strokes->Entries[strokes->Size - 1]));
   }
 
   return 0;
