@@ -69,6 +69,6 @@ int utils_find_input_device_index_by_name(HID_DEVICE_INFO_LIST* hidInfoList, TCH
 // TODO refactor the create entry if not found feature to another function
 int FindLinkCollectionInList(HID_LINK_COL_INFO_LIST* linkColInfoList, USHORT linkCollection, unsigned int* foundLinkColIdx);
 
-void* utils_malloc(size_t size, char* filePath, int lineNumber);
+void* kankaku_utils_malloc_or_die(size_t size, char* callerFileLocation, int callerLineNumber);
 
 #endif  // __UTILS_H__

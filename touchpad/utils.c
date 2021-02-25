@@ -78,19 +78,19 @@ int utils_find_input_device_index_by_name(HID_DEVICE_INFO_LIST* hidInfoList, TCH
 
     // shallow free memory in case if it has been assigned before
     free(hidInfoArray);
-    hidInfoArray = (HID_DEVICE_INFO*)utils_malloc(sizeof(HID_DEVICE_INFO), __FILE__, __LINE__);
+    hidInfoArray = (HID_DEVICE_INFO*)kankaku_utils_malloc_or_die(sizeof(HID_DEVICE_INFO), __FILE__, __LINE__);
 
     hidInfoArray[(*foundHidIndex)].cbName          = cbDeviceName;
     hidInfoArray[(*foundHidIndex)].LinkColInfoList = (HID_LINK_COL_INFO_LIST){.Entries = NULL, .Size = 0};
     hidInfoArray[(*foundHidIndex)].PreparedData    = preparsedData;
     hidInfoArray[(*foundHidIndex)].cbPreparsedData = cbPreparsedData;
 
-    hidInfoArray[(*foundHidIndex)].Name                       = (TCHAR*)utils_malloc(cbDeviceName, __FILE__, __LINE__);
+    hidInfoArray[(*foundHidIndex)].Name                       = (TCHAR*)kankaku_utils_malloc_or_die(cbDeviceName, __FILE__, __LINE__);
     hidInfoArray[(*foundHidIndex)].ContactCountLinkCollection = (USHORT)-1;
 
     memcpy(hidInfoArray[(*foundHidIndex)].Name, deviceName, cbDeviceName);
 
-    hidInfoArray[(*foundHidIndex)].PreparedData = (PHIDP_PREPARSED_DATA)utils_malloc(cbPreparsedData, __FILE__, __LINE__);
+    hidInfoArray[(*foundHidIndex)].PreparedData = (PHIDP_PREPARSED_DATA)kankaku_utils_malloc_or_die(cbPreparsedData, __FILE__, __LINE__);
 
     memcpy(hidInfoArray[(*foundHidIndex)].PreparedData, preparsedData, cbPreparsedData);
   }
@@ -117,7 +117,7 @@ int utils_find_input_device_index_by_name(HID_DEVICE_INFO_LIST* hidInfoList, TCH
     hidInfoArraySize = (*foundHidIndex) + 1;
 
     // copy entries to new array
-    HID_DEVICE_INFO* tmpHidInfoArray = (HID_DEVICE_INFO*)utils_malloc(sizeof(HID_DEVICE_INFO) * hidInfoArraySize, __FILE__, __LINE__);
+    HID_DEVICE_INFO* tmpHidInfoArray = (HID_DEVICE_INFO*)kankaku_utils_malloc_or_die(sizeof(HID_DEVICE_INFO) * hidInfoArraySize, __FILE__, __LINE__);
 
     for (unsigned int hidIndex = 0; hidIndex < (*foundHidIndex); hidIndex++)
     {
@@ -145,11 +145,11 @@ int utils_find_input_device_index_by_name(HID_DEVICE_INFO_LIST* hidInfoList, TCH
     hidInfoArray[(*foundHidIndex)].LinkColInfoList = (HID_LINK_COL_INFO_LIST){.Entries = NULL, .Size = 0};
     hidInfoArray[(*foundHidIndex)].cbPreparsedData = cbPreparsedData;
 
-    hidInfoArray[(*foundHidIndex)].Name = (TCHAR*)utils_malloc(cbDeviceName, __FILE__, __LINE__);
+    hidInfoArray[(*foundHidIndex)].Name = (TCHAR*)kankaku_utils_malloc_or_die(cbDeviceName, __FILE__, __LINE__);
 
     memcpy(hidInfoArray[(*foundHidIndex)].Name, deviceName, cbDeviceName);
 
-    hidInfoArray[(*foundHidIndex)].PreparedData = (PHIDP_PREPARSED_DATA)utils_malloc(cbPreparsedData, __FILE__, __LINE__);
+    hidInfoArray[(*foundHidIndex)].PreparedData = (PHIDP_PREPARSED_DATA)kankaku_utils_malloc_or_die(cbPreparsedData, __FILE__, __LINE__);
 
     memcpy(hidInfoArray[(*foundHidIndex)].PreparedData, preparsedData, cbPreparsedData);
   }
@@ -172,7 +172,7 @@ int FindLinkCollectionInList(HID_LINK_COL_INFO_LIST* linkColInfoList, USHORT lin
     linkColInfoList->Size = 1;
 
     free(linkColInfoList->Entries);
-    linkColInfoList->Entries = (HID_TOUCH_LINK_COL_INFO*)utils_malloc(sizeof(HID_TOUCH_LINK_COL_INFO), __FILE__, __LINE__);
+    linkColInfoList->Entries = (HID_TOUCH_LINK_COL_INFO*)kankaku_utils_malloc_or_die(sizeof(HID_TOUCH_LINK_COL_INFO), __FILE__, __LINE__);
 
     linkColInfoList->Entries[(*foundLinkColIdx)].LinkColID     = linkCollection;
     linkColInfoList->Entries[(*foundLinkColIdx)].HasX          = 0;
@@ -201,7 +201,7 @@ int FindLinkCollectionInList(HID_LINK_COL_INFO_LIST* linkColInfoList, USHORT lin
     (*foundLinkColIdx)    = linkColInfoList->Size;
     linkColInfoList->Size = (*foundLinkColIdx) + 1;
 
-    HID_TOUCH_LINK_COL_INFO* tmpCollectionArray = (HID_TOUCH_LINK_COL_INFO*)utils_malloc(sizeof(HID_TOUCH_LINK_COL_INFO) * linkColInfoList->Size, __FILE__, __LINE__);
+    HID_TOUCH_LINK_COL_INFO* tmpCollectionArray = (HID_TOUCH_LINK_COL_INFO*)kankaku_utils_malloc_or_die(sizeof(HID_TOUCH_LINK_COL_INFO) * linkColInfoList->Size, __FILE__, __LINE__);
 
     for (unsigned int linkColIdx = 0; linkColIdx < (*foundLinkColIdx); linkColIdx++)
     {
@@ -225,14 +225,13 @@ int FindLinkCollectionInList(HID_LINK_COL_INFO_LIST* linkColInfoList, USHORT lin
   return 0;
 }
 
-void* utils_malloc(size_t size, char* filePath, int lineNumber)
+void* kankaku_utils_malloc_or_die(size_t size, char* callerFileLocation, int callerLineNumber)
 {
   void* retval = malloc(size);
+
   if (retval == NULL)
   {
-    printf(FG_RED);
-    printf("malloc failed to allocate %d byte(s) at %s:%d\n", size, filePath, lineNumber);
-    printf(RESET_COLOR);
+    fprintf(stderr, "%smalloc failed to allocate %d byte(s) at %s:%d%s\n", FG_RED, size, callerFileLocation, callerLineNumber, RESET_COLOR);
     exit(-1);
   }
 

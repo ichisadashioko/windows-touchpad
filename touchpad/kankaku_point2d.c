@@ -22,7 +22,7 @@ int kankaku_point2d_initialize_list_with_a_single_element(Point2D point, Point2D
   else
   {
     list->Size    = 1;
-    list->Entries = (Point2D*)utils_malloc(sizeof(Point2D), __FILE__, __LINE__);
+    list->Entries = (Point2D*)kankaku_utils_malloc_or_die(sizeof(Point2D), __FILE__, __LINE__);
 
     list->Entries[0].X = point.X;
     list->Entries[0].Y = point.Y;
@@ -51,7 +51,7 @@ int kankaku_point2d_append_element(Point2D point, Point2DList* list)
     else
     {
       unsigned int newArraySize = list->Size + 1;
-      Point2D* newArray         = (Point2D*)utils_malloc(sizeof(Point2D) * newArraySize, __FILE__, __LINE__);
+      Point2D* newArray         = (Point2D*)kankaku_utils_malloc_or_die(sizeof(Point2D) * newArraySize, __FILE__, __LINE__);
 
       for (unsigned int pIdx = 0; pIdx < list->Size; pIdx++)
       {

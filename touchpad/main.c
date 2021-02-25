@@ -16,7 +16,7 @@
 #include "touchpad.h"
 #include "touchevents.h"
 #include "kankaku_point2d.h"
-#include "stroke.h"
+#include "kankaku_stroke.h"
 #include "kankaku_tensorflow.h"
 
 #define LOG_EVERY_INPUT_MESSAGES
@@ -160,7 +160,7 @@ void main_parse_connected_input_devices()
         const USHORT numValueCaps = caps.NumberInputValueCaps;
         USHORT _numValueCaps      = numValueCaps;
 
-        PHIDP_VALUE_CAPS valueCaps = (PHIDP_VALUE_CAPS)utils_malloc(sizeof(HIDP_VALUE_CAPS) * numValueCaps, __FILE__, __LINE__);
+        PHIDP_VALUE_CAPS valueCaps = (PHIDP_VALUE_CAPS)kankaku_utils_malloc_or_die(sizeof(HIDP_VALUE_CAPS) * numValueCaps, __FILE__, __LINE__);
 
         hidpReturnCode = HidP_GetValueCaps(HidP_Input, valueCaps, &_numValueCaps, preparsedData);
         if (hidpReturnCode != HIDP_STATUS_SUCCESS)
@@ -235,7 +235,7 @@ void main_parse_connected_input_devices()
         const USHORT numButtonCaps = caps.NumberInputButtonCaps;
         USHORT _numButtonCaps      = numButtonCaps;
 
-        PHIDP_BUTTON_CAPS buttonCaps = (PHIDP_BUTTON_CAPS)utils_malloc(sizeof(HIDP_BUTTON_CAPS) * numButtonCaps, __FILE__, __LINE__);
+        PHIDP_BUTTON_CAPS buttonCaps = (PHIDP_BUTTON_CAPS)kankaku_utils_malloc_or_die(sizeof(HIDP_BUTTON_CAPS) * numButtonCaps, __FILE__, __LINE__);
 
         hidpReturnCode = HidP_GetButtonCaps(HidP_Input, buttonCaps, &_numButtonCaps, preparsedData);
         if (hidpReturnCode != HIDP_STATUS_SUCCESS)
@@ -484,7 +484,7 @@ void main_handle_wm_input(HWND hwnd, UINT message, WPARAM wParam, LPARAM lParam)
 
                     ULONG _maxNumButtons = maxNumButtons;
 
-                    USAGE* buttonUsageArray = (USAGE*)utils_malloc(sizeof(USAGE) * maxNumButtons, __FILE__, __LINE__);
+                    USAGE* buttonUsageArray = (USAGE*)kankaku_utils_malloc_or_die(sizeof(USAGE) * maxNumButtons, __FILE__, __LINE__);
 
                     hidpReturnCode = HidP_GetUsages(HidP_Input, HID_USAGE_PAGE_DIGITIZER, collectionInfo.LinkColID, buttonUsageArray, &_maxNumButtons, preparsedHIDData, (PCHAR)rawInputData->data.hid.bRawData, rawInputData->data.hid.dwSizeHid);
 
@@ -533,9 +533,8 @@ void main_handle_wm_input(HWND hwnd, UINT message, WPARAM wParam, LPARAM lParam)
                       if (touchType == EVENT_TYPE_TOUCH_DOWN)
                       {
                         g_app_state->tracking_touch_id = curTouch.TouchID;
-                        // TODO create new stroke
                         // TODO check return value for indication of errors
-                        mCreateNewStroke(touchPos, &g_app_state->strokes);
+                        kankaku_stroke_add_point(touchPos, &g_app_state->strokes, 1, 1);
                       }
                       else
                       {
@@ -547,12 +546,14 @@ void main_handle_wm_input(HWND hwnd, UINT message, WPARAM wParam, LPARAM lParam)
                       if (touchType == EVENT_TYPE_TOUCH_MOVE)
                       {
                         // we skip EVENT_TYPE_TOUCH_MOVE_UNCHANGED here
-                        // TODO append touch position to the last stroke
-                        if ((g_app_state->strokes.Entries == NULL) || (g_app_state->strokes.Size == 0))
+                        // TASK append touch position to the last stroke
+
+                        int isCollectionEmpty = (g_app_state->strokes.Entries == NULL) || (g_app_state->strokes.Size == 0);
+
+                        if (isCollectionEmpty)
                         {
-                          printf(FG_RED);
-                          printf("The application state is broken!\n");
-                          printf(RESET_COLOR);
+                          // TODO handle broken state
+                          fprintf(stderr, "%sBROKEN_STATE The stroke list (in global state) should not be empty at %s:%d%s", FG_RED, __FILE__, __LINE__, RESET_COLOR);
                           exit(-1);
                         }
                         else
@@ -563,13 +564,13 @@ void main_handle_wm_input(HWND hwnd, UINT message, WPARAM wParam, LPARAM lParam)
                           Point2DList stroke = g_app_state->strokes.Entries[g_app_state->strokes.Size - 1];
                           if (stroke.Size < 2)
                           {
-                            printf(FG_RED);
-                            printf("The application state is broken!\n");
-                            printf(RESET_COLOR);
+                            // TODO handle broken state
+                            fprintf(stderr, "%sBROKEN_STATE The latest stroke (in global state) should have at least 2 points at %s:%d%s", FG_RED, __FILE__, __LINE__, RESET_COLOR);
                             exit(-1);
                           }
                           else
                           {
+                            // TASK incrementally render new input
                             HDC hdc        = GetDC(hwnd);
                             HPEN strokePen = CreatePen(PS_SOLID, 20, RGB(255, 255, 255));
                             SelectObject(hdc, strokePen);
@@ -940,7 +941,7 @@ int main()
   kankaku_tensorflow_hello_world();
 
   // initialize application's states
-  g_app_state = (ApplicationState*)utils_malloc(sizeof(ApplicationState), __FILE__, __LINE__);
+  g_app_state = (ApplicationState*)kankaku_utils_malloc_or_die(sizeof(ApplicationState), __FILE__, __LINE__);
 
   g_app_state->device_info_list  = (HID_DEVICE_INFO_LIST){.Entries = NULL, .Size = 0};
   g_app_state->previous_touches  = (TOUCH_DATA_LIST){.Entries = NULL, .Size = 0};

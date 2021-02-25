@@ -18,10 +18,10 @@
     <ClCompile Include="main.c">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="point2d.c">
+    <ClCompile Include="kankaku_point2d.c">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="stroke.c">
+    <ClCompile Include="kankaku_stroke.c">
       <Filter>Source Files</Filter>
     </ClCompile>
     <ClCompile Include="termcolor.h">
@@ -44,7 +44,7 @@
     <ClInclude Include="kankaku_point2d.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="stroke.h">
+    <ClInclude Include="kankaku_stroke.h">
       <Filter>Header Files</Filter>
     </ClInclude>
     <ClInclude Include="touchevents.h">

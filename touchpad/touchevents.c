@@ -27,7 +27,7 @@ int mInterpretRawTouchInput(TOUCH_DATA_LIST* prevTouchesList, TOUCH_DATA curTouc
 
   if ((prevTouchesList->Entries == NULL) || (prevTouchesList->Size == 0))
   {
-    prevTouchesList->Entries = (TOUCH_DATA*)utils_malloc(sizeof(TOUCH_DATA), __FILE__, __LINE__);
+    prevTouchesList->Entries = (TOUCH_DATA*)kankaku_utils_malloc_or_die(sizeof(TOUCH_DATA), __FILE__, __LINE__);
     prevTouchesList->Size    = 1;
 
     prevTouchesList->Entries[0] = curTouch;
@@ -88,7 +88,7 @@ int mInterpretRawTouchInput(TOUCH_DATA_LIST* prevTouchesList, TOUCH_DATA curTouc
 
   // If you touchpad only supports maximum of 5 touches, then there will be only 5 unique touch IDs.
   unsigned int newTouchesListSize = prevTouchesList->Size + 1;
-  TOUCH_DATA* tmpTouchesList      = (TOUCH_DATA*)utils_malloc(sizeof(TOUCH_DATA) * newTouchesListSize, __FILE__, __LINE__);
+  TOUCH_DATA* tmpTouchesList      = (TOUCH_DATA*)kankaku_utils_malloc_or_die(sizeof(TOUCH_DATA) * newTouchesListSize, __FILE__, __LINE__);
 
   memcpy(tmpTouchesList, prevTouchesList->Entries, sizeof(TOUCH_DATA) * prevTouchesList->Size);
 
