@@ -229,7 +229,7 @@ static size_t malloced_memory             = 0;
 
 void* kankaku_utils_malloc_or_die(size_t size, char* callerFileLocation, int callerLineNumber)
 {
-  printf("malloc %d bytes for %s:%d\n", size, callerFileLocation, callerLineNumber);
+  // printf("malloc %d bytes for %s:%d\n", size, callerFileLocation, callerLineNumber);
 
   // check for overflowing
   if ((SIZE_T_MAX - size) < malloced_memory)
@@ -247,7 +247,7 @@ void* kankaku_utils_malloc_or_die(size_t size, char* callerFileLocation, int cal
     }
   }
 
-  printf("malloced %d/%d\n", malloced_memory, MAXIMUM_MALLOC_MEMORY);
+  // printf("malloced %d/%d\n", malloced_memory, MAXIMUM_MALLOC_MEMORY);
 
   void* retval = malloc(size);
 

@@ -70,16 +70,14 @@ LRESULT CALLBACK main_block_mouse_input_hook_callback(_In_ int nCode, _In_ WPARA
 
 void main_parse_connected_input_devices()
 {
-  printf(FG_BLUE);
-  printf("Parsing all HID devices...\n");
-  printf(RESET_COLOR);
+  printf("%sParsing all HID devices...%s\n", FG_BRIGHT_BLUE, RESET_COLOR);
 
   // find number of connected devices
 
   UINT numDevices;
   RAWINPUTDEVICELIST* rawInputDeviceList = NULL;
 
-  mGetRawInputDeviceList(&numDevices, &rawInputDeviceList);
+  kankaku_touchpad_get_raw_input_device_list(&numDevices, &rawInputDeviceList);
 
   printf("Number of raw input devices: %d\n", numDevices);
   for (UINT deviceIndex = 0; deviceIndex < numDevices; deviceIndex++)
@@ -98,7 +96,7 @@ void main_parse_connected_input_devices()
     UINT cbDataSize                    = 0;
     PHIDP_PREPARSED_DATA preparsedData = NULL;
 
-    mGetRawInputDevicePreparsedData(rawInputDevice.hDevice, &preparsedData, &cbDataSize);
+    kankaku_touchpad_get_raw_input_device_preparsed_data(rawInputDevice.hDevice, &preparsedData, &cbDataSize);
 
     NTSTATUS hidpReturnCode;
 
@@ -800,8 +798,6 @@ LRESULT CALLBACK main_process_window_message(_In_ HWND hwnd, _In_ UINT uMsg, _In
 
 int CALLBACK main_winmain(_In_ HINSTANCE hInstance, _In_opt_ HINSTANCE hPrevInstance, _In_ LPWSTR lpCmdLine, _In_ int nCmdShow)
 {
-  main_parse_connected_input_devices();
-
   // TODO detect and prompt user to select touchpad device and parse its width and height
 
   // default window width and height values
@@ -967,6 +963,8 @@ int main()
 
   g_app_state->call_block_input_flag   = 0;
   g_app_state->call_unblock_input_flag = 0;
+
+  main_parse_connected_input_devices();
 
   return main_winmain(GetModuleHandle(NULL), NULL, GetCommandLine(), SW_SHOWNORMAL);
 };
