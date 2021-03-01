@@ -3,7 +3,7 @@
 #include <stdio.h>
 
 #include "termcolor.h"
-#include "utils.h"
+#include "kankaku_utils.h"
 #include "kankaku_stroke.h"
 
 /*

@@ -3,7 +3,7 @@
 #include <stdio.h>
 
 #include "termcolor.h"
-#include "utils.h"
+#include "kankaku_utils.h"
 
 /*
 Given an existing collection of TOUCH_DATA and a new TOUCH_DATA element, we need to interpret the raw touch input data to touch events (start - move - end).

@@ -51,16 +51,16 @@
     <ClCompile Include="kankaku_point2d.c" />
     <ClCompile Include="kankaku_stroke.c" />
     <ClCompile Include="kankaku_touchevents.c" />
-    <ClCompile Include="touchpad.c" />
-    <ClCompile Include="utils.c" />
+    <ClCompile Include="kankaku_touchpad.c" />
+    <ClCompile Include="kankaku_utils.c" />
     <ClCompile Include="termcolor.h" />
     <ClCompile Include="main.c" />
     <ClInclude Include="kankaku_tensorflow.h" />
     <ClInclude Include="kankaku_point2d.h" />
     <ClInclude Include="kankaku_stroke.h" />
     <ClInclude Include="kankaku_touchevents.h" />
-    <ClInclude Include="touchpad.h" />
-    <ClInclude Include="utils.h" />
+    <ClInclude Include="kankaku_touchpad.h" />
+    <ClInclude Include="kankaku_utils.h" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">

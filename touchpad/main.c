@@ -12,8 +12,8 @@
 #include <stdlib.h>
 
 #include "termcolor.h"
-#include "utils.h"
-#include "touchpad.h"
+#include "kankaku_utils.h"
+#include "kankaku_touchpad.h"
 #include "kankaku_touchevents.h"
 #include "kankaku_point2d.h"
 #include "kankaku_stroke.h"

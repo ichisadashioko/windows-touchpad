@@ -1,5 +1,5 @@
 #pragma once
-#include "touchpad.h"
+#include "kankaku_touchpad.h"
 
 #include <Windows.h>
 #include <tchar.h>
@@ -12,7 +12,7 @@
 #include <stdio.h>
 
 #include "termcolor.h"
-#include "utils.h"
+#include "kankaku_utils.h"
 
 int mGetRawInputDeviceName(_In_ HANDLE hDevice, _Out_ TCHAR** deviceName, _Out_ UINT* nameSize, _Out_ unsigned int* cbDeviceName)
 {

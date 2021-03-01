@@ -30,10 +30,10 @@
     <ClCompile Include="kankaku_touchevents.c">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="touchpad.c">
+    <ClCompile Include="kankaku_touchpad.c">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="utils.c">
+    <ClCompile Include="kankaku_utils.c">
       <Filter>Source Files</Filter>
     </ClCompile>
     <ClCompile Include="kankaku_tensorflow.c">
@@ -50,10 +50,10 @@
     <ClInclude Include="kankaku_touchevents.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="touchpad.h">
+    <ClInclude Include="kankaku_touchpad.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="utils.h">
+    <ClInclude Include="kankaku_utils.h">
       <Filter>Header Files</Filter>
     </ClInclude>
     <ClInclude Include="kankaku_tensorflow.h">

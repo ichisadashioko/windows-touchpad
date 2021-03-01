@@ -5,7 +5,7 @@
 
 #include <stdio.h>
 
-#include "utils.h"
+#include "kankaku_utils.h"
 #include "termcolor.h"
 
 int kankaku_point2d_initialize_list_with_a_single_element(Point2D point, Point2DList* list)
