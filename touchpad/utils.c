@@ -1,3 +1,5 @@
+#include "utils.h"
+
 #include <Windows.h>
 
 #include <hidusage.h>
@@ -10,52 +12,48 @@
 #include <tchar.h>
 
 #include "termcolor.h"
-#include "utils.h"
 
 void utils_print_win32_last_error()
 {
   DWORD errorCode      = GetLastError();
   LPWSTR messageBuffer = NULL;
-  size_t size          = FormatMessageW(FORMAT_MESSAGE_ALLOCATE_BUFFER | FORMAT_MESSAGE_FROM_SYSTEM | FORMAT_MESSAGE_IGNORE_INSERTS, NULL, errorCode, MAKELANGID(LANG_NEUTRAL, SUBLANG_DEFAULT), (LPWSTR)&messageBuffer, 0, NULL);
+  size_t messageSize   = FormatMessageW(FORMAT_MESSAGE_ALLOCATE_BUFFER | FORMAT_MESSAGE_FROM_SYSTEM | FORMAT_MESSAGE_IGNORE_INSERTS, NULL, errorCode, MAKELANGID(LANG_NEUTRAL, SUBLANG_DEFAULT), (LPWSTR)&messageBuffer, 0, NULL);
 
-  printf(FG_RED);
-  printf("Error Code: %d\n", errorCode);
-  wprintf(L"%s\n", messageBuffer);
-  printf(RESET_COLOR);
+  fprintf(stderr, "%serror_code: %d\n", FG_RED, errorCode);
+  fwprintf(stderr, "%s%s\n", messageBuffer, RESET_COLOR);
   // TODO check to see if we don't free the messageBuffer pointer, will it lead to memory leaking?
 }
 
 void utils_print_hidp_error(NTSTATUS hidpReturnCode, const char* filePath, int lineNumber)
 {
-  printf(FG_RED);
+  fprintf(stderr, FG_RED);
 
   if (hidpReturnCode == HIDP_STATUS_INVALID_REPORT_LENGTH)
   {
-    printf("The report length is not valid. HidP function failed at ");
+    fprintf(stderr, "The report length is not valid.");
   }
   else if (hidpReturnCode == HIDP_STATUS_INVALID_REPORT_TYPE)
   {
-    printf("The specified report type is not valid. HidP function failed at ");
+    fprintf(stderr, "The specified report type is not valid.");
   }
   else if (hidpReturnCode == HIDP_STATUS_INCOMPATIBLE_REPORT_ID)
   {
-    printf("The collection contains a value on the specified usage page in a report of the specified type, but there are no such usages in the specified report. HidP function failed at ");
+    fprintf(stderr, "The collection contains a value on the specified usage page in a report of the specified type, but there are no such usages in the specified report.");
   }
   else if (hidpReturnCode == HIDP_STATUS_INVALID_PREPARSED_DATA)
   {
-    printf("The preparsed data is not valid. HidP function failed at ");
+    fprintf(stderr, "The preparsed data is not valid.");
   }
   else if (hidpReturnCode == HIDP_STATUS_USAGE_NOT_FOUND)
   {
-    printf("The collection does not contain a value on the specified usage page in any report of the specified report type. HidP function failed at ");
+    fprintf(stderr, "The collection does not contain a value on the specified usage page in any report of the specified report type.");
   }
   else
   {
-    printf("Unknown error code: %d. HidP function failed at ", hidpReturnCode);
+    fprintf(stderr, "Unknown error code: %d.", hidpReturnCode);
   }
 
-  printf("%s:%d\n", filePath, lineNumber);
-  printf(RESET_COLOR);
+  fprintf(stderr, " HidP function failed at %s:%d%s\n", filePath, lineNumber, RESET_COLOR);
 }
 
 int utils_find_input_device_index_by_name(HID_DEVICE_INFO_LIST* hidInfoList, TCHAR* deviceName, const unsigned int cbDeviceName, PHIDP_PREPARSED_DATA preparsedData, const UINT cbPreparsedData, unsigned int* foundHidIndex)
@@ -225,8 +223,32 @@ int FindLinkCollectionInList(HID_LINK_COL_INFO_LIST* linkColInfoList, USHORT lin
   return 0;
 }
 
+static const size_t MAXIMUM_MALLOC_MEMORY = 1 * 1024 * 1024 * 1024;  // 1 GB
+static const size_t SIZE_T_MAX            = ~0;
+static size_t malloced_memory             = 0;
+
 void* kankaku_utils_malloc_or_die(size_t size, char* callerFileLocation, int callerLineNumber)
 {
+  printf("malloc %d bytes for %s:%d\n", size, callerFileLocation, callerLineNumber);
+
+  // check for overflowing
+  if ((SIZE_T_MAX - size) < malloced_memory)
+  {
+    fprintf(stderr, "%sYou are trying to malloc an unreasonable amount of memory! Check your calculation!%s\n", FG_BRIGHT_RED, RESET_COLOR);
+    exit(-1);
+  }
+  else
+  {
+    malloced_memory += size;
+    if (malloced_memory > MAXIMUM_MALLOC_MEMORY)
+    {
+      fprintf(stderr, "%sExceeded the maximum limit of malloc memory! Check your calculation!%s\n", FG_BRIGHT_RED, RESET_COLOR);
+      exit(-1);
+    }
+  }
+
+  printf("malloced %d/%d\n", malloced_memory, MAXIMUM_MALLOC_MEMORY);
+
   void* retval = malloc(size);
 
   if (retval == NULL)

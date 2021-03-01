@@ -27,7 +27,7 @@
     <ClCompile Include="termcolor.h">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="touchevents.c">
+    <ClCompile Include="kankaku_touchevents.c">
       <Filter>Source Files</Filter>
     </ClCompile>
     <ClCompile Include="touchpad.c">
@@ -47,7 +47,7 @@
     <ClInclude Include="kankaku_stroke.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="touchevents.h">
+    <ClInclude Include="kankaku_touchevents.h">
       <Filter>Header Files</Filter>
     </ClInclude>
     <ClInclude Include="touchpad.h">

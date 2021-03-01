@@ -1,6 +1,7 @@
 #pragma once
 #include <Windows.h>
 #include <sal.h>
+#include <tchar.h>
 
 #include <hidusage.h>
 #include <hidpi.h>
@@ -9,12 +10,11 @@
 #include <time.h>
 #include <stdio.h>
 #include <stdlib.h>
-#include <tchar.h>
 
 #include "termcolor.h"
 #include "utils.h"
 #include "touchpad.h"
-#include "touchevents.h"
+#include "kankaku_touchevents.h"
 #include "kankaku_point2d.h"
 #include "kankaku_stroke.h"
 #include "kankaku_tensorflow.h"
@@ -447,9 +447,7 @@ void main_handle_wm_input(HWND hwnd, UINT message, WPARAM wParam, LPARAM lParam)
 
                     if (hidpReturnCode != HIDP_STATUS_SUCCESS)
                     {
-                      printf(FG_RED);
-                      printf("Failed to read x position!\n");
-                      printf(RESET_COLOR);
+                      fprintf(stderr, "%sFailed to read x position!%s\n", FG_RED, RESET_COLOR);
                       utils_print_hidp_error(hidpReturnCode, __FILE__, __LINE__);
                       exit(-1);
                     }
@@ -517,12 +515,10 @@ void main_handle_wm_input(HWND hwnd, UINT message, WPARAM wParam, LPARAM lParam)
                     curTouch.OnSurface = isContactOnSurface;
 
                     unsigned int touchType;
-                    int cStyleFunctionReturnCode = mInterpretRawTouchInput(&g_app_state->previous_touches, curTouch, &touchType);
+                    int cStyleFunctionReturnCode = kankaku_touchevents_interpret_event_type(&g_app_state->previous_touches, curTouch, &touchType);
                     if (cStyleFunctionReturnCode != 0)
                     {
-                      printf(FG_RED);
-                      printf("mInterpretRawTouchInput failed at %s:%d\n", __FILE__, __LINE__);
-                      printf(RESET_COLOR);
+                      fprintf(stderr, "%skankaku_touchevents_interpret_event_type failed at %s:%d%s\n", FG_RED, __FILE__, __LINE__, RESET_COLOR);
                       exit(-1);
                     }
 
@@ -538,7 +534,7 @@ void main_handle_wm_input(HWND hwnd, UINT message, WPARAM wParam, LPARAM lParam)
                       }
                       else
                       {
-                        // wait for touch down event to register new stroke
+                        // skip this and wait for touch down event to register new stroke
                       }
                     }
                     else if (curTouch.TouchID == g_app_state->tracking_touch_id)
@@ -936,8 +932,22 @@ int CALLBACK main_winmain(_In_ HINSTANCE hInstance, _In_opt_ HINSTANCE hPrevInst
   return (int)msg.wParam;
 }
 
+void kankaku_print_help()
+{
+  printf("kankaku - a software allows you to do handwriting with your touchpad.\n");
+  printf("\n");
+  printf("keyboard shortcuts\n");
+  printf("- F3 (while in focus)     start capturing touchpad input and block mouse input\n");
+  printf("- ESC (while in focus)    stop capturing touchpad input and unblock mouse input\n");
+  printf("- c (while in focus)      clear the canvas\n");
+  printf("- q (while in focus)      quit the application\n");
+  printf("- s (while in focus)      export writing data (TODO)\n");
+}
+
 int main()
 {
+  kankaku_print_help();
+
   kankaku_tensorflow_hello_world();
 
   // initialize application's states
