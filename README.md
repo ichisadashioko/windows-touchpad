@@ -19,12 +19,13 @@ I am a fan of practicing writing those crazy difficult Japanese Kanji. As a Japa
 - Press `F3` to enter touchpad writing mode. __CAUTION__ Your mouse movement will be locked while you are in touchpad writing mode.
 - Press `ESC` to exit touchpad writing mode.
 - Press `c` to clear the canvas.
+- Press `q` to quit the application.
 - The application currently can only be resized consistently with `Windows Key` + `Arrow Keys` as the application does not handle clicking properly.
 
 ## Current progress
 
 - We have been able to get the absolute touchpad input positions and visualize them on a UI window.
-- We are having some problem with rendering the UI because the rendering workload is too heavy and the UI is re-rendered for every touch input events.
+- ~~We are having some problem with rendering the UI because the rendering workload is too heavy and the UI is re-rendered for every touch input events.~~
 
 ## CI status
 

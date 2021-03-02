@@ -21,7 +21,7 @@
 /*
 wrapper of GetRawInputDeviceInfo with RIDI_DEVICENAME
 */
-int kankaku_touchpad_get_raw_input_device_name(_In_ HANDLE hDevice, _Out_ TCHAR** deviceName, _Out_ UINT* nameSize, _Out_ unsigned int* cbDeviceName);
+int kankaku_touchpad_get_raw_input_device_name(_In_ HANDLE hDevice, _Out_ TCHAR** deviceName, _Out_ UINT* nameSize, _Out_ size_t* deviceNameCountBytes);
 
 /*
 wrapper of GetRawInputDeviceInfo with RIDI_PREPARSEDDATA
@@ -37,5 +37,7 @@ int kankaku_touchpad_get_raw_input_device_list(_Out_ UINT* numDevices, _Out_ RAW
 wrapper of GetRawInputData with RID_INPUT
 */
 int kankaku_touchpad_get_raw_input_data(_In_ HRAWINPUT hRawInput, _Out_ PUINT pcbSize, _Out_ LPVOID* pData);
+
+int kankaku_touchpad_parse_available_devices();
 
 #endif  // __TOUCHPAD_H__

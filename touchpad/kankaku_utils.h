@@ -66,4 +66,6 @@ int FindLinkCollectionInList(kankaku_link_collection_info_list* linkColInfoList,
 
 void* kankaku_utils_malloc_or_die(size_t size, char* callerFileLocation, int callerLineNumber);
 
+void kankaku_utils_free(void* ptr, size_t size, char* callerFileLocation, int callerLineNumber);
+
 #endif  // __UTILS_H__

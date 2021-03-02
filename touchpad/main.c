@@ -118,7 +118,7 @@ void main_parse_connected_input_devices()
     {
       UINT deviceNameLength;
       TCHAR* deviceName = NULL;
-      unsigned int cbDeviceName;
+      size_t cbDeviceName;
 
       kankaku_touchpad_get_raw_input_device_name(rawInputDevice.hDevice, &deviceName, &deviceNameLength, &cbDeviceName);
 
@@ -341,7 +341,7 @@ void main_handle_wm_input(HWND hwnd, UINT message, WPARAM wParam, LPARAM lParam)
       {
         UINT deviceNameLength;
         TCHAR* deviceName = NULL;
-        unsigned int cbDeviceName;
+        size_t cbDeviceName;
 
         kankaku_touchpad_get_raw_input_device_name(rawInputData->header.hDevice, &deviceName, &deviceNameLength, &cbDeviceName);
 
@@ -945,6 +945,12 @@ int main()
   kankaku_print_help();
 
   kankaku_tensorflow_hello_world();
+
+  // testing wip function
+  kankaku_touchpad_parse_available_devices();
+
+  return 0;
+  // TODO remove testing code
 
   // initialize application's states
   g_app_state = (ApplicationState*)kankaku_utils_malloc_or_die(sizeof(ApplicationState), __FILE__, __LINE__);

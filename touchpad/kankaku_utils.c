@@ -261,14 +261,18 @@ void* kankaku_utils_malloc_or_die(size_t size, char* callerFileLocation, int cal
   return retval;
 }
 
-void kankaku_utils_free(void* ptr, size_t size)
+void kankaku_utils_free(void* ptr, size_t size, char* callerFileLocation, int callerLineNumber)
 {
-  free(ptr);
   if (size > malloced_memory)
   {
+    fprintf(stderr, "%sOperation failed! You were trying to free %zu byte(s) which was allocated by us.%s\n", FG_BRIGHT_RED, size, RESET_COLOR);
+    fprintf(stderr, "%s%s:%d%s\n", FG_BRIGHT_RED, callerFileLocation, callerLineNumber, RESET_COLOR);
+    exit(-1);
   }
   else
   {
+    free(ptr);
     malloced_memory -= size;
+    ptr = NULL;
   }
 }
