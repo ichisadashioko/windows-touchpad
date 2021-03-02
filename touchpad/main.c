@@ -938,6 +938,7 @@ void kankaku_print_help()
   printf("- c (while in focus)      clear the canvas\n");
   printf("- q (while in focus)      quit the application\n");
   printf("- s (while in focus)      export writing data (TODO)\n");
+  printf("\n");
 }
 
 int main()

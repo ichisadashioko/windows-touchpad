@@ -37,6 +37,17 @@ I am a fan of practicing writing those crazy difficult Japanese Kanji. As a Japa
 - (a) `touch` and (a) `contact` are refering to the representation of the data generated when your finger(s) come(s) into contact with the hardware - the touchpad.
 - `HID` - [human interface device](https://en.wikipedia.org/wiki/Human_interface_device) - refers to devices used by human to "communicate" with computers (even though they can be used by bot).
 
+## Windows HID
+
+note about Windows HID's "model"
+
+```
+HID (human interface device)
+- link collections
+  - value capability array
+  - button capability array
+```
+
 ## Progress
 
 - We want to get the figure's position when it comes into contact with the touchpad (hereby refered as raw input data).

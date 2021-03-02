@@ -15,7 +15,7 @@
 #include "termcolor.h"
 #include "kankaku_utils.h"
 
-int kankaku_touchpad_get_raw_input_device_name(_In_ HANDLE hDevice, _Out_ TCHAR** deviceName, _Out_ UINT* nameSize, _Out_ size_t* deviceNameCountBytes)
+int kankaku_touchpad_get_raw_input_device_name(_In_ HANDLE hDevice, _Out_ TCHAR** deviceName, _Out_ UINT* nameSize, _Out_ size_t* deviceNameByteCount)
 {
   int retval = 0;
   UINT winReturnCode;
@@ -40,7 +40,7 @@ int kankaku_touchpad_get_raw_input_device_name(_In_ HANDLE hDevice, _Out_ TCHAR*
     fprintf(stderr, "%s(TCHAR*) deviceName is not NULL! Please free your memory and set the pointer value to NULL%s\n", FG_BRIGHT_RED, RESET_COLOR);
     exit(-1);
   }
-  else if (deviceNameCountBytes == NULL)
+  else if (deviceNameByteCount == NULL)
   {
     retval = -1;
     fprintf(stderr, "%scbDeviceName is NULL! You will not able to know the size of the return array%s\n", FG_BRIGHT_RED, RESET_COLOR);
@@ -63,8 +63,8 @@ int kankaku_touchpad_get_raw_input_device_name(_In_ HANDLE hDevice, _Out_ TCHAR*
     else
     {
       // size + 1 for NULL terminated string
-      (*deviceNameCountBytes) = (sizeof(TCHAR) * ((*nameSize) + 1));
-      (*deviceName)           = (TCHAR*)kankaku_utils_malloc_or_die((*deviceNameCountBytes), __FILE__, __LINE__);
+      (*deviceNameByteCount) = (sizeof(TCHAR) * ((*nameSize) + 1));
+      (*deviceName)          = (TCHAR*)kankaku_utils_malloc_or_die((*deviceNameByteCount), __FILE__, __LINE__);
 
       (*deviceName)[(*nameSize)] = 0;
 
@@ -74,14 +74,14 @@ int kankaku_touchpad_get_raw_input_device_name(_In_ HANDLE hDevice, _Out_ TCHAR*
         retval = -1;
         fprintf(stderr, "%sGetRawInputDeviceInfo failed at %s:%d%s\n", FG_BRIGHT_RED, __FILE__, __LINE__, RESET_COLOR);
         utils_print_win32_last_error();
-        kankaku_utils_free((*deviceName), (*deviceNameCountBytes), __FILE__, __LINE__);
+        kankaku_utils_free((*deviceName), (*deviceNameByteCount), __FILE__, __LINE__);
         exit(-1);
       }
       else if (winReturnCode != (*nameSize))
       {
         retval = -1;
         fprintf(stderr, "%sGetRawInputDeviceInfo does not return the expected size %d (actual) vs %d (expected) at  %s:%d%s\n", FG_BRIGHT_RED, winReturnCode, (*nameSize), __FILE__, __LINE__, RESET_COLOR);
-        kankaku_utils_free((*deviceName), (*deviceNameCountBytes), __FILE__, __LINE__);
+        kankaku_utils_free((*deviceName), (*deviceNameByteCount), __FILE__, __LINE__);
         exit(-1);
       }
     }
@@ -127,16 +127,16 @@ int kankaku_touchpad_get_raw_input_device_list(_Out_ UINT* numDevices, _Out_ RAW
     }
     else
     {
-      size_t deviceListCountBytes = sizeof(RAWINPUTDEVICELIST) * (*numDevices);
+      size_t deviceListByteCount = sizeof(RAWINPUTDEVICELIST) * (*numDevices);
 
-      (*deviceList) = (RAWINPUTDEVICELIST*)kankaku_utils_malloc_or_die(deviceListCountBytes, __FILE__, __LINE__);
+      (*deviceList) = (RAWINPUTDEVICELIST*)kankaku_utils_malloc_or_die(deviceListByteCount, __FILE__, __LINE__);
       winReturnCode = GetRawInputDeviceList((*deviceList), numDevices, sizeof(RAWINPUTDEVICELIST));
       if (winReturnCode == (UINT)-1)
       {
         retval = -1;
         fprintf(stderr, "%sGetRawInputDeviceList failed at %s:%d%s\n", FG_BRIGHT_RED, __FILE__, __LINE__, RESET_COLOR);
         utils_print_win32_last_error();
-        kankaku_utils_free((*deviceList), deviceListCountBytes, __FILE__, __LINE__);
+        kankaku_utils_free((*deviceList), deviceListByteCount, __FILE__, __LINE__);
         exit(-1);
       }
     }
@@ -314,15 +314,15 @@ int kankaku_touchpad_parse_available_devices()
         }
         else
         {
-          // TODO write up about NumberInputButtonCaps
-          int isButtonCapsEmpty = (caps.NumberInputButtonCaps == 0);
-          if (!isButtonCapsEmpty)
+          // TODO write up about NumberInputButtonCaps and NumberInputValuesCaps
+          // We need some values in both of these "caps". Because of that, we can skip devices which do not have these "caps".
+          if ((caps.NumberInputButtonCaps != 0) && (caps.NumberInputValueCaps != 0))
           {
             UINT deviceNameLength;
             TCHAR* toBeFreedDeviceName = NULL;
-            size_t deviceNameCountBytes;
+            size_t deviceNameByteCount;
 
-            retval = kankaku_touchpad_get_raw_input_device_name(rawInputDevice.hDevice, &toBeFreedDeviceName, &deviceNameLength, &deviceNameCountBytes);
+            retval = kankaku_touchpad_get_raw_input_device_name(rawInputDevice.hDevice, &toBeFreedDeviceName, &deviceNameLength, &deviceNameByteCount);
             if (retval)
             {
               fprintf(stderr, "%skankaku_touchpad_get_raw_input_device_name failed at %s:%d%s\n", FG_BRIGHT_RED, __FILE__, __LINE__, RESET_COLOR);
@@ -332,8 +332,37 @@ int kankaku_touchpad_parse_available_devices()
               // TODO write up about device name's usage
               wprintf(toBeFreedDeviceName);
               printf("\n");
+
+              size_t valueCapabilityByteCount = sizeof(HIDP_VALUE_CAPS) * caps.NumberInputValueCaps;
+
+              PHIDP_VALUE_CAPS toBeFreedValueCapabilityArray = kankaku_utils_malloc_or_die(valueCapabilityByteCount, __FILE__, __LINE__);
+
+              hidpReturnCode = HidP_GetValueCaps(HidP_Input, toBeFreedValueCapabilityArray, &caps.NumberInputValueCaps, toBeFreedPreparsedData);
+
+              for (USHORT valueCapabilityIndex = 0; valueCapabilityIndex < caps.NumberInputValueCaps; valueCapabilityIndex++)
+              {
+                HIDP_VALUE_CAPS valueCapability = toBeFreedValueCapabilityArray[valueCapabilityIndex];
+
+                // From HID_USAGE_PAGE_GENERIC usage page,
+                // - HID_USAGE_GENERIC_X usage can give us the device's width information
+                // - HID_USAGE_GENERIC_Y usage can give us the device's height information
+
+                // From HID_USAGE_PAGE_DIGITIZER usage page,
+                // - HID_USAGE_DIGITIZER_CONTACT_ID usage // TODO
+                // - HID_USAGE_DIGITIZER_CONTACT_COUNT usage can tell us the maximum number of touches that the device can support
+
+                // All of the mentioned usages are not `IsRange` and are `IsAbsolute` // TODO explain why
+                if ((!valueCapability.IsRange) && valueCapability.IsAbsolute)
+                {
+                  // In this value capability array, the elements can have the same `LinkCollection`
+                  // WIP
+                  valueCapability.LinkCollection;
+                }
+              }
               // WIP
-              kankaku_utils_free(toBeFreedDeviceName, deviceNameCountBytes, __FILE__, __LINE__);
+              kankaku_utils_free(toBeFreedValueCapabilityArray, valueCapabilityByteCount, __FILE__, __LINE__);
+              // WIP
+              kankaku_utils_free(toBeFreedDeviceName, deviceNameByteCount, __FILE__, __LINE__);
             }
           }
         }
