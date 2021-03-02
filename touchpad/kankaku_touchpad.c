@@ -14,7 +14,7 @@
 #include "termcolor.h"
 #include "kankaku_utils.h"
 
-int mGetRawInputDeviceName(_In_ HANDLE hDevice, _Out_ TCHAR** deviceName, _Out_ UINT* nameSize, _Out_ unsigned int* cbDeviceName)
+int kankaku_touchpad_get_raw_input_device_name(_In_ HANDLE hDevice, _Out_ TCHAR** deviceName, _Out_ UINT* nameSize, _Out_ unsigned int* cbDeviceName)
 {
   int retval = 0;
   UINT winReturnCode;
@@ -189,49 +189,39 @@ int kankaku_touchpad_get_raw_input_device_preparsed_data(_In_ HANDLE hDevice, _O
   return retval;
 }
 
-int mGetRawInputData(_In_ HRAWINPUT hRawInput, _Out_ PUINT pcbSize, _Out_ LPVOID* pData)
+int kankaku_touchpad_get_raw_input_data(_In_ HRAWINPUT hRawInput, _Out_ PUINT pcbSize, _Out_ LPVOID* pData)
 {
   int retval = 0;
   UINT winReturnCode;
 
+#pragma region input checking
   if (pcbSize == NULL)
   {
     retval = -1;
-    printf(FG_RED);
-    printf("pcbSize parameter is NULL!\n");
-    printf(RESET_COLOR);
-
+    fprintf(stderr, "%spcbSize parameter is NULL!%s\n", FG_BRIGHT_RED, RESET_COLOR);
     exit(-1);
   }
   else if (pData == NULL)
   {
     retval = -1;
-    printf(FG_RED);
-    printf("(LPVOID*) pData parameter is NULL!\n");
-    printf(RESET_COLOR);
-
+    fprintf(stderr, "%s(LPVOID*) pData parameter is NULL!%s\n", FG_BRIGHT_RED, RESET_COLOR);
     exit(-1);
   }
   else if ((*pData) != NULL)
   {
     retval = -1;
-    printf(FG_RED);
-    printf("(LPVOID) pData value is not NULL! Please free your memory and set the pointer value to NULL.\n");
-    printf(RESET_COLOR);
-
+    fprintf(stderr, "%s(LPVOID) pData value is not NULL! Please free your memory and set the pointer value to NULL.%s\n", FG_BRIGHT_RED, RESET_COLOR);
     exit(-1);
   }
   else
+#pragma endregion input checking
   {
     winReturnCode = GetRawInputData(hRawInput, RID_INPUT, NULL, pcbSize, sizeof(RAWINPUTHEADER));
     if (winReturnCode == (UINT)-1)
     {
       retval = -1;
-      printf(FG_RED);
-      printf("GetRawInputData failed at %s:%d\n", __FILE__, __LINE__);
-      printf(RESET_COLOR);
+      fprintf(stderr, "%sGetRawInputData failed at %s:%d%s\n", FG_BRIGHT_RED, __FILE__, __LINE__, RESET_COLOR);
       utils_print_win32_last_error();
-
       exit(-1);
     }
     else
@@ -242,22 +232,41 @@ int mGetRawInputData(_In_ HRAWINPUT hRawInput, _Out_ PUINT pcbSize, _Out_ LPVOID
       if (winReturnCode == (UINT)-1)
       {
         retval = -1;
-        printf(FG_RED);
-        printf("GetRawInputData failed at %s:%d\n", __FILE__, __LINE__);
-        printf(RESET_COLOR);
+        fprintf(stderr, "%sGetRawInputData failed at %s:%d%s\n", FG_BRIGHT_RED, __FILE__, __LINE__, RESET_COLOR);
         utils_print_win32_last_error();
-
         exit(-1);
       }
       else if (winReturnCode != (*pcbSize))
       {
         retval = -1;
-        printf(FG_RED);
-        printf("GetRawInputData failed at %s:%d.\n", __FILE__, __LINE__);
-        printf("The return value - the number of byte(s) copied into pData (%d) is not equal the expected value (%d).\n", winReturnCode, (*pcbSize));
-        printf(RESET_COLOR);
+        fprintf(stderr, "%sGetRawInputData failed at %s:%d%s\n", FG_BRIGHT_RED, __FILE__, __LINE__, RESET_COLOR);
+        fprintf(stderr, "%sThe return value - the number of byte(s) copied into pData (%d) is not equal the expected value (%d)%s\n", FG_BRIGHT_RED, winReturnCode, (*pcbSize), RESET_COLOR);
         exit(-1);
       }
+    }
+  }
+
+  return retval;
+}
+
+int kankaku_touchpad_parse_available_devices()
+{
+  int retval = 0;
+
+  UINT numberOfDevices;
+  RAWINPUTDEVICELIST* deviceList = NULL;
+
+  retval = kankaku_touchpad_get_raw_input_device_list(&numberOfDevices, &deviceList);
+  if (retval)
+  {
+    fprintf(stderr, "%skankaku_touchpad_get_raw_input_device_list failed at %s:%d%s\n", FG_BRIGHT_RED, __FILE__, __LINE__, RESET_COLOR);
+    exit(-1);
+  }
+  else
+  {
+    for (UINT deviceIndex = 0; deviceIndex < numberOfDevices; deviceIndex++)
+    {
+      // WIP
     }
   }
 

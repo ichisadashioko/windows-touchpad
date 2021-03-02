@@ -20,7 +20,8 @@ void utils_print_win32_last_error()
   size_t messageSize   = FormatMessageW(FORMAT_MESSAGE_ALLOCATE_BUFFER | FORMAT_MESSAGE_FROM_SYSTEM | FORMAT_MESSAGE_IGNORE_INSERTS, NULL, errorCode, MAKELANGID(LANG_NEUTRAL, SUBLANG_DEFAULT), (LPWSTR)&messageBuffer, 0, NULL);
 
   fprintf(stderr, "%serror_code: %d\n", FG_RED, errorCode);
-  fwprintf(stderr, "%s%s\n", messageBuffer, RESET_COLOR);
+  fwprintf(stderr, messageBuffer);
+  fprintf(stderr, "%s\n", RESET_COLOR);
   // TODO check to see if we don't free the messageBuffer pointer, will it lead to memory leaking?
 }
 
@@ -79,7 +80,7 @@ int utils_find_input_device_index_by_name(HID_DEVICE_INFO_LIST* hidInfoList, TCH
     hidInfoArray = (HID_DEVICE_INFO*)kankaku_utils_malloc_or_die(sizeof(HID_DEVICE_INFO), __FILE__, __LINE__);
 
     hidInfoArray[(*foundHidIndex)].cbName          = cbDeviceName;
-    hidInfoArray[(*foundHidIndex)].LinkColInfoList = (HID_LINK_COL_INFO_LIST){.Entries = NULL, .Size = 0};
+    hidInfoArray[(*foundHidIndex)].LinkColInfoList = (kankaku_link_collection_info_list){.Entries = NULL, .Size = 0};
     hidInfoArray[(*foundHidIndex)].PreparedData    = preparsedData;
     hidInfoArray[(*foundHidIndex)].cbPreparsedData = cbPreparsedData;
 
@@ -140,7 +141,7 @@ int utils_find_input_device_index_by_name(HID_DEVICE_INFO_LIST* hidInfoList, TCH
     hidInfoArray = tmpHidInfoArray;
 
     hidInfoArray[(*foundHidIndex)].cbName          = cbDeviceName;
-    hidInfoArray[(*foundHidIndex)].LinkColInfoList = (HID_LINK_COL_INFO_LIST){.Entries = NULL, .Size = 0};
+    hidInfoArray[(*foundHidIndex)].LinkColInfoList = (kankaku_link_collection_info_list){.Entries = NULL, .Size = 0};
     hidInfoArray[(*foundHidIndex)].cbPreparsedData = cbPreparsedData;
 
     hidInfoArray[(*foundHidIndex)].Name = (TCHAR*)kankaku_utils_malloc_or_die(cbDeviceName, __FILE__, __LINE__);
@@ -158,7 +159,7 @@ int utils_find_input_device_index_by_name(HID_DEVICE_INFO_LIST* hidInfoList, TCH
   return 0;
 }
 
-int FindLinkCollectionInList(HID_LINK_COL_INFO_LIST* linkColInfoList, USHORT linkCollection, unsigned int* foundLinkColIdx)
+int FindLinkCollectionInList(kankaku_link_collection_info_list* linkColInfoList, USHORT linkCollection, unsigned int* foundLinkColIdx)
 {
   (*foundLinkColIdx)      = (unsigned int)-1;
   int isLinkColArrayNull  = (linkColInfoList->Entries == NULL);
@@ -170,17 +171,13 @@ int FindLinkCollectionInList(HID_LINK_COL_INFO_LIST* linkColInfoList, USHORT lin
     linkColInfoList->Size = 1;
 
     free(linkColInfoList->Entries);
-    linkColInfoList->Entries = (HID_TOUCH_LINK_COL_INFO*)kankaku_utils_malloc_or_die(sizeof(HID_TOUCH_LINK_COL_INFO), __FILE__, __LINE__);
+    linkColInfoList->Entries = (kankaku_link_collection_info*)kankaku_utils_malloc_or_die(sizeof(kankaku_link_collection_info), __FILE__, __LINE__);
 
-    linkColInfoList->Entries[(*foundLinkColIdx)].LinkColID     = linkCollection;
-    linkColInfoList->Entries[(*foundLinkColIdx)].HasX          = 0;
-    linkColInfoList->Entries[(*foundLinkColIdx)].HasY          = 0;
-    linkColInfoList->Entries[(*foundLinkColIdx)].HasTipSwitch  = 0;
-    linkColInfoList->Entries[(*foundLinkColIdx)].HasContactID  = 0;
-    linkColInfoList->Entries[(*foundLinkColIdx)].HasConfidence = 0;
-    linkColInfoList->Entries[(*foundLinkColIdx)].HasWidth      = 0;
-    linkColInfoList->Entries[(*foundLinkColIdx)].HasHeight     = 0;
-    linkColInfoList->Entries[(*foundLinkColIdx)].HasPressure   = 0;
+    linkColInfoList->Entries[(*foundLinkColIdx)].LinkColID    = linkCollection;
+    linkColInfoList->Entries[(*foundLinkColIdx)].HasX         = 0;
+    linkColInfoList->Entries[(*foundLinkColIdx)].HasY         = 0;
+    linkColInfoList->Entries[(*foundLinkColIdx)].HasTipSwitch = 0;
+    linkColInfoList->Entries[(*foundLinkColIdx)].HasContactID = 0;
   }
   else
   {
@@ -199,7 +196,7 @@ int FindLinkCollectionInList(HID_LINK_COL_INFO_LIST* linkColInfoList, USHORT lin
     (*foundLinkColIdx)    = linkColInfoList->Size;
     linkColInfoList->Size = (*foundLinkColIdx) + 1;
 
-    HID_TOUCH_LINK_COL_INFO* tmpCollectionArray = (HID_TOUCH_LINK_COL_INFO*)kankaku_utils_malloc_or_die(sizeof(HID_TOUCH_LINK_COL_INFO) * linkColInfoList->Size, __FILE__, __LINE__);
+    kankaku_link_collection_info* tmpCollectionArray = (kankaku_link_collection_info*)kankaku_utils_malloc_or_die(sizeof(kankaku_link_collection_info) * linkColInfoList->Size, __FILE__, __LINE__);
 
     for (unsigned int linkColIdx = 0; linkColIdx < (*foundLinkColIdx); linkColIdx++)
     {
@@ -209,20 +206,24 @@ int FindLinkCollectionInList(HID_LINK_COL_INFO_LIST* linkColInfoList, USHORT lin
     free(linkColInfoList->Entries);
     linkColInfoList->Entries = tmpCollectionArray;
 
-    linkColInfoList->Entries[(*foundLinkColIdx)].LinkColID     = linkCollection;
-    linkColInfoList->Entries[(*foundLinkColIdx)].HasX          = 0;
-    linkColInfoList->Entries[(*foundLinkColIdx)].HasY          = 0;
-    linkColInfoList->Entries[(*foundLinkColIdx)].HasTipSwitch  = 0;
-    linkColInfoList->Entries[(*foundLinkColIdx)].HasContactID  = 0;
-    linkColInfoList->Entries[(*foundLinkColIdx)].HasConfidence = 0;
-    linkColInfoList->Entries[(*foundLinkColIdx)].HasWidth      = 0;
-    linkColInfoList->Entries[(*foundLinkColIdx)].HasHeight     = 0;
-    linkColInfoList->Entries[(*foundLinkColIdx)].HasPressure   = 0;
+    linkColInfoList->Entries[(*foundLinkColIdx)].LinkColID    = linkCollection;
+    linkColInfoList->Entries[(*foundLinkColIdx)].HasX         = 0;
+    linkColInfoList->Entries[(*foundLinkColIdx)].HasY         = 0;
+    linkColInfoList->Entries[(*foundLinkColIdx)].HasTipSwitch = 0;
+    linkColInfoList->Entries[(*foundLinkColIdx)].HasContactID = 0;
   }
 
   return 0;
 }
 
+/*
+TODO
+
+- store the requested memory size in a list (probably a fixed-size array)
+- when free_wrapper is called, find the entry with the same size
+- if the entry is found, call `free()` and set that entry to invalid (-1)
+- if the entry is not found, return error
+*/
 static const size_t MAXIMUM_MALLOC_MEMORY = 1 * 1024 * 1024 * 1024;  // 1 GB
 static const size_t SIZE_T_MAX            = ~0;
 static size_t malloced_memory             = 0;
@@ -253,9 +254,21 @@ void* kankaku_utils_malloc_or_die(size_t size, char* callerFileLocation, int cal
 
   if (retval == NULL)
   {
-    fprintf(stderr, "%smalloc failed to allocate %d byte(s) at %s:%d%s\n", FG_RED, size, callerFileLocation, callerLineNumber, RESET_COLOR);
+    fprintf(stderr, "%smalloc failed to allocate %zu byte(s) at %s:%d%s\n", FG_RED, size, callerFileLocation, callerLineNumber, RESET_COLOR);
     exit(-1);
   }
 
   return retval;
+}
+
+void kankaku_utils_free(void* ptr, size_t size)
+{
+  free(ptr);
+  if (size > malloced_memory)
+  {
+  }
+  else
+  {
+    malloced_memory -= size;
+  }
 }

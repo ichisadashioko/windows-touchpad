@@ -120,7 +120,7 @@ void main_parse_connected_input_devices()
       TCHAR* deviceName = NULL;
       unsigned int cbDeviceName;
 
-      mGetRawInputDeviceName(rawInputDevice.hDevice, &deviceName, &deviceNameLength, &cbDeviceName);
+      kankaku_touchpad_get_raw_input_device_name(rawInputDevice.hDevice, &deviceName, &deviceNameLength, &cbDeviceName);
 
       printf("Device name: ");
       wprintf(deviceName);
@@ -328,7 +328,7 @@ void main_handle_wm_input(HWND hwnd, UINT message, WPARAM wParam, LPARAM lParam)
     UINT rawInputSize;
     PRAWINPUT rawInputData = NULL;
 
-    mGetRawInputData((HRAWINPUT)lParam, &rawInputSize, (LPVOID*)(&rawInputData));
+    kankaku_touchpad_get_raw_input_data((HRAWINPUT)lParam, &rawInputSize, (LPVOID*)(&rawInputData));
 
     // Parse the RAWINPUT data.
     if (rawInputData->header.dwType == RIM_TYPEHID)
@@ -343,7 +343,7 @@ void main_handle_wm_input(HWND hwnd, UINT message, WPARAM wParam, LPARAM lParam)
         TCHAR* deviceName = NULL;
         unsigned int cbDeviceName;
 
-        mGetRawInputDeviceName(rawInputData->header.hDevice, &deviceName, &deviceNameLength, &cbDeviceName);
+        kankaku_touchpad_get_raw_input_device_name(rawInputData->header.hDevice, &deviceName, &deviceNameLength, &cbDeviceName);
 
         unsigned int foundHidIdx = (unsigned int)-1;
 
@@ -437,7 +437,7 @@ void main_handle_wm_input(HWND hwnd, UINT message, WPARAM wParam, LPARAM lParam)
               {
                 for (unsigned int linkColIdx = 0; linkColIdx < numContacts; linkColIdx++)
                 {
-                  HID_TOUCH_LINK_COL_INFO collectionInfo = g_app_state->device_info_list.Entries[foundHidIdx].LinkColInfoList.Entries[linkColIdx];
+                  kankaku_link_collection_info collectionInfo = g_app_state->device_info_list.Entries[foundHidIdx].LinkColInfoList.Entries[linkColIdx];
 
                   if (collectionInfo.HasX && collectionInfo.HasY && collectionInfo.HasContactID && collectionInfo.HasTipSwitch)
                   {
@@ -825,7 +825,7 @@ int CALLBACK main_winmain(_In_ HINSTANCE hInstance, _In_opt_ HINSTANCE hPrevInst
       {
         for (unsigned int linkColIdx = 0; linkColIdx < inputDevice.LinkColInfoList.Size; linkColIdx++)
         {
-          HID_TOUCH_LINK_COL_INFO linkCollectionInfo = inputDevice.LinkColInfoList.Entries[linkColIdx];
+          kankaku_link_collection_info linkCollectionInfo = inputDevice.LinkColInfoList.Entries[linkColIdx];
           if (linkCollectionInfo.HasX && linkCollectionInfo.HasY)
           {
             // TODO Should we need to parse every single touch link collections? For now, I think one is sufficient.

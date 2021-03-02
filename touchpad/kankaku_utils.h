@@ -7,10 +7,17 @@
 #include <hidpi.h>
 #pragma comment(lib, "hid.lib")
 
-struct HID_TOUCH_LINK_COL_INFO
+/*
+TODO What does this structure is for?
+
+This structure is for holding each touches's information. These touches are parsed from the WM_INPUT event.
+*/
+typedef struct
 {
-  // LinkColID is an ID to parse HID report
+  // LinkColID is an ID to parse HID report; also act as the key
   USHORT LinkColID;
+
+  // TODO I think we can only get the device width and height throught link collection id's info. This is a little bit redundant as all the link collection id's info will probably give the same rectangle.
   RECT PhysicalRect;
 
   // As we cannot identify which link collection contains which data, we need
@@ -21,42 +28,31 @@ struct HID_TOUCH_LINK_COL_INFO
   int HasY;
   int HasContactID;
   int HasTipSwitch;
-  int HasConfidence;
-  int HasWidth;
-  int HasHeight;
-  int HasPressure;
-};
+} kankaku_link_collection_info;
 
-typedef struct HID_TOUCH_LINK_COL_INFO HID_TOUCH_LINK_COL_INFO;
-
-struct HID_LINK_COL_INFO_LIST
+typedef struct
 {
-  HID_TOUCH_LINK_COL_INFO* Entries;
+  kankaku_link_collection_info* Entries;
   unsigned int Size;
-};
-
-typedef struct HID_LINK_COL_INFO_LIST HID_LINK_COL_INFO_LIST;
+} kankaku_link_collection_info_list;
 
 // C doesn't have map or dictionary so we are going to use array of struct to replace that
-struct HID_DEVICE_INFO
+typedef struct
 {
+  // also act as key
   TCHAR* Name;
   unsigned int cbName;
-  HID_LINK_COL_INFO_LIST LinkColInfoList;
+  kankaku_link_collection_info_list LinkColInfoList;
   PHIDP_PREPARSED_DATA PreparedData;
   UINT cbPreparsedData;
   USHORT ContactCountLinkCollection;
-};
+} HID_DEVICE_INFO;
 
-typedef struct HID_DEVICE_INFO HID_DEVICE_INFO;
-
-struct HID_DEVICE_INFO_LIST
+typedef struct
 {
   HID_DEVICE_INFO* Entries;
   unsigned int Size;
-};
-
-typedef struct HID_DEVICE_INFO_LIST HID_DEVICE_INFO_LIST;
+} HID_DEVICE_INFO_LIST;
 
 void utils_print_win32_last_error();
 
@@ -66,7 +62,7 @@ void utils_print_hidp_error(NTSTATUS hidpReturnCode, const char* filePath, int l
 int utils_find_input_device_index_by_name(HID_DEVICE_INFO_LIST* hidInfoList, TCHAR* deviceName, const unsigned int cbDeviceName, PHIDP_PREPARSED_DATA preparsedData, const UINT cbPreparsedData, unsigned int* foundHidIndex);
 
 // TODO refactor the create entry if not found feature to another function
-int FindLinkCollectionInList(HID_LINK_COL_INFO_LIST* linkColInfoList, USHORT linkCollection, unsigned int* foundLinkColIdx);
+int FindLinkCollectionInList(kankaku_link_collection_info_list* linkColInfoList, USHORT linkCollection, unsigned int* foundLinkColIdx);
 
 void* kankaku_utils_malloc_or_die(size_t size, char* callerFileLocation, int callerLineNumber);
 
