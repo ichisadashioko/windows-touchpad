@@ -431,6 +431,7 @@ int kankaku_touchpad_parse_value_capability_array(HIDP_CAPS hidCapability, PHIDP
   return retval;
 }
 
+// TODO remove after testing
 void print_link_collection_info(kankaku_hid_link_collection_info linkCollectionInfo)
 {
   printf("- %slinkCollectionId%s: %d\n", FG_BRIGHT_GREEN, RESET_COLOR, linkCollectionInfo.linkCollectionId);
@@ -439,6 +440,70 @@ void print_link_collection_info(kankaku_hid_link_collection_info linkCollectionI
   printf("- %shasContactID%s: %d\n", FG_BRIGHT_GREEN, RESET_COLOR, linkCollectionInfo.hasContactID);
   printf("- %shasTipSwitch%s: %d\n", FG_BRIGHT_GREEN, RESET_COLOR, linkCollectionInfo.hasTipSwitch);
   printf("- %sphysicalRectangle%s: (%d, %d, %d, %d)\n", FG_BRIGHT_GREEN, RESET_COLOR, linkCollectionInfo.physicalRectangle.left, linkCollectionInfo.physicalRectangle.top, linkCollectionInfo.physicalRectangle.right, linkCollectionInfo.physicalRectangle.bottom);
+}
+
+/*
+wrap HidP_GetButtonCaps and extract the nessesary "button capabilities" from the device
+*/
+int kankaku_touchpad_parse_button_capability_array(HIDP_CAPS hidCapability, PHIDP_PREPARSED_DATA hidPreparsedData, kankaku_hid_link_collection_info_list* linkCollectionInfoDictPtr)
+{
+  int retval                                                   = 0;
+  kankaku_hid_link_collection_info_list linkCollectionInfoDict = (*linkCollectionInfoDictPtr);
+  size_t buttonCapabilityArrayByteCount                        = hidCapability.NumberInputButtonCaps * sizeof(HIDP_BUTTON_CAPS);
+  PHIDP_BUTTON_CAPS toBeFreedButtonCapabilityArray             = kankaku_utils_malloc_or_die(buttonCapabilityArrayByteCount, __FILE__, __LINE__);
+  NTSTATUS hidpReturnCode                                      = HidP_GetButtonCaps(HidP_Input, toBeFreedButtonCapabilityArray, &hidCapability.NumberInputButtonCaps, hidPreparsedData);
+
+  if (hidpReturnCode != HIDP_STATUS_SUCCESS)
+  {
+    retval = -1;
+    utils_print_hidp_error(hidpReturnCode, __FILE__, __LINE__);
+  }
+  else
+  {
+    for (USHORT buttonCapabilityIndex = 0; buttonCapabilityIndex < hidCapability.NumberInputButtonCaps; buttonCapabilityIndex++)
+    {
+      HIDP_BUTTON_CAPS buttonCapability = toBeFreedButtonCapabilityArray[buttonCapabilityIndex];
+
+      if (!buttonCapability.IsRange)
+      {
+        if (buttonCapability.UsagePage == HID_USAGE_PAGE_DIGITIZER)
+        {
+          if (buttonCapability.NotRange.Usage == HID_USAGE_DIGITIZER_TIP_SWITCH)
+          {
+            int linkCollectionIndex = kankaku_touchpad_find_link_collection_info_by_id(buttonCapability.LinkCollection, linkCollectionInfoDict);
+            if (linkCollectionIndex < 0)
+            {
+              linkCollectionIndex = kankaku_touchpad_append_new_link_collection_info(buttonCapability.LinkCollection, &linkCollectionInfoDict);
+            }
+
+            if (linkCollectionIndex < 0)
+            {
+              fprintf(stderr, "%skankaku_touchpad_append_new_link_collection_info failed at %s:%d%s\n", FG_BRIGHT_RED, __FILE__, __LINE__, RESET_COLOR);
+              retval = -1;
+            }
+            else
+            {
+              kankaku_hid_link_collection_info linkCollectionInfo = linkCollectionInfoDict.entries[linkCollectionIndex];
+              linkCollectionInfo.hasTipSwitch                     = 1;
+              linkCollectionInfoDict.entries[linkCollectionIndex] = linkCollectionInfo;
+            }
+            // WIP
+          }
+        }
+      }
+
+      if (retval)
+      {
+        break;
+      }
+    }
+  }
+
+  (*linkCollectionInfoDictPtr) = linkCollectionInfoDict;
+
+  kankaku_utils_free(toBeFreedButtonCapabilityArray, buttonCapabilityArrayByteCount, __FILE__, __LINE__);
+
+  return retval;
 }
 
 int kankaku_touchpad_parse_available_devices()
@@ -521,27 +586,7 @@ int kankaku_touchpad_parse_available_devices()
               }
               else
               {
-                size_t buttonCapabilityArrayByteCount            = caps.NumberInputButtonCaps * sizeof(HIDP_BUTTON_CAPS);
-                PHIDP_BUTTON_CAPS toBeFreedButtonCapabilityArray = kankaku_utils_malloc_or_die(buttonCapabilityArrayByteCount, __FILE__, __LINE__);
-
-                for (USHORT buttonCapabilityIndex = 0; buttonCapabilityIndex < caps.NumberInputButtonCaps; buttonCapabilityIndex++)
-                {
-                  HIDP_BUTTON_CAPS buttonCapability = toBeFreedButtonCapabilityArray[buttonCapabilityIndex];
-
-                  if (!buttonCapability.IsRange)
-                  {
-                    if (buttonCapability.UsagePage == HID_USAGE_PAGE_DIGITIZER)
-                    {
-                      if (buttonCapability.NotRange.Usage == HID_USAGE_DIGITIZER_TIP_SWITCH)
-                      {
-                        int linkCollectionIndex = kankaku_touchpad_find_link_collection_info_by_id(buttonCapability.LinkCollection, linkCollectionInfoDict);
-
-                        // WIP
-                      }
-                    }
-                  }
-                }
-                kankaku_utils_free(toBeFreedButtonCapabilityArray, buttonCapabilityArrayByteCount, __FILE__, __LINE__);
+                retval = kankaku_touchpad_parse_button_capability_array(caps, toBeFreedPreparsedData, &linkCollectionInfoDict);
               }
 
               if (retval)
@@ -554,6 +599,8 @@ int kankaku_touchpad_parse_available_devices()
                 }
               }
 
+              // TODO filter invalid link collection entries
+              // TODO check link collection array for validation touchpad devices
               // TODO write up about device name's usage
               wprintf(toBeFreedDeviceName);
               printf("\n");
