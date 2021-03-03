@@ -18,6 +18,30 @@
 #define HID_USAGE_DIGITIZER_CONTACT_COUNT         ((USAGE)0x54)
 #define HID_USAGE_DIGITIZER_CONTACT_COUNT_MAXIMUM ((USAGE)0x55)
 
+typedef struct
+{
+  int left;
+  int top;
+  int right;
+  int bottom;
+} kankaku_hid_rectangle;
+
+typedef struct
+{
+  USHORT linkCollectionId;
+  int hasX;
+  int hasY;
+  int hasContactID;
+  int hasTipSwitch;
+  kankaku_hid_rectangle physicalRectangle;
+} kankaku_hid_link_collection_info;
+
+typedef struct
+{
+  kankaku_hid_link_collection_info* entries;
+  unsigned int size;
+} kankaku_hid_link_collection_info_list;
+
 /*
 wrapper of GetRawInputDeviceInfo with RIDI_DEVICENAME
 */

@@ -259,6 +259,188 @@ int kankaku_touchpad_get_raw_input_data(_In_ HRAWINPUT hRawInput, _Out_ PUINT pc
   return retval;
 }
 
+int kankaku_touchpad_is_link_collection_info_list_not_consistent(kankaku_hid_link_collection_info_list linkCollectionInfoList)
+{
+  int retval = 0;
+
+  if ((linkCollectionInfoList.entries == NULL) && (linkCollectionInfoList.size != 0))
+  {
+    fprintf(stderr, "%sentries is NULL but size is not 0%s\n", FG_BRIGHT_RED, RESET_COLOR);
+    retval = 1;
+  }
+  else if ((linkCollectionInfoList.entries != NULL) && (linkCollectionInfoList.size == 0))
+  {
+    fprintf(stderr, "%sentries is not NULL but size is 0%s\n", FG_BRIGHT_RED, RESET_COLOR);
+    retval = 2;
+  }
+
+  return retval;
+}
+
+int kankaku_touchpad_find_link_collection_info_by_id(USHORT linkCollectionId, kankaku_hid_link_collection_info_list linkCollectionInfoList)
+{
+  int retval = -1;
+
+  if ((linkCollectionInfoList.entries != NULL) && (linkCollectionInfoList.size > 0))
+  {
+    for (unsigned int i = 0; i < linkCollectionInfoList.size; i++)
+    {
+      if (linkCollectionId == linkCollectionInfoList.entries[i].linkCollectionId)
+      {
+        retval = i;
+        break;
+      }
+    }
+  }
+
+  return retval;
+}
+
+int kankaku_touchpad_append_new_link_collection_info(USHORT linkCollectionId, kankaku_hid_link_collection_info_list* linkCollectionInfoListPtr)
+{
+  int retval = -1;
+
+  kankaku_hid_link_collection_info_list linkCollectionInfoList = (*linkCollectionInfoListPtr);
+
+#pragma region input checking
+  if (kankaku_touchpad_is_link_collection_info_list_not_consistent(linkCollectionInfoList))
+  {
+    fprintf(stderr, "%skankaku_hid_link_collection_info_list is not consistent at %s:%d%s\n", FG_BRIGHT_RED, __FILE__, __LINE__, RESET_COLOR);
+  }
+  else
+#pragma endregion input checking
+  {
+    unsigned int newNumberOfEntries                          = linkCollectionInfoList.size + 1;
+    size_t previousEntriesByteCount                          = sizeof(kankaku_hid_link_collection_info) * linkCollectionInfoList.size;
+    size_t newEntriesByteCount                               = previousEntriesByteCount + sizeof(kankaku_hid_link_collection_info);
+    kankaku_hid_link_collection_info* newLinkCollectionArray = kankaku_utils_malloc_or_die(newEntriesByteCount, __FILE__, __LINE__);
+
+    kankaku_hid_link_collection_info newEntry = {.linkCollectionId = linkCollectionId, .hasX = 0, .hasY = 0, .hasContactID = 0, .hasTipSwitch = 0, .physicalRectangle = {.left = -1, .top = -1, .right = -1, .bottom = -1}};
+
+    if (linkCollectionInfoList.size != 0)
+    {
+      for (unsigned int i = 0; i < linkCollectionInfoList.size; i++)
+      {
+        newLinkCollectionArray[i] = linkCollectionInfoList.entries[i];
+      }
+
+      kankaku_utils_free(linkCollectionInfoList.entries, previousEntriesByteCount, __FILE__, __LINE__);
+    }
+
+    linkCollectionInfoList.entries                              = newLinkCollectionArray;
+    linkCollectionInfoList.entries[linkCollectionInfoList.size] = newEntry;
+    retval                                                      = linkCollectionInfoList.size;
+    linkCollectionInfoList.size                                 = newNumberOfEntries;
+
+    (*linkCollectionInfoListPtr) = linkCollectionInfoList;
+  }
+
+  return retval;
+}
+
+/*
+wrap HidP_GetValueCaps and extract the nessesary "value capabilities" from the device
+*/
+int kankaku_touchpad_parse_value_capability_array(HIDP_CAPS hidCapability, PHIDP_PREPARSED_DATA hidPreparsedData, kankaku_hid_link_collection_info_list* linkCollectionInfoDictPtr)
+{
+  int retval                                                   = 0;
+  kankaku_hid_link_collection_info_list linkCollectionInfoDict = (*linkCollectionInfoDictPtr);
+
+  size_t valueCapabilityArrayByteCount = sizeof(HIDP_VALUE_CAPS) * hidCapability.NumberInputValueCaps;
+
+  PHIDP_VALUE_CAPS toBeFreedValueCapabilityArray = kankaku_utils_malloc_or_die(valueCapabilityArrayByteCount, __FILE__, __LINE__);
+
+  NTSTATUS hidpReturnCode = HidP_GetValueCaps(HidP_Input, toBeFreedValueCapabilityArray, &hidCapability.NumberInputValueCaps, hidPreparsedData);
+
+  if (hidpReturnCode != HIDP_STATUS_SUCCESS)
+  {
+    retval = -1;
+    utils_print_hidp_error(hidpReturnCode, __FILE__, __LINE__);
+  }
+  else
+  {
+    for (USHORT valueCapabilityIndex = 0; valueCapabilityIndex < hidCapability.NumberInputValueCaps; valueCapabilityIndex++)
+    {
+      HIDP_VALUE_CAPS valueCapability = toBeFreedValueCapabilityArray[valueCapabilityIndex];
+
+      // From HID_USAGE_PAGE_GENERIC usage page,
+      // - HID_USAGE_GENERIC_X usage can give us the device's width information
+      // - HID_USAGE_GENERIC_Y usage can give us the device's height information
+
+      // From HID_USAGE_PAGE_DIGITIZER usage page,
+      // - HID_USAGE_DIGITIZER_CONTACT_ID usage // TODO
+      // - HID_USAGE_DIGITIZER_CONTACT_COUNT usage can tell us the maximum number of touches that the device can support
+
+      // All of the mentioned usages are not `IsRange` and are `IsAbsolute` // TODO explain why
+      if ((!valueCapability.IsRange) && valueCapability.IsAbsolute)
+      {
+        // In this value capability array, the elements can have the same `LinkCollection`
+        int linkCollectionIndex = kankaku_touchpad_find_link_collection_info_by_id(valueCapability.LinkCollection, linkCollectionInfoDict);
+        if (linkCollectionIndex < 0)
+        {
+          linkCollectionIndex = kankaku_touchpad_append_new_link_collection_info(valueCapability.LinkCollection, &linkCollectionInfoDict);
+        }
+
+        if (linkCollectionIndex < 0)
+        {
+          fprintf(stderr, "%skankaku_touchpad_append_new_link_collection_info failed at %s:%d%s\n", FG_BRIGHT_RED, __FILE__, __LINE__, RESET_COLOR);
+          retval = -1;
+        }
+        else
+        {
+          kankaku_hid_link_collection_info linkCollectionInfo = linkCollectionInfoDict.entries[linkCollectionIndex];
+
+          if (valueCapability.UsagePage == HID_USAGE_PAGE_GENERIC)
+          {
+            if (valueCapability.NotRange.Usage == HID_USAGE_GENERIC_X)
+            {
+              linkCollectionInfo.hasX                    = 1;
+              linkCollectionInfo.physicalRectangle.left  = valueCapability.PhysicalMin;
+              linkCollectionInfo.physicalRectangle.right = valueCapability.PhysicalMax;
+            }
+            else if (valueCapability.NotRange.Usage == HID_USAGE_GENERIC_Y)
+            {
+              linkCollectionInfo.hasY                     = 1;
+              linkCollectionInfo.physicalRectangle.top    = valueCapability.PhysicalMin;
+              linkCollectionInfo.physicalRectangle.bottom = valueCapability.PhysicalMax;
+            }
+          }
+          else if (valueCapability.UsagePage == HID_USAGE_PAGE_DIGITIZER)
+          {
+            if (valueCapability.NotRange.Usage == HID_USAGE_DIGITIZER_CONTACT_ID)
+            {
+              linkCollectionInfo.hasContactID = 1;
+            }
+          }
+
+          linkCollectionInfoDict.entries[linkCollectionIndex] = linkCollectionInfo;
+        }
+      }
+
+      if (retval)
+      {
+        break;
+      }
+    }
+  }
+
+  (*linkCollectionInfoDictPtr) = linkCollectionInfoDict;
+
+  kankaku_utils_free(toBeFreedValueCapabilityArray, valueCapabilityArrayByteCount, __FILE__, __LINE__);
+
+  return retval;
+}
+
+void print_link_collection_info(kankaku_hid_link_collection_info linkCollectionInfo)
+{
+  printf("- %slinkCollectionId%s: %d\n", FG_BRIGHT_GREEN, RESET_COLOR, linkCollectionInfo.linkCollectionId);
+  printf("- %shasX%s: %d\n", FG_BRIGHT_GREEN, RESET_COLOR, linkCollectionInfo.hasX);
+  printf("- %shasY%s: %d\n", FG_BRIGHT_GREEN, RESET_COLOR, linkCollectionInfo.hasY);
+  printf("- %shasContactID%s: %d\n", FG_BRIGHT_GREEN, RESET_COLOR, linkCollectionInfo.hasContactID);
+  printf("- %shasTipSwitch%s: %d\n", FG_BRIGHT_GREEN, RESET_COLOR, linkCollectionInfo.hasTipSwitch);
+  printf("- %sphysicalRectangle%s: (%d, %d, %d, %d)\n", FG_BRIGHT_GREEN, RESET_COLOR, linkCollectionInfo.physicalRectangle.left, linkCollectionInfo.physicalRectangle.top, linkCollectionInfo.physicalRectangle.right, linkCollectionInfo.physicalRectangle.bottom);
+}
+
 int kankaku_touchpad_parse_available_devices()
 {
   int retval = 0;
@@ -304,8 +486,8 @@ int kankaku_touchpad_parse_available_devices()
       else
       {
         NTSTATUS hidpReturnCode;
-
         HIDP_CAPS caps;
+
         hidpReturnCode = HidP_GetCaps(toBeFreedPreparsedData, &caps);
         if (hidpReturnCode != HIDP_STATUS_SUCCESS)
         {
@@ -318,6 +500,8 @@ int kankaku_touchpad_parse_available_devices()
           // We need some values in both of these "caps". Because of that, we can skip devices which do not have these "caps".
           if ((caps.NumberInputButtonCaps != 0) && (caps.NumberInputValueCaps != 0))
           {
+            kankaku_hid_link_collection_info_list linkCollectionInfoDict = {.entries = NULL, .size = 0};
+
             UINT deviceNameLength;
             TCHAR* toBeFreedDeviceName = NULL;
             size_t deviceNameByteCount;
@@ -329,40 +513,58 @@ int kankaku_touchpad_parse_available_devices()
             }
             else
             {
+              retval = kankaku_touchpad_parse_value_capability_array(caps, toBeFreedPreparsedData, &linkCollectionInfoDict);
+
+              if (retval)
+              {
+                fprintf(stderr, "%skankaku_touchpad_parse_value_capability_array failed at %s:%d%s\n", FG_BRIGHT_RED, __FILE__, __LINE__, RESET_COLOR);
+              }
+              else
+              {
+                size_t buttonCapabilityArrayByteCount            = caps.NumberInputButtonCaps * sizeof(HIDP_BUTTON_CAPS);
+                PHIDP_BUTTON_CAPS toBeFreedButtonCapabilityArray = kankaku_utils_malloc_or_die(buttonCapabilityArrayByteCount, __FILE__, __LINE__);
+
+                for (USHORT buttonCapabilityIndex = 0; buttonCapabilityIndex < caps.NumberInputButtonCaps; buttonCapabilityIndex++)
+                {
+                  HIDP_BUTTON_CAPS buttonCapability = toBeFreedButtonCapabilityArray[buttonCapabilityIndex];
+
+                  if (!buttonCapability.IsRange)
+                  {
+                    if (buttonCapability.UsagePage == HID_USAGE_PAGE_DIGITIZER)
+                    {
+                      if (buttonCapability.NotRange.Usage == HID_USAGE_DIGITIZER_TIP_SWITCH)
+                      {
+                        int linkCollectionIndex = kankaku_touchpad_find_link_collection_info_by_id(buttonCapability.LinkCollection, linkCollectionInfoDict);
+
+                        // WIP
+                      }
+                    }
+                  }
+                }
+                kankaku_utils_free(toBeFreedButtonCapabilityArray, buttonCapabilityArrayByteCount, __FILE__, __LINE__);
+              }
+
+              if (retval)
+              {
+                if (linkCollectionInfoDict.size > 0)
+                {
+                  kankaku_utils_free(linkCollectionInfoDict.entries, sizeof(kankaku_hid_link_collection_info) * linkCollectionInfoDict.size, __FILE__, __LINE__);
+                  linkCollectionInfoDict.entries = NULL;
+                  linkCollectionInfoDict.size    = 0;
+                }
+              }
+
               // TODO write up about device name's usage
               wprintf(toBeFreedDeviceName);
               printf("\n");
-
-              size_t valueCapabilityByteCount = sizeof(HIDP_VALUE_CAPS) * caps.NumberInputValueCaps;
-
-              PHIDP_VALUE_CAPS toBeFreedValueCapabilityArray = kankaku_utils_malloc_or_die(valueCapabilityByteCount, __FILE__, __LINE__);
-
-              hidpReturnCode = HidP_GetValueCaps(HidP_Input, toBeFreedValueCapabilityArray, &caps.NumberInputValueCaps, toBeFreedPreparsedData);
-
-              for (USHORT valueCapabilityIndex = 0; valueCapabilityIndex < caps.NumberInputValueCaps; valueCapabilityIndex++)
-              {
-                HIDP_VALUE_CAPS valueCapability = toBeFreedValueCapabilityArray[valueCapabilityIndex];
-
-                // From HID_USAGE_PAGE_GENERIC usage page,
-                // - HID_USAGE_GENERIC_X usage can give us the device's width information
-                // - HID_USAGE_GENERIC_Y usage can give us the device's height information
-
-                // From HID_USAGE_PAGE_DIGITIZER usage page,
-                // - HID_USAGE_DIGITIZER_CONTACT_ID usage // TODO
-                // - HID_USAGE_DIGITIZER_CONTACT_COUNT usage can tell us the maximum number of touches that the device can support
-
-                // All of the mentioned usages are not `IsRange` and are `IsAbsolute` // TODO explain why
-                if ((!valueCapability.IsRange) && valueCapability.IsAbsolute)
-                {
-                  // In this value capability array, the elements can have the same `LinkCollection`
-                  // WIP
-                  valueCapability.LinkCollection;
-                }
-              }
-              // WIP
-              kankaku_utils_free(toBeFreedValueCapabilityArray, valueCapabilityByteCount, __FILE__, __LINE__);
               // WIP
               kankaku_utils_free(toBeFreedDeviceName, deviceNameByteCount, __FILE__, __LINE__);
+            }
+
+            for (int i = 0; i < linkCollectionInfoDict.size; i++)
+            {
+              printf("===============================\n");
+              print_link_collection_info(linkCollectionInfoDict.entries[i]);
             }
           }
         }

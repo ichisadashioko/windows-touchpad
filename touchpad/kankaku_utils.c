@@ -273,6 +273,5 @@ void kankaku_utils_free(void* ptr, size_t size, char* callerFileLocation, int ca
   {
     free(ptr);
     malloced_memory -= size;
-    ptr = NULL;
   }
 }

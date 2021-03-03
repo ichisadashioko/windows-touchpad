@@ -220,6 +220,7 @@ void main_parse_connected_input_devices()
             }
             else if (cap.NotRange.Usage == HID_USAGE_DIGITIZER_CONTACT_COUNT)
             {
+              // TODO why do we need this information
               g_app_state->device_info_list.Entries[foundHidIdx].ContactCountLinkCollection = cap.LinkCollection;
             }
           }
