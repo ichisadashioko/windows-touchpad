@@ -320,7 +320,7 @@ int kankaku_touchpad_append_new_link_collection_info(USHORT linkCollectionId, ka
     size_t newEntriesByteCount                               = previousEntriesByteCount + sizeof(kankaku_hid_link_collection_info);
     kankaku_hid_link_collection_info* newLinkCollectionArray = kankaku_utils_malloc_or_die(newEntriesByteCount, __FILE__, __LINE__);
 
-    kankaku_hid_link_collection_info newEntry = {.linkCollectionId = linkCollectionId, .hasX = 0, .hasY = 0, .hasContactID = 0, .hasTipSwitch = 0, .physicalRectangle = {.left = -1, .top = -1, .right = -1, .bottom = -1}};
+    kankaku_hid_link_collection_info newEntry = {.linkCollectionId = linkCollectionId, .hasX = 0, .hasY = 0, .hasContactID = 0, .hasTipSwitch = 0, .hasContactCount = 0, .physicalRectangle = {.left = -1, .top = -1, .right = -1, .bottom = -1}};
 
     if (linkCollectionInfoList.size != 0)
     {
@@ -416,6 +416,11 @@ int kankaku_touchpad_parse_value_capability_array(HIDP_CAPS hidCapability, PHIDP
             {
               linkCollectionInfo.hasContactID = 1;
             }
+            else if (valueCapability.NotRange.Usage == HID_USAGE_DIGITIZER_CONTACT_COUNT)
+            {
+              // we need to store this information (the link collection ID) so that when we receive WM_INPUT message, we can use this information with the HidP_GetUsageValue function to get the number of touches in that message
+              linkCollectionInfo.hasContactCount = 1;
+            }
           }
 
           linkCollectionInfoDict.entries[linkCollectionIndex] = linkCollectionInfo;
@@ -444,6 +449,7 @@ void print_link_collection_info(kankaku_hid_link_collection_info linkCollectionI
   printf("- %shasY%s: %d\n", FG_BRIGHT_GREEN, RESET_COLOR, linkCollectionInfo.hasY);
   printf("- %shasContactID%s: %d\n", FG_BRIGHT_GREEN, RESET_COLOR, linkCollectionInfo.hasContactID);
   printf("- %shasTipSwitch%s: %d\n", FG_BRIGHT_GREEN, RESET_COLOR, linkCollectionInfo.hasTipSwitch);
+  printf("- %shasContactCount%s: %d\n", FG_BRIGHT_GREEN, RESET_COLOR, linkCollectionInfo.hasContactCount);
   printf("- %sphysicalRectangle%s: (%d, %d, %d, %d)\n", FG_BRIGHT_GREEN, RESET_COLOR, linkCollectionInfo.physicalRectangle.left, linkCollectionInfo.physicalRectangle.top, linkCollectionInfo.physicalRectangle.right, linkCollectionInfo.physicalRectangle.bottom);
 }
 
@@ -687,22 +693,23 @@ int kankaku_touchpad_parse_available_devices()
                   linkCollectionInfoDict.size    = 0;
                 }
               }
-
-              // filter invalid link collection entries
-              kankaku_touchpad_filter_link_collection_info(&linkCollectionInfoDict);
-              // TODO check link collection array for validation touchpad devices
-              // TODO write up about device name's usage
-              wprintf(toBeFreedDeviceName);
-              printf("\n");
-              // WIP
-              kankaku_utils_free(toBeFreedDeviceName, deviceNameByteCount, __FILE__, __LINE__);
             }
 
+            kankaku_utils_free(toBeFreedDeviceName, deviceNameByteCount, __FILE__, __LINE__);
             for (unsigned int i = 0; i < linkCollectionInfoDict.size; i++)
             {
               printf("===============================\n");
               print_link_collection_info(linkCollectionInfoDict.entries[i]);
             }
+
+            // filter invalid link collection entries
+            kankaku_touchpad_filter_link_collection_info(&linkCollectionInfoDict);
+            // TODO check link collection array for validation touchpad devices
+            // WIP
+
+            // TODO write up about device name's usage
+            wprintf(toBeFreedDeviceName);
+            printf("\n");
           }
         }
         // WIP

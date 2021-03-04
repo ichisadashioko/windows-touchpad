@@ -220,7 +220,7 @@ void main_parse_connected_input_devices()
             }
             else if (cap.NotRange.Usage == HID_USAGE_DIGITIZER_CONTACT_COUNT)
             {
-              // TODO why do we need this information
+              // we need to store this information (the link collection ID) so that when we receive WM_INPUT message, we can use this information with the HidP_GetUsageValue function to get the number of touches in that message
               g_app_state->device_info_list.Entries[foundHidIdx].ContactCountLinkCollection = cap.LinkCollection;
             }
           }

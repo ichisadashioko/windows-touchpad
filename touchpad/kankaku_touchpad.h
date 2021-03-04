@@ -33,6 +33,7 @@ typedef struct
   int hasY;
   int hasContactID;
   int hasTipSwitch;
+  int hasContactCount;
   kankaku_hid_rectangle physicalRectangle;
 } kankaku_hid_link_collection_info;
 
@@ -41,6 +42,15 @@ typedef struct
   kankaku_hid_link_collection_info* entries;
   unsigned int size;
 } kankaku_hid_link_collection_info_list;
+
+typedef struct
+{
+  char* name;
+  unsigned int width;
+  unsigned int height;
+  USHORT contactCountLinkCollectionId;
+  kankaku_hid_link_collection_info_list contactLinkCollectionInfo;
+} kankaku_hid_touchpad;
 
 /*
 wrapper of GetRawInputDeviceInfo with RIDI_DEVICENAME
