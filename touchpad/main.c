@@ -33,40 +33,11 @@ static TCHAR szTitle[]       = _T("F3: start writing - ESC: stop writing - C: cl
 struct ApplicationState
 {
   HID_DEVICE_INFO_LIST device_info_list;
-  TOUCH_DATA_LIST previous_touches;
-  StrokeList strokes;
-  ULONG tracking_touch_id;
-  // flag to toggle drawing state
-  int is_drawing;
-
-  // TODO add option to change the key bindings
-  // TODO add option to add multiple key bindings (array of key bindings for each actions)
-
-  int turn_off_drawing_key_code;
-  int turn_on_drawing_key_code;
-  int export_writing_data_key_code;
-  int quit_application_key_code;
-  int clear_drawing_canvas_key_code;
-  int call_block_input_flag;
-  int call_unblock_input_flag;
 };
 
 typedef struct ApplicationState ApplicationState;
 
 static ApplicationState* g_app_state = NULL;
-
-LRESULT CALLBACK main_block_mouse_input_hook_callback(_In_ int nCode, _In_ WPARAM wParam, _In_ LPARAM lParam)
-{
-  // https://docs.microsoft.com/en-us/previous-versions/windows/desktop/legacy/ms644986(v=vs.85)
-  if (nCode < 0)
-  {
-    return CallNextHookEx(NULL, nCode, wParam, lParam);
-  }
-  else
-  {
-    return -1;
-  }
-}
 
 void main_parse_connected_input_devices()
 {
@@ -319,430 +290,243 @@ void main_handle_wm_create(HWND hwnd, UINT message, WPARAM wParam, LPARAM lParam
 void main_handle_wm_input(HWND hwnd, UINT message, WPARAM wParam, LPARAM lParam)
 {
   clock_t ts = clock();
+  UINT rawInputSize;
+  PRAWINPUT rawInputData = NULL;
 
-  // following guide: https://docs.microsoft.com/en-us/windows/win32/inputdev/using-raw-input#performing-a-standard-read-of-raw-input
+  kankaku_touchpad_get_raw_input_data((HRAWINPUT)lParam, &rawInputSize, (LPVOID*)(&rawInputData));
 
-  // Get the size of RAWINPUT by calling GetRawInputData() with pData = NULL
-
-  if (g_app_state->is_drawing != 0)
+  // Parse the RAWINPUT data.
+  if (rawInputData->header.dwType == RIM_TYPEHID)
   {
-    UINT rawInputSize;
-    PRAWINPUT rawInputData = NULL;
+    // TODO what does `dwCount` represent?
+    DWORD count   = rawInputData->data.hid.dwCount;
+    BYTE* rawData = rawInputData->data.hid.bRawData;
 
-    kankaku_touchpad_get_raw_input_data((HRAWINPUT)lParam, &rawInputSize, (LPVOID*)(&rawInputData));
-
-    // Parse the RAWINPUT data.
-    if (rawInputData->header.dwType == RIM_TYPEHID)
+    if (count != 0)
     {
-      // TODO what does `dwCount` represent?
-      DWORD count   = rawInputData->data.hid.dwCount;
-      BYTE* rawData = rawInputData->data.hid.bRawData;
+      UINT deviceNameLength;
+      TCHAR* deviceName = NULL;
+      size_t cbDeviceName;
 
-      if (count != 0)
+      kankaku_touchpad_get_raw_input_device_name(rawInputData->header.hDevice, &deviceName, &deviceNameLength, &cbDeviceName);
+
+      unsigned int foundHidIdx = (unsigned int)-1;
+
+      int isTouchpadsNull              = (g_app_state->device_info_list.Entries == NULL);
+      int isTouchpadsRecordedSizeEmpty = (g_app_state->device_info_list.Size == 0);
+      if (isTouchpadsNull || isTouchpadsRecordedSizeEmpty)
       {
-        UINT deviceNameLength;
-        TCHAR* deviceName = NULL;
-        size_t cbDeviceName;
-
-        kankaku_touchpad_get_raw_input_device_name(rawInputData->header.hDevice, &deviceName, &deviceNameLength, &cbDeviceName);
-
-        unsigned int foundHidIdx = (unsigned int)-1;
-
-        int isTouchpadsNull              = (g_app_state->device_info_list.Entries == NULL);
-        int isTouchpadsRecordedSizeEmpty = (g_app_state->device_info_list.Size == 0);
-        if (isTouchpadsNull || isTouchpadsRecordedSizeEmpty)
+        // TODO parse new connected device data
+      }
+      else
+      {
+        for (unsigned int touchpadIndex = 0; touchpadIndex < g_app_state->device_info_list.Size; touchpadIndex++)
         {
-          // TODO parse new connected device data
+          int compareNameResult = _tcscmp(deviceName, g_app_state->device_info_list.Entries[touchpadIndex].Name);
+          if (compareNameResult == 0)
+          {
+            foundHidIdx = touchpadIndex;
+            break;
+          }
+        }
+      }
+
+      if (foundHidIdx == (unsigned int)-1)
+      {
+        // TODO parse new connected device data
+      }
+      else
+      {
+        int isLinkColArrayNull  = (g_app_state->device_info_list.Entries[foundHidIdx].LinkColInfoList.Entries == NULL);
+        int isLinkColArrayEmpty = (g_app_state->device_info_list.Entries[foundHidIdx].LinkColInfoList.Size == 0);
+        int isPreparsedDataNull = (g_app_state->device_info_list.Entries[foundHidIdx].PreparedData == NULL);
+
+        if (isLinkColArrayNull || isLinkColArrayEmpty)
+        {
+          printf(FG_RED);
+          printf("Cannot find any LinkCollection(s). Try parse the PREPARED_DATA may help. TODO\n");
+          printf(RESET_COLOR);
+        }
+        else if (isPreparsedDataNull)
+        {
+          printf(FG_RED);
+          printf("Cannot find PreparsedData at %s:%d\n", __FILE__, __LINE__);
+          printf(RESET_COLOR);
         }
         else
         {
-          for (unsigned int touchpadIndex = 0; touchpadIndex < g_app_state->device_info_list.Size; touchpadIndex++)
-          {
-            int compareNameResult = _tcscmp(deviceName, g_app_state->device_info_list.Entries[touchpadIndex].Name);
-            if (compareNameResult == 0)
-            {
-              foundHidIdx = touchpadIndex;
-              break;
-            }
-          }
-        }
+#ifdef LOG_EVERY_INPUT_MESSAGES
+          printf("[%d]", ts);
+#endif
+          NTSTATUS hidpReturnCode;
+          ULONG usageValue;
 
-        if (foundHidIdx == (unsigned int)-1)
-        {
-          // TODO parse new connected device data
-        }
-        else
-        {
-          int isLinkColArrayNull  = (g_app_state->device_info_list.Entries[foundHidIdx].LinkColInfoList.Entries == NULL);
-          int isLinkColArrayEmpty = (g_app_state->device_info_list.Entries[foundHidIdx].LinkColInfoList.Size == 0);
-          int isPreparsedDataNull = (g_app_state->device_info_list.Entries[foundHidIdx].PreparedData == NULL);
+          PHIDP_PREPARSED_DATA preparsedHIDData = g_app_state->device_info_list.Entries[foundHidIdx].PreparedData;
 
-          if (isLinkColArrayNull || isLinkColArrayEmpty)
+          if (g_app_state->device_info_list.Entries[foundHidIdx].ContactCountLinkCollection == (USHORT)-1)
           {
             printf(FG_RED);
-            printf("Cannot find any LinkCollection(s). Try parse the PREPARED_DATA may help. TODO\n");
-            printf(RESET_COLOR);
-          }
-          else if (isPreparsedDataNull)
-          {
-            printf(FG_RED);
-            printf("Cannot find PreparsedData at %s:%d\n", __FILE__, __LINE__);
+            printf("Cannot find contact count Link Collection!\n");
             printf(RESET_COLOR);
           }
           else
           {
-#ifdef LOG_EVERY_INPUT_MESSAGES
-            printf("[%d]", ts);
-#endif
-            NTSTATUS hidpReturnCode;
-            ULONG usageValue;
+            hidpReturnCode = HidP_GetUsageValue(HidP_Input, HID_USAGE_PAGE_DIGITIZER, g_app_state->device_info_list.Entries[foundHidIdx].ContactCountLinkCollection, HID_USAGE_DIGITIZER_CONTACT_COUNT, &usageValue, preparsedHIDData, (PCHAR)rawInputData->data.hid.bRawData, rawInputData->data.hid.dwSizeHid);
 
-            PHIDP_PREPARSED_DATA preparsedHIDData = g_app_state->device_info_list.Entries[foundHidIdx].PreparedData;
-
-            if (g_app_state->device_info_list.Entries[foundHidIdx].ContactCountLinkCollection == (USHORT)-1)
+            if (hidpReturnCode != HIDP_STATUS_SUCCESS)
             {
               printf(FG_RED);
-              printf("Cannot find contact count Link Collection!\n");
+              printf("Failed to read number of contacts!\n");
               printf(RESET_COLOR);
+              utils_print_hidp_error(hidpReturnCode, __FILE__, __LINE__);
+              exit(-1);
+            }
+
+            ULONG numContacts = usageValue;
+
+#ifdef LOG_EVERY_INPUT_MESSAGES
+            printf(FG_BRIGHT_BLUE);
+            printf("numContacts: %d\n", numContacts);
+            printf(RESET_COLOR);
+#endif
+
+            if (numContacts > g_app_state->device_info_list.Entries[foundHidIdx].LinkColInfoList.Size)
+            {
+              // TODO how should we deal with this edge case
+              printf(FG_RED);
+              printf("number of contacts is greater than Link Collection Array size at %s:%d\n", __FILE__, __LINE__);
+              printf(RESET_COLOR);
+              exit(-1);
             }
             else
             {
-              hidpReturnCode = HidP_GetUsageValue(HidP_Input, HID_USAGE_PAGE_DIGITIZER, g_app_state->device_info_list.Entries[foundHidIdx].ContactCountLinkCollection, HID_USAGE_DIGITIZER_CONTACT_COUNT, &usageValue, preparsedHIDData, (PCHAR)rawInputData->data.hid.bRawData, rawInputData->data.hid.dwSizeHid);
-
-              if (hidpReturnCode != HIDP_STATUS_SUCCESS)
+              for (unsigned int linkColIdx = 0; linkColIdx < numContacts; linkColIdx++)
               {
-                printf(FG_RED);
-                printf("Failed to read number of contacts!\n");
-                printf(RESET_COLOR);
-                utils_print_hidp_error(hidpReturnCode, __FILE__, __LINE__);
-                exit(-1);
-              }
+                kankaku_link_collection_info collectionInfo = g_app_state->device_info_list.Entries[foundHidIdx].LinkColInfoList.Entries[linkColIdx];
 
-              ULONG numContacts = usageValue;
-
-#ifdef LOG_EVERY_INPUT_MESSAGES
-              printf(FG_BRIGHT_BLUE);
-              printf("numContacts: %d\n", numContacts);
-              printf(RESET_COLOR);
-#endif
-
-              if (numContacts > g_app_state->device_info_list.Entries[foundHidIdx].LinkColInfoList.Size)
-              {
-                // TODO how should we deal with this edge case
-                printf(FG_RED);
-                printf("number of contacts is greater than Link Collection Array size at %s:%d\n", __FILE__, __LINE__);
-                printf(RESET_COLOR);
-                exit(-1);
-              }
-              else
-              {
-                for (unsigned int linkColIdx = 0; linkColIdx < numContacts; linkColIdx++)
+                if (collectionInfo.HasX && collectionInfo.HasY && collectionInfo.HasContactID && collectionInfo.HasTipSwitch)
                 {
-                  kankaku_link_collection_info collectionInfo = g_app_state->device_info_list.Entries[foundHidIdx].LinkColInfoList.Entries[linkColIdx];
+                  hidpReturnCode = HidP_GetUsageValue(HidP_Input, 0x01, collectionInfo.LinkColID, 0x30, &usageValue, preparsedHIDData, (PCHAR)rawInputData->data.hid.bRawData, rawInputData->data.hid.dwSizeHid);
 
-                  if (collectionInfo.HasX && collectionInfo.HasY && collectionInfo.HasContactID && collectionInfo.HasTipSwitch)
+                  if (hidpReturnCode != HIDP_STATUS_SUCCESS)
                   {
-                    hidpReturnCode = HidP_GetUsageValue(HidP_Input, 0x01, collectionInfo.LinkColID, 0x30, &usageValue, preparsedHIDData, (PCHAR)rawInputData->data.hid.bRawData, rawInputData->data.hid.dwSizeHid);
+                    fprintf(stderr, "%sFailed to read x position!%s\n", FG_RED, RESET_COLOR);
+                    utils_print_hidp_error(hidpReturnCode, __FILE__, __LINE__);
+                    exit(-1);
+                  }
 
-                    if (hidpReturnCode != HIDP_STATUS_SUCCESS)
+                  ULONG xPos = usageValue;
+
+                  hidpReturnCode = HidP_GetUsageValue(HidP_Input, 0x01, collectionInfo.LinkColID, 0x31, &usageValue, preparsedHIDData, (PCHAR)rawInputData->data.hid.bRawData, rawInputData->data.hid.dwSizeHid);
+                  if (hidpReturnCode != HIDP_STATUS_SUCCESS)
+                  {
+                    printf(FG_RED);
+                    printf("Failed to read y position!\n");
+                    printf(RESET_COLOR);
+                    utils_print_hidp_error(hidpReturnCode, __FILE__, __LINE__);
+                    exit(-1);
+                  }
+
+                  ULONG yPos = usageValue;
+
+                  hidpReturnCode = HidP_GetUsageValue(HidP_Input, HID_USAGE_PAGE_DIGITIZER, collectionInfo.LinkColID, HID_USAGE_DIGITIZER_CONTACT_ID, &usageValue, preparsedHIDData, (PCHAR)rawInputData->data.hid.bRawData, rawInputData->data.hid.dwSizeHid);
+                  if (hidpReturnCode != HIDP_STATUS_SUCCESS)
+                  {
+                    printf(FG_RED);
+                    printf("Failed to read touch ID!\n");
+                    printf(RESET_COLOR);
+                    utils_print_hidp_error(hidpReturnCode, __FILE__, __LINE__);
+                    exit(-1);
+                  }
+
+                  ULONG touchId = usageValue;
+
+                  const ULONG maxNumButtons = HidP_MaxUsageListLength(HidP_Input, HID_USAGE_PAGE_DIGITIZER, preparsedHIDData);
+
+                  ULONG _maxNumButtons = maxNumButtons;
+
+                  USAGE* buttonUsageArray = (USAGE*)kankaku_utils_malloc_or_die(sizeof(USAGE) * maxNumButtons, __FILE__, __LINE__);
+
+                  hidpReturnCode = HidP_GetUsages(HidP_Input, HID_USAGE_PAGE_DIGITIZER, collectionInfo.LinkColID, buttonUsageArray, &_maxNumButtons, preparsedHIDData, (PCHAR)rawInputData->data.hid.bRawData, rawInputData->data.hid.dwSizeHid);
+
+                  if (hidpReturnCode != HIDP_STATUS_SUCCESS)
+                  {
+                    printf(FG_RED);
+                    printf("HidP_GetUsages failed!\n");
+                    printf(RESET_COLOR);
+                    utils_print_hidp_error(hidpReturnCode, __FILE__, __LINE__);
+                    exit(-1);
+                  }
+
+                  int isContactOnSurface = 0;
+
+                  for (ULONG usageIdx = 0; usageIdx < maxNumButtons; usageIdx++)
+                  {
+                    if (buttonUsageArray[usageIdx] == HID_USAGE_DIGITIZER_TIP_SWITCH)
                     {
-                      fprintf(stderr, "%sFailed to read x position!%s\n", FG_RED, RESET_COLOR);
-                      utils_print_hidp_error(hidpReturnCode, __FILE__, __LINE__);
-                      exit(-1);
+                      isContactOnSurface = 1;
+                      break;
                     }
+                  }
 
-                    ULONG xPos = usageValue;
+                  free(buttonUsageArray);
 
-                    hidpReturnCode = HidP_GetUsageValue(HidP_Input, 0x01, collectionInfo.LinkColID, 0x31, &usageValue, preparsedHIDData, (PCHAR)rawInputData->data.hid.bRawData, rawInputData->data.hid.dwSizeHid);
-                    if (hidpReturnCode != HIDP_STATUS_SUCCESS)
-                    {
-                      printf(FG_RED);
-                      printf("Failed to read y position!\n");
-                      printf(RESET_COLOR);
-                      utils_print_hidp_error(hidpReturnCode, __FILE__, __LINE__);
-                      exit(-1);
-                    }
+                  TOUCH_DATA curTouch;
+                  curTouch.TouchID   = touchId;
+                  curTouch.X         = xPos;
+                  curTouch.Y         = yPos;
+                  curTouch.OnSurface = isContactOnSurface;
 
-                    ULONG yPos = usageValue;
-
-                    hidpReturnCode = HidP_GetUsageValue(HidP_Input, HID_USAGE_PAGE_DIGITIZER, collectionInfo.LinkColID, HID_USAGE_DIGITIZER_CONTACT_ID, &usageValue, preparsedHIDData, (PCHAR)rawInputData->data.hid.bRawData, rawInputData->data.hid.dwSizeHid);
-                    if (hidpReturnCode != HIDP_STATUS_SUCCESS)
-                    {
-                      printf(FG_RED);
-                      printf("Failed to read touch ID!\n");
-                      printf(RESET_COLOR);
-                      utils_print_hidp_error(hidpReturnCode, __FILE__, __LINE__);
-                      exit(-1);
-                    }
-
-                    ULONG touchId = usageValue;
-
-                    const ULONG maxNumButtons = HidP_MaxUsageListLength(HidP_Input, HID_USAGE_PAGE_DIGITIZER, preparsedHIDData);
-
-                    ULONG _maxNumButtons = maxNumButtons;
-
-                    USAGE* buttonUsageArray = (USAGE*)kankaku_utils_malloc_or_die(sizeof(USAGE) * maxNumButtons, __FILE__, __LINE__);
-
-                    hidpReturnCode = HidP_GetUsages(HidP_Input, HID_USAGE_PAGE_DIGITIZER, collectionInfo.LinkColID, buttonUsageArray, &_maxNumButtons, preparsedHIDData, (PCHAR)rawInputData->data.hid.bRawData, rawInputData->data.hid.dwSizeHid);
-
-                    if (hidpReturnCode != HIDP_STATUS_SUCCESS)
-                    {
-                      printf(FG_RED);
-                      printf("HidP_GetUsages failed!\n");
-                      printf(RESET_COLOR);
-                      utils_print_hidp_error(hidpReturnCode, __FILE__, __LINE__);
-                      exit(-1);
-                    }
-
-                    int isContactOnSurface = 0;
-
-                    for (ULONG usageIdx = 0; usageIdx < maxNumButtons; usageIdx++)
-                    {
-                      if (buttonUsageArray[usageIdx] == HID_USAGE_DIGITIZER_TIP_SWITCH)
-                      {
-                        isContactOnSurface = 1;
-                        break;
-                      }
-                    }
-
-                    free(buttonUsageArray);
-
-                    TOUCH_DATA curTouch;
-                    curTouch.TouchID   = touchId;
-                    curTouch.X         = xPos;
-                    curTouch.Y         = yPos;
-                    curTouch.OnSurface = isContactOnSurface;
-
-                    unsigned int touchType;
-                    int cStyleFunctionReturnCode = kankaku_touchevents_interpret_event_type(&g_app_state->previous_touches, curTouch, &touchType);
-                    if (cStyleFunctionReturnCode != 0)
-                    {
-                      fprintf(stderr, "%skankaku_touchevents_interpret_event_type failed at %s:%d%s\n", FG_RED, __FILE__, __LINE__, RESET_COLOR);
-                      exit(-1);
-                    }
-
-                    Point2D touchPos = (Point2D){.X = curTouch.X, .Y = curTouch.Y};
-
-                    if (g_app_state->tracking_touch_id == (ULONG)-1)
-                    {
-                      if (touchType == EVENT_TYPE_TOUCH_DOWN)
-                      {
-                        g_app_state->tracking_touch_id = curTouch.TouchID;
-                        // TODO check return value for indication of errors
-                        kankaku_stroke_add_point(touchPos, &g_app_state->strokes, 1, 1);
-                      }
-                      else
-                      {
-                        // skip this and wait for touch down event to register new stroke
-                      }
-                    }
-                    else if (curTouch.TouchID == g_app_state->tracking_touch_id)
-                    {
-                      if (touchType == EVENT_TYPE_TOUCH_MOVE)
-                      {
-                        // we skip EVENT_TYPE_TOUCH_MOVE_UNCHANGED here
-                        // TASK append touch position to the last stroke
-
-                        int isCollectionEmpty = (g_app_state->strokes.Entries == NULL) || (g_app_state->strokes.Size == 0);
-
-                        if (isCollectionEmpty)
-                        {
-                          // TODO handle broken state
-                          fprintf(stderr, "%sBROKEN_STATE The stroke list (in global state) should not be empty at %s:%d%s", FG_RED, __FILE__, __LINE__, RESET_COLOR);
-                          exit(-1);
-                        }
-                        else
-                        {
-                          // TODO check return value for indication of errors
-                          kankaku_point2d_append_element(touchPos, &g_app_state->strokes.Entries[g_app_state->strokes.Size - 1]);
-
-                          Point2DList stroke = g_app_state->strokes.Entries[g_app_state->strokes.Size - 1];
-                          if (stroke.Size < 2)
-                          {
-                            // TODO handle broken state
-                            fprintf(stderr, "%sBROKEN_STATE The latest stroke (in global state) should have at least 2 points at %s:%d%s", FG_RED, __FILE__, __LINE__, RESET_COLOR);
-                            exit(-1);
-                          }
-                          else
-                          {
-                            // TASK incrementally render new input
-                            HDC hdc        = GetDC(hwnd);
-                            HPEN strokePen = CreatePen(PS_SOLID, 20, RGB(255, 255, 255));
-                            SelectObject(hdc, strokePen);
-                            MoveToEx(hdc, (int)stroke.Entries[stroke.Size - 2].X, (int)stroke.Entries[stroke.Size - 2].Y, (LPPOINT)NULL);
-                            LineTo(hdc, (int)stroke.Entries[stroke.Size - 1].X, (int)stroke.Entries[stroke.Size - 1].Y);
-                            ReleaseDC(hwnd, hdc);
-                          }
-                        }
-                      }
-                      else if (touchType == EVENT_TYPE_TOUCH_UP)
-                      {
-                        // I sure that the touch position is the same with the last touch position
-                        g_app_state->tracking_touch_id = (ULONG)-1;
-                      }
-                    }
+                  Point2D touchPos = (Point2D){.X = curTouch.X, .Y = curTouch.Y};
 
 #ifdef LOG_EVERY_INPUT_MESSAGES
-                    const char* touchTypeStr;
+                  const char* touchTypeStr;
 
-                    if (touchType == EVENT_TYPE_TOUCH_UP)
-                    {
-                      touchTypeStr = "touch up";
-                    }
-                    else if (touchType == EVENT_TYPE_TOUCH_MOVE)
-                    {
-                      touchTypeStr = "touch move";
-                    }
-                    else if (touchType == EVENT_TYPE_TOUCH_DOWN)
-                    {
-                      touchTypeStr = "touch down";
-                    }
-                    else if (touchType == EVENT_TYPE_TOUCH_MOVE_UNCHANGED)
-                    {
-                      touchTypeStr = "touch move unchanged";
-                    }
-                    else
-                    {
-                      printf(FG_RED);
-                      printf("unknown event type: %d\n", touchType);
-                      printf(RESET_COLOR);
-                      exit(-1);
-                    }
-
-                    printf(FG_GREEN);
-                    printf("LinkColId: %d, touchID: %d, tipSwitch: %d, position: (%d, %d), eventType: %s\n", collectionInfo.LinkColID, touchId, isContactOnSurface, xPos, yPos, touchTypeStr);
-                    printf(RESET_COLOR);
-#endif
+                  if (touchType == EVENT_TYPE_TOUCH_UP)
+                  {
+                    touchTypeStr = "touch up";
                   }
+                  else if (touchType == EVENT_TYPE_TOUCH_MOVE)
+                  {
+                    touchTypeStr = "touch move";
+                  }
+                  else if (touchType == EVENT_TYPE_TOUCH_DOWN)
+                  {
+                    touchTypeStr = "touch down";
+                  }
+                  else if (touchType == EVENT_TYPE_TOUCH_MOVE_UNCHANGED)
+                  {
+                    touchTypeStr = "touch move unchanged";
+                  }
+                  else
+                  {
+                    printf(FG_RED);
+                    printf("unknown event type: %d\n", touchType);
+                    printf(RESET_COLOR);
+                    exit(-1);
+                  }
+
+                  printf(FG_GREEN);
+                  printf("LinkColId: %d, touchID: %d, tipSwitch: %d, position: (%d, %d), eventType: %s\n", collectionInfo.LinkColID, touchId, isContactOnSurface, xPos, yPos, touchTypeStr);
+                  printf(RESET_COLOR);
+#endif
                 }
               }
             }
           }
-
-          free(deviceName);
         }
-      }
 
-      free(rawInputData);
+        free(deviceName);
+      }
     }
+
+    free(rawInputData);
   }
 }
 
 void main_handle_wm_resize(_In_ HWND hwnd, _In_ UINT uMsg, _In_ WPARAM wParam, _In_ LPARAM lParam)
 {
   InvalidateRect(hwnd, NULL, FALSE);
-}
-
-void main_handle_wm_paint(_In_ HWND hwnd, _In_ UINT uMsg, _In_ WPARAM wParam, _In_ LPARAM lParam)
-{
-  // clock_t ts = clock();
-  HDC hdc;
-  PAINTSTRUCT ps;
-  RECT rc;
-
-  GetClientRect(hwnd, &rc);
-
-  if (rc.bottom == 0)
-  {
-    return;
-  }
-
-  hdc = BeginPaint(hwnd, &ps);
-
-  // draw black background
-  HBRUSH bgBrush = CreateSolidBrush(RGB(0, 0, 0));
-  FillRect(hdc, &rc, bgBrush);
-
-  // TODO change color for every strokes
-  HPEN strokePen = CreatePen(PS_SOLID, 20, RGB(255, 255, 255));
-  SelectObject(hdc, strokePen);
-
-  if ((g_app_state->strokes.Entries != NULL) && (g_app_state->strokes.Size != 0))
-  {
-    for (unsigned int strokeIdx = 0; strokeIdx < g_app_state->strokes.Size; strokeIdx++)
-    {
-      // TODO change rendering color for each strokes
-      Point2DList strokeData = g_app_state->strokes.Entries[strokeIdx];
-      if (strokeData.Size < 2)
-      {
-        // TODO improve rendering strokes logic
-        continue;
-      }
-      else
-      {
-        MoveToEx(hdc, (int)strokeData.Entries[0].X, (int)strokeData.Entries[0].Y, (LPPOINT)NULL);
-
-        for (unsigned int pointIdx = 1; pointIdx < strokeData.Size; pointIdx++)
-        {
-          LineTo(hdc, (int)strokeData.Entries[pointIdx].X, (int)strokeData.Entries[pointIdx].Y);
-        }
-      }
-    }
-  }
-
-  EndPaint(hwnd, &ps);
-}
-
-void main_handle_wm_keyup(_In_ HWND hwnd, _In_ UINT uMsg, _In_ WPARAM wParam, _In_ LPARAM lParam)
-{
-  clock_t ts = clock();
-
-  printf(FG_GREEN);
-  printf("[%d] WM_KEYUP: %I64u\n", ts, wParam);
-  printf(RESET_COLOR);
-
-  int virtual_key_code = (int)wParam;
-  if (virtual_key_code == g_app_state->turn_off_drawing_key_code)
-  {
-    g_app_state->is_drawing = 0;
-
-    g_app_state->call_unblock_input_flag = 1;
-  }
-  else if (virtual_key_code == g_app_state->turn_on_drawing_key_code)
-  {
-    g_app_state->is_drawing = 1;
-
-    g_app_state->call_block_input_flag = 1;
-  }
-  else if (virtual_key_code == g_app_state->clear_drawing_canvas_key_code)
-  {
-    g_app_state->tracking_touch_id = (ULONG)-1;
-
-    if (g_app_state->previous_touches.Entries != NULL)
-    {
-      free(g_app_state->previous_touches.Entries);
-      g_app_state->previous_touches.Entries = NULL;
-      g_app_state->previous_touches.Size    = 0;
-    }
-
-    if (g_app_state->strokes.Entries != NULL)
-    {
-      for (unsigned int strokeIdx = 0; strokeIdx < g_app_state->strokes.Size; strokeIdx++)
-      {
-        Point2DList stroke = g_app_state->strokes.Entries[strokeIdx];
-        if (stroke.Entries != NULL)
-        {
-          free(stroke.Entries);
-          stroke.Entries = NULL;
-          stroke.Size    = 0;
-        }
-      }
-
-      free(g_app_state->strokes.Entries);
-      g_app_state->strokes.Entries = NULL;
-      g_app_state->strokes.Size    = 0;
-    }
-
-    InvalidateRect(hwnd, NULL, FALSE);
-  }
-  else if (virtual_key_code == g_app_state->export_writing_data_key_code)
-  {
-    printf("Unimplemented export image feature!\n");
-  }
-  else if (virtual_key_code == g_app_state->quit_application_key_code)
-  {
-    PostQuitMessage(0);
-  }
 }
 
 LRESULT CALLBACK main_process_window_message(_In_ HWND hwnd, _In_ UINT uMsg, _In_ WPARAM wParam, _In_ LPARAM lParam)
@@ -759,28 +543,6 @@ LRESULT CALLBACK main_process_window_message(_In_ HWND hwnd, _In_ UINT uMsg, _In
     case WM_INPUT:
     {
       main_handle_wm_input(hwnd, uMsg, wParam, lParam);
-      break;
-    }
-    case WM_PAINT:
-    {
-      main_handle_wm_paint(hwnd, uMsg, wParam, lParam);
-      break;
-    }
-    case WM_SIZE:
-    {
-      main_handle_wm_resize(hwnd, uMsg, wParam, lParam);
-      break;
-    }
-    case WM_KEYUP:
-    {
-      main_handle_wm_keyup(hwnd, uMsg, wParam, lParam);
-      break;
-    }
-    case WM_SYSKEYUP:
-    {
-      printf(FG_GREEN);
-      printf("[%d] WM_SYSKEYUP: %I64u\n", ts, wParam);
-      printf(RESET_COLOR);
       break;
     }
     case WM_DESTROY:
@@ -893,61 +655,19 @@ int CALLBACK main_winmain(_In_ HINSTANCE hInstance, _In_opt_ HINSTANCE hPrevInst
   ShowWindow(hwnd, nCmdShow);
   UpdateWindow(hwnd);
 
-  HOOKPROC llMouseHookProc = main_block_mouse_input_hook_callback;
-  HHOOK llMouseHookHandle  = NULL;
-
   // BOOL block_input_retval;
   MSG msg;
   while (GetMessage(&msg, NULL, 0, 0))
   {
     TranslateMessage(&msg);
     DispatchMessage(&msg);
-
-    if (g_app_state->call_block_input_flag != 0)
-    {
-      if (llMouseHookHandle == NULL)
-      {
-        llMouseHookHandle = SetWindowsHookEx(WH_MOUSE_LL, llMouseHookProc, NULL, 0);
-      }
-
-      SetCursor(NULL);
-
-      g_app_state->call_block_input_flag = 0;
-    }
-    else if (g_app_state->call_unblock_input_flag != 0)
-    {
-      if (llMouseHookHandle != NULL)
-      {
-        UnhookWindowsHookEx(llMouseHookHandle);
-        llMouseHookHandle = NULL;
-      }
-
-      g_app_state->call_unblock_input_flag = 0;
-    }
   }
 
   return (int)msg.wParam;
 }
 
-void kankaku_print_help()
-{
-  printf("kankaku - a software allows you to do handwriting with your touchpad.\n");
-  printf("\n");
-  printf("keyboard shortcuts\n");
-  printf("- F3 (while in focus)     start capturing touchpad input and block mouse input\n");
-  printf("- ESC (while in focus)    stop capturing touchpad input and unblock mouse input\n");
-  printf("- c (while in focus)      clear the canvas\n");
-  printf("- q (while in focus)      quit the application\n");
-  printf("- s (while in focus)      export writing data (TODO)\n");
-  printf("\n");
-}
-
 int main()
 {
-  kankaku_print_help();
-
-  kankaku_tensorflow_hello_world();
-
   // testing wip function
   kankaku_touchpad_parse_available_devices();
 
@@ -958,19 +678,6 @@ int main()
   g_app_state = (ApplicationState*)kankaku_utils_malloc_or_die(sizeof(ApplicationState), __FILE__, __LINE__);
 
   g_app_state->device_info_list  = (HID_DEVICE_INFO_LIST){.Entries = NULL, .Size = 0};
-  g_app_state->previous_touches  = (TOUCH_DATA_LIST){.Entries = NULL, .Size = 0};
-  g_app_state->strokes           = (StrokeList){.Entries = NULL, .Size = 0};
-  g_app_state->tracking_touch_id = -1;
-  g_app_state->is_drawing        = 0;
-
-  g_app_state->turn_off_drawing_key_code     = VK_ESCAPE;
-  g_app_state->turn_on_drawing_key_code      = VK_F3;
-  g_app_state->quit_application_key_code     = VK_Q_KEY;
-  g_app_state->export_writing_data_key_code  = VK_S_KEY;
-  g_app_state->clear_drawing_canvas_key_code = VK_C_KEY;
-
-  g_app_state->call_block_input_flag   = 0;
-  g_app_state->call_unblock_input_flag = 0;
 
   main_parse_connected_input_devices();
 
