@@ -17,10 +17,6 @@
 #include "kankaku_touchevents.h"
 #include "kankaku_point2d.h"
 #include "kankaku_stroke.h"
-#include "kankaku_tensorflow.h"
-
-#define LOG_EVERY_INPUT_MESSAGES
-#undef LOG_EVERY_INPUT_MESSAGES
 
 static TCHAR szWindowClass[] = _T("DesktopApp");
 static TCHAR szTitle[]       = _T("F3: start writing - ESC: stop writing - C: clear - Q: close the application");
@@ -355,9 +351,7 @@ void main_handle_wm_input(HWND hwnd, UINT message, WPARAM wParam, LPARAM lParam)
         }
         else
         {
-#ifdef LOG_EVERY_INPUT_MESSAGES
           printf("[%d]", ts);
-#endif
           NTSTATUS hidpReturnCode;
           ULONG usageValue;
 
@@ -384,11 +378,9 @@ void main_handle_wm_input(HWND hwnd, UINT message, WPARAM wParam, LPARAM lParam)
 
             ULONG numContacts = usageValue;
 
-#ifdef LOG_EVERY_INPUT_MESSAGES
             printf(FG_BRIGHT_BLUE);
             printf("numContacts: %d\n", numContacts);
             printf(RESET_COLOR);
-#endif
 
             if (numContacts > g_app_state->device_info_list.Entries[foundHidIdx].LinkColInfoList.Size)
             {
@@ -479,37 +471,9 @@ void main_handle_wm_input(HWND hwnd, UINT message, WPARAM wParam, LPARAM lParam)
 
                   Point2D touchPos = (Point2D){.X = curTouch.X, .Y = curTouch.Y};
 
-#ifdef LOG_EVERY_INPUT_MESSAGES
-                  const char* touchTypeStr;
-
-                  if (touchType == EVENT_TYPE_TOUCH_UP)
-                  {
-                    touchTypeStr = "touch up";
-                  }
-                  else if (touchType == EVENT_TYPE_TOUCH_MOVE)
-                  {
-                    touchTypeStr = "touch move";
-                  }
-                  else if (touchType == EVENT_TYPE_TOUCH_DOWN)
-                  {
-                    touchTypeStr = "touch down";
-                  }
-                  else if (touchType == EVENT_TYPE_TOUCH_MOVE_UNCHANGED)
-                  {
-                    touchTypeStr = "touch move unchanged";
-                  }
-                  else
-                  {
-                    printf(FG_RED);
-                    printf("unknown event type: %d\n", touchType);
-                    printf(RESET_COLOR);
-                    exit(-1);
-                  }
-
                   printf(FG_GREEN);
-                  printf("LinkColId: %d, touchID: %d, tipSwitch: %d, position: (%d, %d), eventType: %s\n", collectionInfo.LinkColID, touchId, isContactOnSurface, xPos, yPos, touchTypeStr);
+                  printf("LinkColId: %d, touchID: %d, tipSwitch: %d, position: (%d, %d)\n", collectionInfo.LinkColID, touchId, isContactOnSurface, xPos, yPos);
                   printf(RESET_COLOR);
-#endif
                 }
               }
             }
@@ -565,8 +529,8 @@ int CALLBACK main_winmain(_In_ HINSTANCE hInstance, _In_opt_ HINSTANCE hPrevInst
 
   // default window width and height values
 
-  int nWidth  = 720;
-  int nHeight = 480;
+  int nWidth  = -1;
+  int nHeight = -1;
 
   HID_DEVICE_INFO* inputDevices = g_app_state->device_info_list.Entries;
   unsigned int numInputDevices  = g_app_state->device_info_list.Size;
@@ -639,7 +603,7 @@ int CALLBACK main_winmain(_In_ HINSTANCE hInstance, _In_opt_ HINSTANCE hPrevInst
     return -1;
   }
 
-  HWND hwnd = CreateWindow(szWindowClass, szTitle, WS_OVERLAPPEDWINDOW | WS_EX_LAYERED, CW_USEDEFAULT, CW_USEDEFAULT, nWidth, nHeight, NULL, NULL, hInstance, NULL);
+  HWND hwnd = CreateWindow(szWindowClass, szTitle, WS_OVERLAPPEDWINDOW | WS_EX_LAYERED, CW_USEDEFAULT, CW_USEDEFAULT, 0, 0, NULL, NULL, hInstance, NULL);
 
   if (!hwnd)
   {
@@ -648,14 +612,9 @@ int CALLBACK main_winmain(_In_ HINSTANCE hInstance, _In_opt_ HINSTANCE hPrevInst
     return -1;
   }
 
-  // make the window transparent
-  SetWindowLong(hwnd, GWL_EXSTYLE, GetWindowLong(hwnd, GWL_EXSTYLE) | WS_EX_LAYERED);
-  SetLayeredWindowAttributes(hwnd, RGB(0, 0, 0), 255, LWA_ALPHA | LWA_COLORKEY);
-
   ShowWindow(hwnd, nCmdShow);
   UpdateWindow(hwnd);
 
-  // BOOL block_input_retval;
   MSG msg;
   while (GetMessage(&msg, NULL, 0, 0))
   {
