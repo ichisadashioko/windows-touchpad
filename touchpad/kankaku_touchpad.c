@@ -296,6 +296,11 @@ int kankaku_touchpad_find_link_collection_info_by_id(USHORT linkCollectionId, ka
   return retval;
 }
 
+/*
+append a new kankaku_hid_link_collection_info at the end of the list and return its index
+
+if the return value is less than 0, then the operation has failed
+*/
 int kankaku_touchpad_append_new_link_collection_info(USHORT linkCollectionId, kankaku_hid_link_collection_info_list* linkCollectionInfoListPtr)
 {
   int retval = -1;
@@ -442,6 +447,46 @@ void print_link_collection_info(kankaku_hid_link_collection_info linkCollectionI
   printf("- %sphysicalRectangle%s: (%d, %d, %d, %d)\n", FG_BRIGHT_GREEN, RESET_COLOR, linkCollectionInfo.physicalRectangle.left, linkCollectionInfo.physicalRectangle.top, linkCollectionInfo.physicalRectangle.right, linkCollectionInfo.physicalRectangle.bottom);
 }
 
+int kankaku_touchpad_is_required_link_collection_info(kankaku_hid_link_collection_info linkCollectionInfo)
+{
+  int retval = 1;
+
+  if (!linkCollectionInfo.hasX)
+  {
+    retval = 0;
+  }
+  else if (!linkCollectionInfo.hasY)
+  {
+    retval = 0;
+  }
+  else if (!linkCollectionInfo.hasContactID)
+  {
+    retval = 0;
+  }
+  else if (!linkCollectionInfo.hasTipSwitch)
+  {
+    retval = 0;
+  }
+  else if (!(linkCollectionInfo.physicalRectangle.left >= 0))
+  {
+    retval = 0;
+  }
+  else if (!(linkCollectionInfo.physicalRectangle.top >= 0))
+  {
+    retval = 0;
+  }
+  else if (!(linkCollectionInfo.physicalRectangle.right >= 0))
+  {
+    retval = 0;
+  }
+  else if (!(linkCollectionInfo.physicalRectangle.bottom >= 0))
+  {
+    retval = 0;
+  }
+
+  return retval;
+}
+
 /*
 wrap HidP_GetButtonCaps and extract the nessesary "button capabilities" from the device
 */
@@ -504,6 +549,50 @@ int kankaku_touchpad_parse_button_capability_array(HIDP_CAPS hidCapability, PHID
   kankaku_utils_free(toBeFreedButtonCapabilityArray, buttonCapabilityArrayByteCount, __FILE__, __LINE__);
 
   return retval;
+}
+
+void kankaku_touchpad_append_link_collection_info(kankaku_hid_link_collection_info_list* linkCollectionInfoListPtr, kankaku_hid_link_collection_info linkCollectionInfo)
+{
+  kankaku_hid_link_collection_info_list linkCollectionInfoList = (*linkCollectionInfoListPtr);
+  unsigned int newNumberOfEntries                              = linkCollectionInfoList.size + 1;
+  size_t previousEntriesByteCount                              = sizeof(kankaku_hid_link_collection_info) * linkCollectionInfoList.size;
+  size_t newEntriesByteCount                                   = previousEntriesByteCount + sizeof(kankaku_hid_link_collection_info);
+  kankaku_hid_link_collection_info* newLinkCollectionArray     = kankaku_utils_malloc_or_die(newEntriesByteCount, __FILE__, __LINE__);
+
+  if (linkCollectionInfoList.size != 0)
+  {
+    for (unsigned int i = 0; i < linkCollectionInfoList.size; i++)
+    {
+      newLinkCollectionArray[i] = linkCollectionInfoList.entries[i];
+    }
+
+    kankaku_utils_free(linkCollectionInfoList.entries, previousEntriesByteCount, __FILE__, __LINE__);
+  }
+
+  linkCollectionInfoList.entries                              = newLinkCollectionArray;
+  linkCollectionInfoList.entries[linkCollectionInfoList.size] = linkCollectionInfo;
+  linkCollectionInfoList.size                                 = newNumberOfEntries;
+
+  (*linkCollectionInfoListPtr) = linkCollectionInfoList;
+}
+
+void kankaku_touchpad_filter_link_collection_info(kankaku_hid_link_collection_info_list* linkCollectionInfoListPtr)
+{
+  kankaku_hid_link_collection_info_list linkCollectionInfoList    = (*linkCollectionInfoListPtr);
+  kankaku_hid_link_collection_info_list tmpLinkCollectionInfoList = {.entries = NULL, .size = 0};
+
+  for (unsigned int i = 0; i < linkCollectionInfoList.size; i++)
+  {
+    kankaku_hid_link_collection_info linkCollectionInfo = linkCollectionInfoList.entries[i];
+    if (kankaku_touchpad_is_required_link_collection_info(linkCollectionInfo))
+    {
+      kankaku_touchpad_append_link_collection_info(&tmpLinkCollectionInfoList, linkCollectionInfo);
+    }
+  }
+
+  kankaku_utils_free(linkCollectionInfoList.entries, sizeof(kankaku_link_collection_info) * linkCollectionInfoList.size, __FILE__, __LINE__);
+
+  (*linkCollectionInfoListPtr) = tmpLinkCollectionInfoList;
 }
 
 int kankaku_touchpad_parse_available_devices()
@@ -599,7 +688,8 @@ int kankaku_touchpad_parse_available_devices()
                 }
               }
 
-              // TODO filter invalid link collection entries
+              // filter invalid link collection entries
+              kankaku_touchpad_filter_link_collection_info(&linkCollectionInfoDict);
               // TODO check link collection array for validation touchpad devices
               // TODO write up about device name's usage
               wprintf(toBeFreedDeviceName);
@@ -608,7 +698,7 @@ int kankaku_touchpad_parse_available_devices()
               kankaku_utils_free(toBeFreedDeviceName, deviceNameByteCount, __FILE__, __LINE__);
             }
 
-            for (int i = 0; i < linkCollectionInfoDict.size; i++)
+            for (unsigned int i = 0; i < linkCollectionInfoDict.size; i++)
             {
               printf("===============================\n");
               print_link_collection_info(linkCollectionInfoDict.entries[i]);
