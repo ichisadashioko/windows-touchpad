@@ -68,6 +68,12 @@ typedef struct
   kankaku_hid_link_collection_info_list contactLinkCollections;
 } kankaku_hid_touchpad;
 
+typedef struct
+{
+  kankaku_hid_touchpad* entries;
+  unsigned int size;
+} kankaku_hid_touchpad_list;
+
 /*
 wrapper of GetRawInputDeviceInfoA with RIDI_DEVICENAME
 */

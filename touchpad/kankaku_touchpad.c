@@ -646,6 +646,8 @@ int kankaku_touchpad_parse_available_devices()
   // Even though the structure has the word LIST in it, it is not refering to a list but a single element.
   RAWINPUTDEVICELIST* toBeFreedDeviceList = NULL;
 
+  kankaku_hid_touchpad_list touchpadList = {.entries = NULL, .size = 0};
+
   retval = kankaku_touchpad_get_raw_input_device_list(&numberOfDevices, &toBeFreedDeviceList);
   if (retval)
   {
@@ -772,7 +774,7 @@ int kankaku_touchpad_parse_available_devices()
 
               if (isValidTouchpad)
               {
-                // TODO write up about device name's usage
+                // TODO explain about device name's usage
                 UINT deviceNameLength;
                 char* deviceName = NULL;
                 size_t deviceNameByteCount;
@@ -788,15 +790,33 @@ int kankaku_touchpad_parse_available_devices()
                   hidTouchpad.name.length    = deviceNameLength;
                   hidTouchpad.name.byteCount = deviceNameByteCount;
 
-                  printf(deviceName);
-                  printf("\n");
-
-                  // TODO store the hidTouchpad
-                  kankaku_utils_free(deviceName, deviceNameByteCount, __FILE__, __LINE__);
-
                   // filter "non-contact" link collection entries for storing in kankaku_hid_touchpad
+                  // we need to use these link collection ID for retrieving touch input later
                   kankaku_touchpad_filter_link_collection_info(&linkCollectionInfoDict);
                   hidTouchpad.contactLinkCollections = linkCollectionInfoDict;
+
+                  // TODO store the hidTouchpad
+                  int touchpadIndex = -1;
+                  if (touchpadList.size == 0)
+                  {
+                    touchpadList.entries = kankaku_utils_malloc_or_die(sizeof(kankaku_hid_touchpad), __FILE__, __LINE__);
+                    touchpadIndex        = 0;
+                  }
+                  else
+                  {
+                    touchpadIndex                         = touchpadList.size;
+                    touchpadList.size                     = touchpadIndex + 1;
+                    kankaku_hid_touchpad* tmpHidTouchpads = kankaku_utils_malloc_or_die(touchpadList.size * sizeof(kankaku_hid_touchpad), __FILE__, __LINE__);
+
+                    size_t previousListByteCount = touchpadIndex * sizeof(kankaku_hid_touchpad);
+                    memcpy(tmpHidTouchpads, touchpadList.entries, previousListByteCount);
+
+                    kankaku_utils_free(touchpadList.entries, previousListByteCount, __FILE__, __LINE__);
+
+                    touchpadList.entries = tmpHidTouchpads;
+                  }
+
+                  touchpadList.entries[touchpadIndex] = hidTouchpad;
                 }
               }
               else
