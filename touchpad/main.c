@@ -10,6 +10,7 @@
 #include <time.h>
 #include <stdio.h>
 #include <stdlib.h>
+#include <stdint.h>
 
 #include "termcolor.h"
 #include "kankaku_utils.h"
@@ -17,6 +18,7 @@
 #include "kankaku_touchevents.h"
 #include "kankaku_point2d.h"
 #include "kankaku_stroke.h"
+#include "kankaku_serialization.h"
 
 static TCHAR szWindowClass[] = _T("DesktopApp");
 static TCHAR szTitle[]       = _T("F3: start writing - ESC: stop writing - C: clear - Q: close the application");
@@ -633,18 +635,31 @@ int kankaku_create_pipe_server(char* pipeName)
     }
     else
     {
-      char* sampleData           = "hello\n";
-      DWORD sampleDataSize       = 6;
+      // TODO send data to client
+      kankaku_device_dimensions sampleDeviceDimensions = {.width = 640, .height = 480};
+
+      uint8_t* serializedData        = NULL;
+      size_t serializedDataByteCount = 0;
+      kankaku_serialize_device_dimensions(sampleDeviceDimensions, &serializedData, &serializedDataByteCount);
+
+      printf("serializedData: ");
+      for (int i = 0; i < serializedDataByteCount; i++)
+      {
+        printf("%x", serializedData[i]);
+      }
+      printf("\n");
+
       DWORD numberOfBytesWritten = 0;
 
-      // TODO send data to client
-      BOOL wfRetval = WriteFile(  //
-          pipeHandle,             // hFile
-          sampleData,             // lpBuffer
-          sampleDataSize,         // nNumberOfBytesToWrite
-          &numberOfBytesWritten,  // lpNumberOfBytesWritten
-          NULL                    // lpOverlapped
+      BOOL wfRetval = WriteFile(    //
+          pipeHandle,               // hFile
+          serializedData,           // lpBuffer
+          serializedDataByteCount,  // nNumberOfBytesToWrite
+          &numberOfBytesWritten,    // lpNumberOfBytesWritten
+          NULL                      // lpOverlapped
       );
+
+      kankaku_utils_free(serializedData, serializedDataByteCount, __FILE__, __LINE__);
 
       if (!wfRetval)
       {
@@ -668,12 +683,11 @@ int kankaku_create_pipe_server(char* pipeName)
 int main()
 {
   // testing wip function
-  kankaku_touchpad_parse_available_devices();
+  // kankaku_touchpad_parse_available_devices();
 
   char* pipeName = "\\\\.\\pipe\\kankaku";
 
   printf("creating named pipe '%s'\n", pipeName);
-  printf("ERROR_PIPE_LISTENING - %d\n", ERROR_PIPE_LISTENING);
   return kankaku_create_pipe_server(pipeName);
 
   return 0;
