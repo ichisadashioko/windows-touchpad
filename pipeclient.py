@@ -51,10 +51,3 @@ try:
 
 except pywintypes.error as e:
     print(e)
-
-# with open(pipe_name, mode='rb+', buffering=0) as inpipe:
-#     while True:
-#         bs = inpipe.read()
-#         if len(bs) == 0:
-#             break
-#         print(bs, end='')
