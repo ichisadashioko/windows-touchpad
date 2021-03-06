@@ -689,6 +689,29 @@ int main()
 
   printf("number of touchpad devices: %d\n", touchpadList.size);
 
+  int selectedTouchpadIndex = -1;
+
+  if (touchpadList.size < 1)
+  {
+    printf("You have no compatible touchpad devices for this program.\n");
+    // TODO free resources?
+    return 0;
+  }
+  else if (touchpadList.size == 1)
+  {
+    selectedTouchpadIndex = 0;
+  }
+  else
+  {
+    printf("TODO ask user to select a touchpad device\n");
+    return 0;
+  }
+
+  kankaku_hid_touchpad hidTouchpad = touchpadList.entries[selectedTouchpadIndex];
+  printf("device name: %s\n", hidTouchpad.name.ptr);
+  printf("device width: %d\n", hidTouchpad.width);
+  printf("device height: %d\n", hidTouchpad.height);
+
   // char* pipeName = "\\\\.\\pipe\\kankaku";
   // printf("creating named pipe '%s'\n", pipeName);
   // return kankaku_create_pipe_server(pipeName);
