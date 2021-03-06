@@ -683,12 +683,11 @@ int kankaku_create_pipe_server(char* pipeName)
 int main()
 {
   // testing wip function
-  // kankaku_touchpad_parse_available_devices();
+  kankaku_touchpad_parse_available_devices();
 
-  char* pipeName = "\\\\.\\pipe\\kankaku";
-
-  printf("creating named pipe '%s'\n", pipeName);
-  return kankaku_create_pipe_server(pipeName);
+  // char* pipeName = "\\\\.\\pipe\\kankaku";
+  // printf("creating named pipe '%s'\n", pipeName);
+  // return kankaku_create_pipe_server(pipeName);
 
   return 0;
   // TODO remove testing code

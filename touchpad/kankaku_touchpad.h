@@ -7,6 +7,8 @@
 #include <hidpi.h>
 #pragma comment(lib, "hid.lib")
 
+#include <stdint.h>
+
 // https://docs.microsoft.com/en-us/windows-hardware/design/component-guidelines/supporting-usages-in-multitouch-digitizer-drivers
 
 // Digitizer Page (0x0D)
@@ -17,6 +19,20 @@
 #define HID_USAGE_DIGITIZER_CONTACT_ID            ((USAGE)0x51)
 #define HID_USAGE_DIGITIZER_CONTACT_COUNT         ((USAGE)0x54)
 #define HID_USAGE_DIGITIZER_CONTACT_COUNT_MAXIMUM ((USAGE)0x55)
+
+typedef struct
+{
+  char* ptr;
+  unsigned int length;
+  size_t byteCount;
+} kankaku_char_string;
+
+typedef struct
+{
+  wchar_t* ptr;
+  unsigned int length;
+  size_t byteCount;
+} kankaku_wchar_string;
 
 typedef struct
 {
@@ -45,15 +61,15 @@ typedef struct
 
 typedef struct
 {
-  char* name;
-  unsigned int width;
-  unsigned int height;
+  kankaku_char_string name;
+  uint16_t width;
+  uint16_t height;
   USHORT contactCountLinkCollectionId;
-  kankaku_hid_link_collection_info_list contactLinkCollectionInfo;
+  kankaku_hid_link_collection_info_list contactLinkCollections;
 } kankaku_hid_touchpad;
 
 /*
-wrapper of GetRawInputDeviceInfo with RIDI_DEVICENAME
+wrapper of GetRawInputDeviceInfoA with RIDI_DEVICENAME
 */
 int kankaku_touchpad_get_raw_input_device_name(_In_ HANDLE hDevice, _Out_ TCHAR** deviceName, _Out_ UINT* nameSize, _Out_ size_t* deviceNameCountBytes);
 
