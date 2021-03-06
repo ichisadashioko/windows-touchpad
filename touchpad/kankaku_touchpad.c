@@ -79,10 +79,11 @@ int kankaku_touchpad_get_raw_input_device_name(_In_ HANDLE hDevice, _Out_ char**
       }
       else if (winReturnCode != (*deviceNameLength))
       {
-        retval = -1;
         fprintf(stderr, "%sGetRawInputDeviceInfoA does not return the expected size %d (actual) vs %d (expected) at  %s:%d%s\n", FG_BRIGHT_RED, winReturnCode, (*deviceNameLength), __FILE__, __LINE__, RESET_COLOR);
-        kankaku_utils_free((*deviceName), (*deviceNameByteCount), __FILE__, __LINE__);
-        exit(-1);
+        // TODO handle this
+        // retval = -1;
+        // kankaku_utils_free((*deviceName), (*deviceNameByteCount), __FILE__, __LINE__);
+        // exit(-1);
       }
     }
   }
@@ -638,7 +639,7 @@ int kankaku_touchpad_is_valid_touchpad(kankaku_hid_touchpad hidTouchpad)
   return retval;
 }
 
-int kankaku_touchpad_parse_available_devices()
+int kankaku_touchpad_parse_available_devices(kankaku_hid_touchpad_list* outTouchpadList)
 {
   int retval = 0;
 
@@ -747,7 +748,7 @@ int kankaku_touchpad_parse_available_devices()
                   // uninitialized width
                   if (linkCollectionInfo.hasX)
                   {
-                    hidTouchpad.width = linkCollectionInfo.physicalRectangle.left;
+                    hidTouchpad.width = linkCollectionInfo.physicalRectangle.right;
                   }
                 }
 
@@ -799,6 +800,7 @@ int kankaku_touchpad_parse_available_devices()
                   int touchpadIndex = -1;
                   if (touchpadList.size == 0)
                   {
+                    touchpadList.size    = 1;
                     touchpadList.entries = kankaku_utils_malloc_or_die(sizeof(kankaku_hid_touchpad), __FILE__, __LINE__);
                     touchpadIndex        = 0;
                   }
@@ -832,6 +834,15 @@ int kankaku_touchpad_parse_available_devices()
     }
 
     kankaku_utils_free(toBeFreedDeviceList, (sizeof(RAWINPUTDEVICELIST) * numberOfDevices), __FILE__, __LINE__);
+  }
+
+  if (retval == 0)
+  {
+    (*outTouchpadList) = touchpadList;
+  }
+  else
+  {
+    // TODO free resources
   }
 
   return retval;

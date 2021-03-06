@@ -77,7 +77,7 @@ typedef struct
 /*
 wrapper of GetRawInputDeviceInfoA with RIDI_DEVICENAME
 */
-int kankaku_touchpad_get_raw_input_device_name(_In_ HANDLE hDevice, _Out_ TCHAR** deviceName, _Out_ UINT* nameSize, _Out_ size_t* deviceNameCountBytes);
+int kankaku_touchpad_get_raw_input_device_name(_In_ HANDLE hDevice, _Out_ char** deviceName, _Out_ UINT* nameSize, _Out_ size_t* deviceNameCountBytes);
 
 /*
 wrapper of GetRawInputDeviceInfo with RIDI_PREPARSEDDATA
@@ -94,6 +94,6 @@ wrapper of GetRawInputData with RID_INPUT
 */
 int kankaku_touchpad_get_raw_input_data(_In_ HRAWINPUT hRawInput, _Out_ PUINT pcbSize, _Out_ LPVOID* pData);
 
-int kankaku_touchpad_parse_available_devices();
+int kankaku_touchpad_parse_available_devices(kankaku_hid_touchpad_list* outTouchpadList);
 
 #endif  // __TOUCHPAD_H__

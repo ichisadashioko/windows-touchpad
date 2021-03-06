@@ -40,8 +40,8 @@ typedef struct
 typedef struct
 {
   // also act as key
-  TCHAR* Name;
-  unsigned int cbName;
+  char* Name;
+  size_t cbName;
   kankaku_link_collection_info_list LinkColInfoList;
   PHIDP_PREPARSED_DATA PreparedData;
   UINT cbPreparsedData;
@@ -59,7 +59,7 @@ void utils_print_win32_last_error();
 void utils_print_hidp_error(NTSTATUS hidpReturnCode, const char* filePath, int lineNumber);
 
 // TODO refactor the create entry if not found feature to another function
-int utils_find_input_device_index_by_name(HID_DEVICE_INFO_LIST* hidInfoList, TCHAR* deviceName, const unsigned int cbDeviceName, PHIDP_PREPARSED_DATA preparsedData, const UINT cbPreparsedData, unsigned int* foundHidIndex);
+int utils_find_input_device_index_by_name(HID_DEVICE_INFO_LIST* hidInfoList, char* deviceName, size_t cbDeviceName, PHIDP_PREPARSED_DATA preparsedData, const UINT cbPreparsedData, unsigned int* foundHidIndex);
 
 // TODO refactor the create entry if not found feature to another function
 int FindLinkCollectionInList(kankaku_link_collection_info_list* linkColInfoList, USHORT linkCollection, unsigned int* foundLinkColIdx);

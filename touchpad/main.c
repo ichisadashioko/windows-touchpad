@@ -11,6 +11,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <stdint.h>
+#include <string.h>
 
 #include "termcolor.h"
 #include "kankaku_utils.h"
@@ -86,7 +87,7 @@ void main_parse_connected_input_devices()
     if (!isButtonCapsEmpty)
     {
       UINT deviceNameLength;
-      TCHAR* deviceName = NULL;
+      char* deviceName = NULL;
       size_t cbDeviceName;
 
       kankaku_touchpad_get_raw_input_device_name(rawInputDevice.hDevice, &deviceName, &deviceNameLength, &cbDeviceName);
@@ -272,7 +273,7 @@ void main_handle_wm_input(HWND hwnd, UINT message, WPARAM wParam, LPARAM lParam)
     if (count != 0)
     {
       UINT deviceNameLength;
-      TCHAR* deviceName = NULL;
+      char* deviceName = NULL;
       size_t cbDeviceName;
 
       kankaku_touchpad_get_raw_input_device_name(rawInputData->header.hDevice, &deviceName, &deviceNameLength, &cbDeviceName);
@@ -289,7 +290,7 @@ void main_handle_wm_input(HWND hwnd, UINT message, WPARAM wParam, LPARAM lParam)
       {
         for (unsigned int touchpadIndex = 0; touchpadIndex < g_app_state->device_info_list.Size; touchpadIndex++)
         {
-          int compareNameResult = _tcscmp(deviceName, g_app_state->device_info_list.Entries[touchpadIndex].Name);
+          int compareNameResult = strcmp(deviceName, g_app_state->device_info_list.Entries[touchpadIndex].Name);
           if (compareNameResult == 0)
           {
             foundHidIdx = touchpadIndex;
@@ -683,7 +684,10 @@ int kankaku_create_pipe_server(char* pipeName)
 int main()
 {
   // testing wip function
-  kankaku_touchpad_parse_available_devices();
+  kankaku_hid_touchpad_list touchpadList;
+  kankaku_touchpad_parse_available_devices(&touchpadList);
+
+  printf("number of touchpad devices: %d\n", touchpadList.size);
 
   // char* pipeName = "\\\\.\\pipe\\kankaku";
   // printf("creating named pipe '%s'\n", pipeName);
