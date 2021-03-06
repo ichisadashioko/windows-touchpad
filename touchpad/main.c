@@ -89,36 +89,13 @@ void main_parse_connected_input_devices()
 
       kankaku_touchpad_get_raw_input_device_name(rawInputDevice.hDevice, &deviceName, &deviceNameLength, &cbDeviceName);
 
-      printf("Device name: ");
-      wprintf(deviceName);
-      printf("\n");
-
-      printf(FG_GREEN);
-      printf("Finding device in global list...\n");
-      printf(RESET_COLOR);
       unsigned int foundHidIdx;
       int returnCode = utils_find_input_device_index_by_name(&(g_app_state->device_info_list), deviceName, cbDeviceName, preparsedData, cbDataSize, &foundHidIdx);
       if (returnCode != 0)
       {
-        printf("utils_find_input_device_index_by_name failed at %s:%d\n", __FILE__, __LINE__);
+        fprintf(stderr, "%sutils_find_input_device_index_by_name failed at %s:%d%s\n", FG_BRIGHT_RED, __FILE__, __LINE__, RESET_COLOR);
         exit(-1);
       }
-
-      printf(FG_GREEN);
-      printf("foundHIDIdx: %d\n", foundHidIdx);
-      printf(RESET_COLOR);
-
-      printf(FG_BRIGHT_BLUE);
-      printf("found device name: ");
-      wprintf(g_app_state->device_info_list.Entries[foundHidIdx].Name);
-      printf("\n");
-      printf(RESET_COLOR);
-
-      printf(FG_BRIGHT_BLUE);
-      printf("current device name: ");
-      wprintf(deviceName);
-      printf("\n");
-      printf(RESET_COLOR);
 
       if (caps.NumberInputValueCaps != 0)
       {
@@ -130,11 +107,10 @@ void main_parse_connected_input_devices()
         hidpReturnCode = HidP_GetValueCaps(HidP_Input, valueCaps, &_numValueCaps, preparsedData);
         if (hidpReturnCode != HIDP_STATUS_SUCCESS)
         {
+          fprintf(stderr, "%sHidP_GetValueCaps failed at %s:%d%s\n", FG_BRIGHT_RED, __FILE__, __LINE__, RESET_COLOR);
           utils_print_hidp_error(hidpReturnCode, __FILE__, __LINE__);
+          exit(-1);
         }
-
-        // x check if numValueCaps value has been changed
-        printf("NumberInputValueCaps: %d (old) vs %d (new)\n", numValueCaps, _numValueCaps);
 
         for (USHORT valueCapIndex = 0; valueCapIndex < numValueCaps; valueCapIndex++)
         {
@@ -153,15 +129,8 @@ void main_parse_connected_input_devices()
             exit(-1);
           }
 
-          printf(FG_GREEN);
-          printf("[ValueCaps] foundLinkCollectionIndex: %d\n", foundLinkColIdx);
-          printf(RESET_COLOR);
-
           if (cap.UsagePage == HID_USAGE_PAGE_GENERIC)
           {
-            printf("=====================================================\n");
-            printf("LinkCollection: %d\n", cap.LinkCollection);
-
             if (cap.NotRange.Usage == HID_USAGE_GENERIC_X)
             {
               g_app_state->device_info_list.Entries[foundHidIdx].LinkColInfoList.Entries[foundLinkColIdx].HasX               = 1;
@@ -463,14 +432,6 @@ void main_handle_wm_input(HWND hwnd, UINT message, WPARAM wParam, LPARAM lParam)
 
                   free(buttonUsageArray);
 
-                  TOUCH_DATA curTouch;
-                  curTouch.TouchID   = touchId;
-                  curTouch.X         = xPos;
-                  curTouch.Y         = yPos;
-                  curTouch.OnSurface = isContactOnSurface;
-
-                  Point2D touchPos = (Point2D){.X = curTouch.X, .Y = curTouch.Y};
-
                   printf(FG_GREEN);
                   printf("LinkColId: %d, touchID: %d, tipSwitch: %d, position: (%d, %d)\n", collectionInfo.LinkColID, touchId, isContactOnSurface, xPos, yPos);
                   printf(RESET_COLOR);
@@ -486,11 +447,6 @@ void main_handle_wm_input(HWND hwnd, UINT message, WPARAM wParam, LPARAM lParam)
 
     free(rawInputData);
   }
-}
-
-void main_handle_wm_resize(_In_ HWND hwnd, _In_ UINT uMsg, _In_ WPARAM wParam, _In_ LPARAM lParam)
-{
-  InvalidateRect(hwnd, NULL, FALSE);
 }
 
 LRESULT CALLBACK main_process_window_message(_In_ HWND hwnd, _In_ UINT uMsg, _In_ WPARAM wParam, _In_ LPARAM lParam)
@@ -625,10 +581,100 @@ int CALLBACK main_winmain(_In_ HINSTANCE hInstance, _In_opt_ HINSTANCE hPrevInst
   return (int)msg.wParam;
 }
 
+#define PIPE_OUT_BUFFER_SIZE 16777216  // 16 MB
+int kankaku_create_pipe_server(char* pipeName)
+{
+  int retval        = 0;
+  HANDLE pipeHandle = INVALID_HANDLE_VALUE;
+  // https://docs.microsoft.com/en-us/windows/win32/api/winbase/nf-winbase-createnamedpipea
+  pipeHandle = CreateNamedPipeA(                                //
+      pipeName,                                                 // lpName
+      PIPE_ACCESS_OUTBOUND | FILE_FLAG_FIRST_PIPE_INSTANCE,     // dwOpenMode
+      PIPE_TYPE_BYTE | PIPE_WAIT | PIPE_REJECT_REMOTE_CLIENTS,  // dwPipeMode
+      1,                                                        // nMaxInstances
+      PIPE_OUT_BUFFER_SIZE,                                     // nOutBufferSize
+      0,                                                        // nInBufferSize
+      0,                                                        // nDefaultTimeOut
+      NULL                                                      // lpSecurityAttributes
+  );
+
+  if (pipeHandle == INVALID_HANDLE_VALUE)
+  {
+    fprintf(stderr, "%sCreateNamedPipeA failed at %s:%d%s\n", FG_BRIGHT_RED, __FILE__, __LINE__, RESET_COLOR);
+    utils_print_win32_last_error();
+    retval = -1;
+  }
+  else
+  {
+    // TODO move to another function
+    // https://docs.microsoft.com/en-us/windows/win32/api/namedpipeapi/nf-namedpipeapi-connectnamedpipe
+    BOOL cnpRetval = 0;
+    printf("waiting for client\n");
+    while (1)
+    {
+      cnpRetval = ConnectNamedPipe(pipeHandle, NULL);  // blocking function call until the client is connected
+      if (!cnpRetval)
+      {
+        if (!(GetLastError() == ERROR_PIPE_LISTENING))
+        {
+          break;
+        }
+      }
+      else
+      {
+        break;
+      }
+    }
+    if (!cnpRetval)
+    {
+      retval = -1;
+      fprintf(stderr, "%sConnectNamedPipe failed at %s:%d%s\n", FG_BRIGHT_RED, __FILE__, __LINE__, RESET_COLOR);
+      utils_print_win32_last_error();
+    }
+    else
+    {
+      char* sampleData           = "hello\n";
+      DWORD sampleDataSize       = 6;
+      DWORD numberOfBytesWritten = 0;
+
+      // TODO send data to client
+      BOOL wfRetval = WriteFile(  //
+          pipeHandle,             // hFile
+          sampleData,             // lpBuffer
+          sampleDataSize,         // nNumberOfBytesToWrite
+          &numberOfBytesWritten,  // lpNumberOfBytesWritten
+          NULL                    // lpOverlapped
+      );
+
+      if (!wfRetval)
+      {
+        retval = -1;
+        fprintf(stderr, "%sWriteFile failed at %s:%d%s\n", FG_BRIGHT_RED, __FILE__, __LINE__, RESET_COLOR);
+        utils_print_win32_last_error();
+      }
+
+      printf("done\n");
+
+      // TODO check number of bytes written
+      FlushFileBuffers(pipeHandle);
+      DisconnectNamedPipe(pipeHandle);
+      CloseHandle(pipeHandle);
+    }
+  }
+
+  return retval;
+}
+
 int main()
 {
   // testing wip function
   kankaku_touchpad_parse_available_devices();
+
+  char* pipeName = "\\\\.\\pipe\\kankaku";
+
+  printf("creating named pipe '%s'\n", pipeName);
+  printf("ERROR_PIPE_LISTENING - %d\n", ERROR_PIPE_LISTENING);
+  return kankaku_create_pipe_server(pipeName);
 
   return 0;
   // TODO remove testing code
@@ -636,7 +682,7 @@ int main()
   // initialize application's states
   g_app_state = (ApplicationState*)kankaku_utils_malloc_or_die(sizeof(ApplicationState), __FILE__, __LINE__);
 
-  g_app_state->device_info_list  = (HID_DEVICE_INFO_LIST){.Entries = NULL, .Size = 0};
+  g_app_state->device_info_list = (HID_DEVICE_INFO_LIST){.Entries = NULL, .Size = 0};
 
   main_parse_connected_input_devices();
 
