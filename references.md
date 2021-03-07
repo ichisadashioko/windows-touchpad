@@ -13,3 +13,5 @@ https://docs.microsoft.com/en-us/windows-hardware/drivers/ddi/hidpi/nf-hidpi-hid
 https://docs.microsoft.com/en-us/windows-hardware/drivers/ddi/hidpi/nf-hidpi-hidp_getlinkcollectionnodes
 
 https://docs.microsoft.com/en-us/windows-hardware/design/component-guidelines/supporting-usages-in-digitizer-report-descriptors
+
+https://docs.microsoft.com/en-us/windows-hardware/drivers/ddi/hidsdi/nf-hidsdi-hidd_getpreparseddata

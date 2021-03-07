@@ -7,6 +7,7 @@
 
 #include <hidusage.h>
 #include <hidpi.h>
+#include <hidsdi.h>
 #pragma comment(lib, "hid.lib")
 
 #include <stdio.h>
@@ -15,7 +16,7 @@
 #include "termcolor.h"
 #include "kankaku_utils.h"
 
-int kankaku_touchpad_get_raw_input_device_name(_In_ HANDLE hDevice, _Out_ char** deviceName, _Out_ UINT* deviceNameLength, _Out_ size_t* deviceNameByteCount)
+int kankaku_touchpad_get_raw_input_device_name(_In_ HANDLE hDevice, _Out_ wchar_t** deviceName, _Out_ UINT* deviceNameLengthPtr, _Out_ size_t* deviceNameByteCount)
 {
   int retval = 0;
   UINT winReturnCode;
@@ -25,25 +26,25 @@ int kankaku_touchpad_get_raw_input_device_name(_In_ HANDLE hDevice, _Out_ char**
   if (deviceName == NULL)
   {
     retval = -1;
-    fprintf(stderr, "%s(char**) deviceName is NULL%s\n", FG_BRIGHT_RED, RESET_COLOR);
+    fprintf(stderr, "%s(wchar_t**) deviceName is NULL%s\n", FG_BRIGHT_RED, RESET_COLOR);
     exit(-1);
   }
-  else if (deviceNameLength == NULL)
+  else if (deviceNameLengthPtr == NULL)
   {
     retval = -1;
-    fprintf(stderr, "%sdeviceNameLength is NULL! You will not able to know the number of characters in deviceName string%s\n", FG_BRIGHT_RED, RESET_COLOR);
+    fprintf(stderr, "%sdeviceNameLengthPtr is NULL! You will not able to know the number of characters in deviceName string%s\n", FG_BRIGHT_RED, RESET_COLOR);
     exit(-1);
   }
   else if ((*deviceName) != NULL)
   {
     retval = -1;
-    fprintf(stderr, "%s(char*) deviceName is not NULL! Please free your memory and set the pointer value to NULL%s\n", FG_BRIGHT_RED, RESET_COLOR);
+    fprintf(stderr, "%s(wchar_t*) deviceName is not NULL! Please free your memory and set the pointer value to NULL%s\n", FG_BRIGHT_RED, RESET_COLOR);
     exit(-1);
   }
   else if (deviceNameByteCount == NULL)
   {
     retval = -1;
-    fprintf(stderr, "%scbDeviceName is NULL! You will not able to know the size of the return array%s\n", FG_BRIGHT_RED, RESET_COLOR);
+    fprintf(stderr, "%sdeviceNameByteCount is NULL! You will not able to know the size of the return array%s\n", FG_BRIGHT_RED, RESET_COLOR);
     exit(-1);
   }
   else
@@ -52,34 +53,33 @@ int kankaku_touchpad_get_raw_input_device_name(_In_ HANDLE hDevice, _Out_ char**
     // the actual code is here
 
     // get the device name size (number of characters)
-    winReturnCode = GetRawInputDeviceInfoA(_In_ hDevice, RIDI_DEVICENAME, NULL, deviceNameLength);
+    winReturnCode = GetRawInputDeviceInfoW(_In_ hDevice, RIDI_DEVICENAME, NULL, deviceNameLengthPtr);
     if (winReturnCode == (UINT)-1)
     {
       retval = -1;
-      fprintf(stderr, "%sGetRawInputDeviceInfo failed at %s:%d%s\n", FG_BRIGHT_RED, __FILE__, __LINE__, RESET_COLOR);
+      fprintf(stderr, "%sGetRawInputDeviceInfoW failed at %s:%d%s\n", FG_BRIGHT_RED, __FILE__, __LINE__, RESET_COLOR);
       utils_print_win32_last_error();
       exit(-1);
     }
     else
     {
+      printf("device name length: %d\n", (*deviceNameLengthPtr));
       // size + 1 for NULL terminated string
-      (*deviceNameByteCount) = (sizeof(char) * ((*deviceNameLength) + 1));
-      (*deviceName)          = (char*)kankaku_utils_malloc_or_die((*deviceNameByteCount), __FILE__, __LINE__);
+      (*deviceNameByteCount) = (sizeof(wchar_t) * (*deviceNameLengthPtr));
+      (*deviceName)          = (wchar_t*)kankaku_utils_malloc_or_die((*deviceNameByteCount), __FILE__, __LINE__);
 
-      (*deviceName)[(*deviceNameLength)] = 0;
-
-      winReturnCode = GetRawInputDeviceInfoA(hDevice, RIDI_DEVICENAME, (*deviceName), deviceNameLength);
+      winReturnCode = GetRawInputDeviceInfoW(hDevice, RIDI_DEVICENAME, (*deviceName), deviceNameLengthPtr);
       if (winReturnCode == (UINT)-1)
       {
         retval = -1;
-        fprintf(stderr, "%sGetRawInputDeviceInfoA failed at %s:%d%s\n", FG_BRIGHT_RED, __FILE__, __LINE__, RESET_COLOR);
+        fprintf(stderr, "%sGetRawInputDeviceInfoW failed at %s:%d%s\n", FG_BRIGHT_RED, __FILE__, __LINE__, RESET_COLOR);
         utils_print_win32_last_error();
         kankaku_utils_free((*deviceName), (*deviceNameByteCount), __FILE__, __LINE__);
         exit(-1);
       }
-      else if (winReturnCode != (*deviceNameLength))
+      else if (winReturnCode != (*deviceNameLengthPtr))
       {
-        fprintf(stderr, "%sGetRawInputDeviceInfoA does not return the expected size %d (actual) vs %d (expected) at  %s:%d%s\n", FG_BRIGHT_RED, winReturnCode, (*deviceNameLength), __FILE__, __LINE__, RESET_COLOR);
+        fprintf(stderr, "%sGetRawInputDeviceInfoW does not return the expected size %d (actual) vs %d (expected) at  %s:%d%s\n", FG_BRIGHT_RED, winReturnCode, (*deviceNameLengthPtr), __FILE__, __LINE__, RESET_COLOR);
         // TODO handle this
         // retval = -1;
         // kankaku_utils_free((*deviceName), (*deviceNameByteCount), __FILE__, __LINE__);
@@ -174,11 +174,11 @@ int kankaku_touchpad_get_raw_input_device_preparsed_data(_In_ HANDLE hDevice, _O
   }
   else
   {
-    winReturnCode = GetRawInputDeviceInfo(hDevice, RIDI_PREPARSEDDATA, NULL, cbSize);
+    winReturnCode = GetRawInputDeviceInfoA(hDevice, RIDI_PREPARSEDDATA, NULL, cbSize);
     if (winReturnCode == (UINT)-1)
     {
       retval = -1;
-      fprintf(stderr, "%sGetRawInputDeviceInfo failed at %s:%d%s\n", FG_BRIGHT_RED, __FILE__, __LINE__, RESET_COLOR);
+      fprintf(stderr, "%sGetRawInputDeviceInfoA failed at %s:%d%s\n", FG_BRIGHT_RED, __FILE__, __LINE__, RESET_COLOR);
       utils_print_win32_last_error();
       exit(-1);
     }
@@ -186,11 +186,11 @@ int kankaku_touchpad_get_raw_input_device_preparsed_data(_In_ HANDLE hDevice, _O
     {
       (*data) = (PHIDP_PREPARSED_DATA)kankaku_utils_malloc_or_die((*cbSize), __FILE__, __LINE__);
 
-      winReturnCode = GetRawInputDeviceInfo(hDevice, RIDI_PREPARSEDDATA, (*data), cbSize);
+      winReturnCode = GetRawInputDeviceInfoA(hDevice, RIDI_PREPARSEDDATA, (*data), cbSize);
       if (winReturnCode == (UINT)-1)
       {
         retval = -1;
-        fprintf(stderr, "%sGetRawInputDeviceInfo failed at %s:%d%s\n", FG_BRIGHT_RED, __FILE__, __LINE__, RESET_COLOR);
+        fprintf(stderr, "%sGetRawInputDeviceInfoA failed at %s:%d%s\n", FG_BRIGHT_RED, __FILE__, __LINE__, RESET_COLOR);
         utils_print_win32_last_error();
         exit(-1);
       }
@@ -675,10 +675,11 @@ int kankaku_touchpad_parse_available_devices(kankaku_hid_touchpad_list* outTouch
       // - HID_USAGE_DIGITIZER_CONTACT_COUNT
       // - HID_USAGE_DIGITIZER_TIP_SWITCH
 
-      UINT preparsedDataByteCount                 = 0;
-      PHIDP_PREPARSED_DATA toBeFreedPreparsedData = NULL;
+      UINT preparsedDataByteCount        = 0;
+      PHIDP_PREPARSED_DATA preparsedData = NULL;
 
-      retval = kankaku_touchpad_get_raw_input_device_preparsed_data(rawInputDevice.hDevice, &toBeFreedPreparsedData, &preparsedDataByteCount);
+      if (HidD_GetPreparsedData(rawInputDevice.hDevice, &preparsedData) == FALSE)
+        retval = kankaku_touchpad_get_raw_input_device_preparsed_data(rawInputDevice.hDevice, &preparsedData, &preparsedDataByteCount);
       if (retval)
       {
         fprintf(stderr, "%skankaku_touchpad_get_raw_input_device_preparsed_data failed at %s:%d%s\n", FG_BRIGHT_RED, __FILE__, __LINE__, RESET_COLOR);
@@ -687,8 +688,9 @@ int kankaku_touchpad_parse_available_devices(kankaku_hid_touchpad_list* outTouch
       {
         NTSTATUS hidpReturnCode;
         HIDP_CAPS caps;
+        int isPreparsedDataStored = 0;
 
-        hidpReturnCode = HidP_GetCaps(toBeFreedPreparsedData, &caps);
+        hidpReturnCode = HidP_GetCaps(preparsedData, &caps);
         if (hidpReturnCode != HIDP_STATUS_SUCCESS)
         {
           retval = -1;
@@ -702,7 +704,7 @@ int kankaku_touchpad_parse_available_devices(kankaku_hid_touchpad_list* outTouch
           {
             kankaku_hid_link_collection_info_list linkCollectionInfoDict = {.entries = NULL, .size = 0};
 
-            retval = kankaku_touchpad_parse_value_capability_array(caps, toBeFreedPreparsedData, &linkCollectionInfoDict);
+            retval = kankaku_touchpad_parse_value_capability_array(caps, preparsedData, &linkCollectionInfoDict);
 
             if (retval)
             {
@@ -710,7 +712,7 @@ int kankaku_touchpad_parse_available_devices(kankaku_hid_touchpad_list* outTouch
             }
             else
             {
-              retval = kankaku_touchpad_parse_button_capability_array(caps, toBeFreedPreparsedData, &linkCollectionInfoDict);
+              retval = kankaku_touchpad_parse_button_capability_array(caps, preparsedData, &linkCollectionInfoDict);
             }
 
             if (retval)
@@ -727,15 +729,19 @@ int kankaku_touchpad_parse_available_devices(kankaku_hid_touchpad_list* outTouch
               kankaku_hid_touchpad hidTouchpad = {
                   .name =
                       {
-                          .ptr       = NULL,                                    //
-                          .length    = 0,                                       //
-                          .byteCount = 0                                        //
-                      },                                                        //
-                  .width                        = 0,                            //
-                  .height                       = 0,                            //
-                  .contactCountLinkCollectionId = ((USHORT)-1),                 //
-                  .contactLinkCollections       = {.entries = NULL, .size = 0}  //
+                          .ptr       = NULL,                                     //
+                          .length    = 0,                                        //
+                          .byteCount = 0                                         //
+                      },                                                         //
+                  .width                        = 0,                             //
+                  .height                       = 0,                             //
+                  .contactCountLinkCollectionId = ((USHORT)-1),                  //
+                  .contactLinkCollections       = {.entries = NULL, .size = 0},  //
+                  .preparsedData                = preparsedData,                 //
+                  .preparsedDataByteCount       = preparsedDataByteCount         //
               };
+
+              isPreparsedDataStored = 1;
 
               for (unsigned int i = 0; i < linkCollectionInfoDict.size; i++)
               {
@@ -777,7 +783,7 @@ int kankaku_touchpad_parse_available_devices(kankaku_hid_touchpad_list* outTouch
               {
                 // TODO explain about device name's usage
                 UINT deviceNameLength;
-                char* deviceName = NULL;
+                wchar_t* deviceName = NULL;
                 size_t deviceNameByteCount;
 
                 retval = kankaku_touchpad_get_raw_input_device_name(rawInputDevice.hDevice, &deviceName, &deviceNameLength, &deviceNameByteCount);
@@ -829,7 +835,10 @@ int kankaku_touchpad_parse_available_devices(kankaku_hid_touchpad_list* outTouch
           }
         }
 
-        kankaku_utils_free(toBeFreedPreparsedData, preparsedDataByteCount, __FILE__, __LINE__);
+        if (!isPreparsedDataStored)
+        {
+          kankaku_utils_free(preparsedData, preparsedDataByteCount, __FILE__, __LINE__);
+        }
       }
     }
 

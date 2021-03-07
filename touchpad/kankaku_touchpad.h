@@ -61,11 +61,13 @@ typedef struct
 
 typedef struct
 {
-  kankaku_char_string name;
+  kankaku_wchar_string name;
   uint16_t width;
   uint16_t height;
   USHORT contactCountLinkCollectionId;
   kankaku_hid_link_collection_info_list contactLinkCollections;
+  PHIDP_PREPARSED_DATA preparsedData;
+  size_t preparsedDataByteCount;
 } kankaku_hid_touchpad;
 
 typedef struct
@@ -75,12 +77,12 @@ typedef struct
 } kankaku_hid_touchpad_list;
 
 /*
-wrapper of GetRawInputDeviceInfoA with RIDI_DEVICENAME
+wrapper of GetRawInputDeviceInfoW with RIDI_DEVICENAME
 */
-int kankaku_touchpad_get_raw_input_device_name(_In_ HANDLE hDevice, _Out_ char** deviceName, _Out_ UINT* nameSize, _Out_ size_t* deviceNameCountBytes);
+int kankaku_touchpad_get_raw_input_device_name(_In_ HANDLE hDevice, _Out_ wchar_t** deviceName, _Out_ UINT* nameSize, _Out_ size_t* deviceNameCountBytes);
 
 /*
-wrapper of GetRawInputDeviceInfo with RIDI_PREPARSEDDATA
+wrapper of GetRawInputDeviceInfoA with RIDI_PREPARSEDDATA
 */
 int kankaku_touchpad_get_raw_input_device_preparsed_data(_In_ HANDLE hDevice, _Out_ PHIDP_PREPARSED_DATA* data, _Out_ UINT* cbSize);
 
