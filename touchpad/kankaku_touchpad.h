@@ -24,14 +24,14 @@ typedef struct
 {
   char* ptr;
   unsigned int length;
-  size_t byteCount;
+  size_t bytesCount;
 } kankaku_char_string;
 
 typedef struct
 {
   wchar_t* ptr;
   unsigned int length;
-  size_t byteCount;
+  size_t bytesCount;
 } kankaku_wchar_string;
 
 typedef struct
@@ -67,7 +67,7 @@ typedef struct
   USHORT contactCountLinkCollectionId;
   kankaku_hid_link_collection_info_list contactLinkCollections;
   PHIDP_PREPARSED_DATA preparsedData;
-  size_t preparsedDataByteCount;
+  size_t preparsedDataBytesCount;
 } kankaku_hid_touchpad;
 
 typedef struct

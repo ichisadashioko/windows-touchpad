@@ -75,9 +75,9 @@ void main_handle_wm_input(HWND hwnd, UINT message, WPARAM wParam, LPARAM lParam)
     {
       UINT deviceNameLength;
       wchar_t* deviceName = NULL;
-      size_t cbDeviceName;
+      size_t deviceNameBytesCount;
 
-      kankaku_touchpad_get_raw_input_device_name(rawInputData->header.hDevice, &deviceName, &deviceNameLength, &cbDeviceName);
+      kankaku_touchpad_get_raw_input_device_name(rawInputData->header.hDevice, &deviceName, &deviceNameLength, &deviceNameBytesCount);
 
       printf("[%d]", ts);
       NTSTATUS hidpReturnCode;
@@ -342,12 +342,12 @@ int kankaku_create_pipe_server(char* pipeName)
       // TODO send data to client
       kankaku_device_dimensions sampleDeviceDimensions = {.width = 640, .height = 480};
 
-      uint8_t* serializedData        = NULL;
-      size_t serializedDataByteCount = 0;
-      kankaku_serialize_device_dimensions(sampleDeviceDimensions, &serializedData, &serializedDataByteCount);
+      uint8_t* serializedData         = NULL;
+      size_t serializedDataBytesCount = 0;
+      kankaku_serialize_device_dimensions(sampleDeviceDimensions, &serializedData, &serializedDataBytesCount);
 
       printf("serializedData: ");
-      for (int i = 0; i < serializedDataByteCount; i++)
+      for (int i = 0; i < serializedDataBytesCount; i++)
       {
         printf("%x", serializedData[i]);
       }
@@ -355,15 +355,15 @@ int kankaku_create_pipe_server(char* pipeName)
 
       DWORD numberOfBytesWritten = 0;
 
-      BOOL wfRetval = WriteFile(    //
-          pipeHandle,               // hFile
-          serializedData,           // lpBuffer
-          serializedDataByteCount,  // nNumberOfBytesToWrite
-          &numberOfBytesWritten,    // lpNumberOfBytesWritten
-          NULL                      // lpOverlapped
+      BOOL wfRetval = WriteFile(     //
+          pipeHandle,                // hFile
+          serializedData,            // lpBuffer
+          serializedDataBytesCount,  // nNumberOfBytesToWrite
+          &numberOfBytesWritten,     // lpNumberOfBytesWritten
+          NULL                       // lpOverlapped
       );
 
-      kankaku_utils_free(serializedData, serializedDataByteCount, __FILE__, __LINE__);
+      kankaku_utils_free(serializedData, serializedDataBytesCount, __FILE__, __LINE__);
 
       if (!wfRetval)
       {
@@ -417,11 +417,11 @@ int main()
 
   wprintf(L"%s\n", hidTouchpad.name.ptr);
   printf("name.length: %d\n", hidTouchpad.name.length);
-  printf("name.size: %zu\n", hidTouchpad.name.byteCount);
+  printf("name.size: %zu\n", hidTouchpad.name.bytesCount);
 
   printf("\nhexdump\n\n");
   char* tmpPtr = (char*)hidTouchpad.name.ptr;
-  for (size_t i = 0; i < hidTouchpad.name.byteCount; i++)
+  for (size_t i = 0; i < hidTouchpad.name.bytesCount; i++)
   {
     printf("%02x", tmpPtr[i]);
   }

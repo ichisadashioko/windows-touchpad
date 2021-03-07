@@ -9,6 +9,6 @@ typedef struct
   uint16_t height;
 } kankaku_device_dimensions;
 
-int kankaku_serialize_device_dimensions(kankaku_device_dimensions deviceDimensions, uint8_t** serializedData, size_t* serializedDataByteCount);
+int kankaku_serialize_device_dimensions(kankaku_device_dimensions deviceDimensions, uint8_t** serializedData, size_t* serializedDataBytesCount);
 
 #endif  // __KANKAKU_SERIALIZATION_H__
