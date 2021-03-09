@@ -23,6 +23,7 @@
 
 static wchar_t KANKAKU_WINDOW_CLASS_NAME[] = L"kankaku";
 static kankaku_hid_touchpad gTouchpad;
+static HANDLE gPipeHandle;
 
 void main_register_input_devices(HWND hwnd)
 {
@@ -273,8 +274,9 @@ int CALLBACK main_winmain(_In_ HINSTANCE hInstance, _In_opt_ HINSTANCE hPrevInst
     return -1;
   }
 
-  // we don't show the window
-  // ShowWindow(hwnd, nCmdShow);
+  // we don't need show the window
+  // TODO find a way to terminate this GUI from console
+  ShowWindow(hwnd, nCmdShow);
   UpdateWindow(hwnd);
 
   MSG msg;
@@ -288,7 +290,7 @@ int CALLBACK main_winmain(_In_ HINSTANCE hInstance, _In_opt_ HINSTANCE hPrevInst
 }
 
 #define PIPE_OUT_BUFFER_SIZE 16777216  // 16 MB
-int kankaku_create_pipe_server(char* pipeName)
+int kankaku_create_pipe_server(char* pipeName, HANDLE* outPipeHandlePtr)
 {
   int retval        = 0;
   HANDLE pipeHandle = INVALID_HANDLE_VALUE;
@@ -339,45 +341,7 @@ int kankaku_create_pipe_server(char* pipeName)
     }
     else
     {
-      // TODO send data to client
-      kankaku_device_dimensions sampleDeviceDimensions = {.width = 640, .height = 480};
-
-      uint8_t* serializedData         = NULL;
-      size_t serializedDataBytesCount = 0;
-      kankaku_serialize_device_dimensions(sampleDeviceDimensions, &serializedData, &serializedDataBytesCount);
-
-      printf("serializedData: ");
-      for (int i = 0; i < serializedDataBytesCount; i++)
-      {
-        printf("%x", serializedData[i]);
-      }
-      printf("\n");
-
-      DWORD numberOfBytesWritten = 0;
-
-      BOOL wfRetval = WriteFile(     //
-          pipeHandle,                // hFile
-          serializedData,            // lpBuffer
-          serializedDataBytesCount,  // nNumberOfBytesToWrite
-          &numberOfBytesWritten,     // lpNumberOfBytesWritten
-          NULL                       // lpOverlapped
-      );
-
-      kankaku_utils_free(serializedData, serializedDataBytesCount, __FILE__, __LINE__);
-
-      if (!wfRetval)
-      {
-        retval = -1;
-        fprintf(stderr, "%sWriteFile failed at %s:%d%s\n", FG_BRIGHT_RED, __FILE__, __LINE__, RESET_COLOR);
-        utils_print_win32_last_error();
-      }
-
-      printf("done\n");
-
-      // TODO check number of bytes written
-      FlushFileBuffers(pipeHandle);
-      DisconnectNamedPipe(pipeHandle);
-      CloseHandle(pipeHandle);
+      (*outPipeHandlePtr) = pipeHandle;
     }
   }
 
@@ -386,11 +350,18 @@ int kankaku_create_pipe_server(char* pipeName)
 
 int main()
 {
+  int retval = 0;
+
   // testing wip function
   kankaku_hid_touchpad_list touchpadList;
-  kankaku_touchpad_parse_available_devices(&touchpadList);
+  retval = kankaku_touchpad_parse_available_devices(&touchpadList);
 
-  printf("number of touchpad devices: %d\n", touchpadList.size);
+  if (retval)
+  {
+    exit(-1);
+  }
+
+  printf("number of touchpad devices: %ud\n", touchpadList.size);
 
   int selectedTouchpadIndex = -1;
 
@@ -411,46 +382,63 @@ int main()
   }
 
   kankaku_hid_touchpad hidTouchpad = touchpadList.entries[selectedTouchpadIndex];
-  wprintf(L"device name: %s\n", hidTouchpad.name.ptr);
-  printf("device width: %d\n", hidTouchpad.width);
-  printf("device height: %d\n", hidTouchpad.height);
+  gTouchpad                        = hidTouchpad;
 
-  wprintf(L"%s\n", hidTouchpad.name.ptr);
-  printf("name.length: %d\n", hidTouchpad.name.length);
-  printf("name.size: %zu\n", hidTouchpad.name.bytesCount);
+  char* pipeName = "\\\\.\\pipe\\kankaku";
+  printf("creating named pipe '%s'\n", pipeName);
 
-  printf("\nhexdump\n\n");
-  char* tmpPtr = (char*)hidTouchpad.name.ptr;
-  for (size_t i = 0; i < hidTouchpad.name.bytesCount; i++)
+  HANDLE pipeHandle = NULL;
+  retval            = kankaku_create_pipe_server(pipeName, &pipeHandle);
+
+  if (retval)
   {
-    printf("%02x", tmpPtr[i]);
+    exit(-1);
   }
 
-  printf("\n");
+  // TODO send data to client
+  kankaku_device_dimensions sampleDeviceDimensions = {.width = hidTouchpad.width, .height = hidTouchpad.height};
 
-  printf("\nchar dump\n\n");
+  uint8_t* serializedData         = NULL;
+  size_t serializedDataBytesCount = 0;
+  kankaku_serialize_device_dimensions(sampleDeviceDimensions, &serializedData, &serializedDataBytesCount);
 
-  for (unsigned int i = 0; i < hidTouchpad.name.length; i++)
+  printf("serializedData: ");
+  for (int i = 0; i < serializedDataBytesCount; i++)
   {
-    printf("0");
+    printf("%x", serializedData[i]);
   }
   printf("\n");
 
-  for (unsigned int i = 0; i < hidTouchpad.name.length; i++)
+  DWORD numberOfBytesWritten = 0;
+
+  BOOL wfRetval = WriteFile(     //
+      pipeHandle,                // hFile
+      serializedData,            // lpBuffer
+      serializedDataBytesCount,  // nNumberOfBytesToWrite
+      &numberOfBytesWritten,     // lpNumberOfBytesWritten
+      NULL                       // lpOverlapped
+  );
+
+  kankaku_utils_free(serializedData, serializedDataBytesCount, __FILE__, __LINE__);
+
+  if (!wfRetval)
   {
-    wprintf(L"%c", hidTouchpad.name.ptr[i]);
+    retval = -1;
+    fprintf(stderr, "%sWriteFile failed at %s:%d%s\n", FG_BRIGHT_RED, __FILE__, __LINE__, RESET_COLOR);
+    utils_print_win32_last_error();
+  }
+  else
+  {
+    printf("sent device width and height\n");
+    // TODO check number of bytes written
+    FlushFileBuffers(pipeHandle);
   }
 
-  printf("\n");
-  gTouchpad = hidTouchpad;
+  retval = main_winmain(GetModuleHandle(NULL), NULL, GetCommandLine(), SW_SHOWNORMAL);
+  // TODO clean up resources
 
-  // char* pipeName = "\\\\.\\pipe\\kankaku";
-  // printf("creating named pipe '%s'\n", pipeName);
-  // return kankaku_create_pipe_server(pipeName);
+  DisconnectNamedPipe(pipeHandle);
+  CloseHandle(pipeHandle);
 
-  return 0;
-  // TODO remove testing code
-
-  return main_winmain(GetModuleHandle(NULL), NULL, GetCommandLine(), SW_SHOWNORMAL);
-  // TOD clean up resources
+  return retval;
 };

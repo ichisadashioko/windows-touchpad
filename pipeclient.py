@@ -1,8 +1,10 @@
 import os
+import time
+import traceback
+
 import win32file
 import win32pipe
 import pywintypes
-import time
 
 pipe_name = '\\\\.\\pipe\\kankaku'
 print(pipe_name)
@@ -38,10 +40,16 @@ try:
             print(resp)
 
             res_bs = resp[1]
-            device_width = (res_bs[1] << 8) + res_bs[0]
-            device_height = (res_bs[3] << 8) + res_bs[2]
+
+            if len(res_bs) < 4:
+                print('not enough data for device width and height dimension')
+                # TODO wait for more data
+
+            device_width = int.from_bytes(res_bs[0:2], byteorder='little', signed=False)
+            device_height = int.from_bytes(res_bs[2:4], byteorder='little', signed=False)
 
             print(device_width, device_height)
+            # TODO parse remaining data
         except pywintypes.error as win32error:
             # TODO broken pipe / server closed connection
             print(type(win32error))
