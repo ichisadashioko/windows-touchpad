@@ -34,11 +34,11 @@ int kankaku_serialize_contact_info(kankaku_contact_info contactInfo, uint8_t** s
   pSerializedData[0] = contactInfo.id;
   pSerializedData[1] = contactInfo.onSurface;
 
-  pSerializedData[2] = contactInfo.x >> 8;
-  pSerializedData[3] = contactInfo.x & 0xff;
+  pSerializedData[2] = contactInfo.x & 0xff;
+  pSerializedData[3] = contactInfo.x >> 8;
 
-  pSerializedData[4] = contactInfo.y >> 8;
-  pSerializedData[5] = contactInfo.y & 0xff;
+  pSerializedData[4] = contactInfo.y & 0xff;
+  pSerializedData[5] = contactInfo.y >> 8;
 
   (*serializedData)           = pSerializedData;
   (*serializedDataBytesCount) = pSerializedDataBytesCount;

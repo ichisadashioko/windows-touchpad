@@ -229,6 +229,47 @@ void main_handle_wm_input(HWND hwnd, UINT message, WPARAM wParam, LPARAM lParam)
           kankaku_utils_free(buttonUsageArray, buttonUsageArrayBytesCount, __FILE__, __LINE__);
 
           print_contact_info(contactInfo);
+
+          uint8_t* serializedData         = NULL;
+          size_t serializedDataBytesCount = 0;
+          kankaku_serialize_contact_info(contactInfo, &serializedData, &serializedDataBytesCount);
+
+          for (size_t i = 0; i < serializedDataBytesCount; i++)
+          {
+            printf("%02x", serializedData[i]);
+          }
+          printf("\n");
+
+          // asynchronous sending data
+          DWORD numberOfBytesWritten = 0;
+
+          BOOL wfRetval = WriteFile(     //
+              gPipeHandle,               // hFile
+              serializedData,            // lpBuffer
+              serializedDataBytesCount,  // nNumberOfBytesToWrite
+              &numberOfBytesWritten,     // lpNumberOfBytesWritten
+              NULL                       // lpOverlapped
+          );
+
+          if (!wfRetval)
+          {
+            fprintf(stderr, "%sWriteFile failed at %s:%d%s\n", FG_BRIGHT_RED, __FILE__, __LINE__, RESET_COLOR);
+            utils_print_win32_last_error();
+            exit(-1);
+          }
+          else if (numberOfBytesWritten != serializedDataBytesCount)
+          {
+            fprintf(stderr, "%snumberOfBytesWritten != serializedDataBytesCount%s\n", FG_BRIGHT_RED, RESET_COLOR);
+            fprintf(stderr, "%zu != %zu\n", numberOfBytesWritten, serializedDataBytesCount);
+            fprintf(stderr, "%s:%d\n", __FILE__, __LINE__);
+            exit(-1);
+          }
+          else
+          {
+            FlushFileBuffers(gPipeHandle);
+          }
+
+          kankaku_utils_free(serializedData, serializedDataBytesCount, __FILE__, __LINE__);
         }
       }
 
@@ -473,6 +514,8 @@ int main()
     // TODO check number of bytes written
     FlushFileBuffers(pipeHandle);
   }
+
+  gPipeHandle = pipeHandle;
 
   if (!retval)
   {
