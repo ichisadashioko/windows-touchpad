@@ -57,6 +57,12 @@ void main_handle_wm_create(HWND hwnd, UINT message, WPARAM wParam, LPARAM lParam
   main_register_input_devices(hwnd);
 }
 
+// TODO remove this debug function
+void print_contact_info(kankaku_contact_info contactInfo)
+{
+  printf("{id: %d, onSurface: %d, x: %d, y: %d}\n", contactInfo.id, contactInfo.onSurface, contactInfo.x, contactInfo.y);
+}
+
 void main_handle_wm_input(HWND hwnd, UINT message, WPARAM wParam, LPARAM lParam)
 {
   clock_t ts = clock();
@@ -69,127 +75,161 @@ void main_handle_wm_input(HWND hwnd, UINT message, WPARAM wParam, LPARAM lParam)
   if (rawInputData->header.dwType == RIM_TYPEHID)
   {
     // TODO what does `dwCount` represent?
-    DWORD count   = rawInputData->data.hid.dwCount;
-    BYTE* rawData = rawInputData->data.hid.bRawData;
+    BYTE* hidReportData       = rawInputData->data.hid.bRawData;
+    DWORD hidReportDataLength = rawInputData->data.hid.dwSizeHid;
 
-    if (count != 0)
+    if (hidReportDataLength > 0)
     {
       UINT deviceNameLength;
       wchar_t* deviceName = NULL;
       size_t deviceNameBytesCount;
 
       kankaku_touchpad_get_raw_input_device_name(rawInputData->header.hDevice, &deviceName, &deviceNameLength, &deviceNameBytesCount);
+      // TODO compare device name
 
       printf("[%d]", ts);
       NTSTATUS hidpReturnCode;
       ULONG usageValue;
 
-      PHIDP_PREPARSED_DATA preparsedHIDData = gTouchpad.preparsedData;
+      PHIDP_PREPARSED_DATA hidPrepasedData = gTouchpad.preparsedData;
 
-      hidpReturnCode = HidP_GetUsageValue(HidP_Input, HID_USAGE_PAGE_DIGITIZER, gTouchpad.contactCountLinkCollectionId, HID_USAGE_DIGITIZER_CONTACT_COUNT, &usageValue, preparsedHIDData, (PCHAR)rawInputData->data.hid.bRawData, rawInputData->data.hid.dwSizeHid);
+      hidpReturnCode = HidP_GetUsageValue(HidP_Input, HID_USAGE_PAGE_DIGITIZER, gTouchpad.contactCountLinkCollectionId, HID_USAGE_DIGITIZER_CONTACT_COUNT, &usageValue, hidPrepasedData, (PCHAR)rawInputData->data.hid.bRawData, rawInputData->data.hid.dwSizeHid);
 
       if (hidpReturnCode != HIDP_STATUS_SUCCESS)
       {
-        printf(FG_RED);
-        printf("Failed to read number of contacts!\n");
-        printf(RESET_COLOR);
+        fprintf(stderr, "%sfailed to read number of contacts!%s\n", FG_BRIGHT_RED, RESET_COLOR);
         utils_print_hidp_error(hidpReturnCode, __FILE__, __LINE__);
         exit(-1);
       }
 
       ULONG numContacts = usageValue;
+      printf("%snumContacts: %d%s\n", FG_BRIGHT_BLUE, numContacts, RESET_COLOR);
 
-      printf(FG_BRIGHT_BLUE);
-      printf("numContacts: %d\n", numContacts);
-      printf(RESET_COLOR);
-
-      if (numContacts > gTouchpad.contactLinkCollections.size)
+      kankaku_hid_link_collection_info_list contactLinkCollections = gTouchpad.contactLinkCollections;
+      if (numContacts < 1)
+      {
+      }
+      else if (numContacts > contactLinkCollections.size)
       {
         // TODO how should we deal with this edge case
-        printf(FG_RED);
-        printf("number of contacts is greater than Link Collection Array size at %s:%d\n", __FILE__, __LINE__);
-        printf(RESET_COLOR);
+        fprintf(stderr, "%sdevice reported more contacts than the number of 'contact link collections' that we have! %s:%d%s\n", FG_BRIGHT_RED, __FILE__, __LINE__, RESET_COLOR);
         exit(-1);
       }
       else
       {
         // TODO
-        // for (unsigned int linkColIdx = 0; linkColIdx < numContacts; linkColIdx++)
-        // {
-        //   kankaku_link_collection_info collectionInfo = g_app_state->device_info_list.Entries[foundHidIdx].LinkColInfoList.Entries[linkColIdx];
+        // TODO I know the number of contacts. Which link collection ids have the contacts information?
+        for (unsigned int linkCollectionIndex = 0; linkCollectionIndex < numContacts; linkCollectionIndex++)
+        {
+          kankaku_hid_link_collection_info linkCollectionInfo = contactLinkCollections.entries[linkCollectionIndex];
 
-        //   if (collectionInfo.HasX && collectionInfo.HasY && collectionInfo.HasContactID && collectionInfo.HasTipSwitch)
-        //   {
-        //     hidpReturnCode = HidP_GetUsageValue(HidP_Input, 0x01, collectionInfo.LinkColID, 0x30, &usageValue, preparsedHIDData, (PCHAR)rawInputData->data.hid.bRawData, rawInputData->data.hid.dwSizeHid);
+          ULONG contactXPosition = -1;
 
-        //     if (hidpReturnCode != HIDP_STATUS_SUCCESS)
-        //     {
-        //       fprintf(stderr, "%sFailed to read x position!%s\n", FG_RED, RESET_COLOR);
-        //       utils_print_hidp_error(hidpReturnCode, __FILE__, __LINE__);
-        //       exit(-1);
-        //     }
+          hidpReturnCode = HidP_GetUsageValue(      //
+              HidP_Input,                           // ReportType
+              HID_USAGE_PAGE_GENERIC,               // UsagePage
+              linkCollectionInfo.linkCollectionId,  // LinkCollection
+              HID_USAGE_GENERIC_X,                  // Usage
+              &contactXPosition,                    // UsageValue,
+              hidPrepasedData,                      // PreparsedData
+              hidReportData,                        // Report,
+              hidReportDataLength                   // ReportLength
+          );
 
-        //     ULONG xPos = usageValue;
+          if (hidpReturnCode != HIDP_STATUS_SUCCESS)
+          {
+            fprintf(stderr, "%sHidP_GetUsageValue failed at %s:%d%s\n", FG_BRIGHT_RED, __FILE__, __LINE__, RESET_COLOR);
+            utils_print_hidp_error(hidpReturnCode, __FILE__, __LINE__);
+            exit(-1);
+          }
 
-        //     hidpReturnCode = HidP_GetUsageValue(HidP_Input, 0x01, collectionInfo.LinkColID, 0x31, &usageValue, preparsedHIDData, (PCHAR)rawInputData->data.hid.bRawData, rawInputData->data.hid.dwSizeHid);
-        //     if (hidpReturnCode != HIDP_STATUS_SUCCESS)
-        //     {
-        //       printf(FG_RED);
-        //       printf("Failed to read y position!\n");
-        //       printf(RESET_COLOR);
-        //       utils_print_hidp_error(hidpReturnCode, __FILE__, __LINE__);
-        //       exit(-1);
-        //     }
+          ULONG contactYPosition = -1;
 
-        //     ULONG yPos = usageValue;
+          hidpReturnCode = HidP_GetUsageValue(      //
+              HidP_Input,                           // ReportType
+              HID_USAGE_PAGE_GENERIC,               // UsagePage
+              linkCollectionInfo.linkCollectionId,  // LinkCollection
+              HID_USAGE_GENERIC_Y,                  // Usage
+              &contactYPosition,                    // UsageValue,
+              hidPrepasedData,                      // PreparsedData
+              hidReportData,                        // Report,
+              hidReportDataLength                   // ReportLength
+          );
 
-        //     hidpReturnCode = HidP_GetUsageValue(HidP_Input, HID_USAGE_PAGE_DIGITIZER, collectionInfo.LinkColID, HID_USAGE_DIGITIZER_CONTACT_ID, &usageValue, preparsedHIDData, (PCHAR)rawInputData->data.hid.bRawData, rawInputData->data.hid.dwSizeHid);
-        //     if (hidpReturnCode != HIDP_STATUS_SUCCESS)
-        //     {
-        //       printf(FG_RED);
-        //       printf("Failed to read touch ID!\n");
-        //       printf(RESET_COLOR);
-        //       utils_print_hidp_error(hidpReturnCode, __FILE__, __LINE__);
-        //       exit(-1);
-        //     }
+          if (hidpReturnCode != HIDP_STATUS_SUCCESS)
+          {
+            fprintf(stderr, "%sHidP_GetUsageValue failed at %s:%d%s\n", FG_BRIGHT_RED, __FILE__, __LINE__, RESET_COLOR);
+            utils_print_hidp_error(hidpReturnCode, __FILE__, __LINE__);
+            exit(-1);
+          }
 
-        //     ULONG touchId = usageValue;
+          ULONG contactId = -1;
 
-        //     const ULONG maxNumButtons = HidP_MaxUsageListLength(HidP_Input, HID_USAGE_PAGE_DIGITIZER, preparsedHIDData);
+          hidpReturnCode = HidP_GetUsageValue(      //
+              HidP_Input,                           // ReportType
+              HID_USAGE_PAGE_DIGITIZER,             // UsagePage
+              linkCollectionInfo.linkCollectionId,  // LinkCollection
+              HID_USAGE_DIGITIZER_CONTACT_ID,       // Usage
+              &contactId,                           // UsageValue,
+              hidPrepasedData,                      // PreparsedData
+              hidReportData,                        // Report,
+              hidReportDataLength                   // ReportLength
+          );
 
-        //     ULONG _maxNumButtons = maxNumButtons;
+          if (hidpReturnCode != HIDP_STATUS_SUCCESS)
+          {
+            fprintf(stderr, "%sHidP_GetUsageValue failed at %s:%d%s\n", FG_BRIGHT_RED, __FILE__, __LINE__, RESET_COLOR);
+            utils_print_hidp_error(hidpReturnCode, __FILE__, __LINE__);
+            exit(-1);
+          }
 
-        //     USAGE* buttonUsageArray = (USAGE*)kankaku_utils_malloc_or_die(sizeof(USAGE) * maxNumButtons, __FILE__, __LINE__);
+          kankaku_contact_info contactInfo = {
+              .id        = contactId,         //
+              .onSurface = 0,                 // TODO
+              .x         = contactXPosition,  //
+              .y         = contactYPosition,  //
+          };
 
-        //     hidpReturnCode = HidP_GetUsages(HidP_Input, HID_USAGE_PAGE_DIGITIZER, collectionInfo.LinkColID, buttonUsageArray, &_maxNumButtons, preparsedHIDData, (PCHAR)rawInputData->data.hid.bRawData, rawInputData->data.hid.dwSizeHid);
+          ULONG maxNumButtonUsages = HidP_MaxUsageListLength(  //
+              HidP_Input,                                      // ReportType
+              HID_USAGE_PAGE_DIGITIZER,                        // UsagePage
+              hidPrepasedData                                  // PreparsedData
+          );
 
-        //     if (hidpReturnCode != HIDP_STATUS_SUCCESS)
-        //     {
-        //       printf(FG_RED);
-        //       printf("HidP_GetUsages failed!\n");
-        //       printf(RESET_COLOR);
-        //       utils_print_hidp_error(hidpReturnCode, __FILE__, __LINE__);
-        //       exit(-1);
-        //     }
+          size_t buttonUsageArrayBytesCount = sizeof(USAGE) * maxNumButtonUsages;
+          PUSAGE buttonUsageArray           = kankaku_utils_malloc_or_die(buttonUsageArrayBytesCount, __FILE__, __LINE__);
 
-        //     int isContactOnSurface = 0;
+          hidpReturnCode = HidP_GetUsages(          //
+              HidP_Input,                           // ReportType
+              HID_USAGE_PAGE_DIGITIZER,             // UsagePage
+              linkCollectionInfo.linkCollectionId,  // LinkCollection
+              buttonUsageArray,                     // UsageList
+              &maxNumButtonUsages,                  // UsageLength
+              hidPrepasedData,                      // PreparsedData
+              hidReportData,                        // Report
+              hidReportDataLength                   // ReportLength
+          );
 
-        //     for (ULONG usageIdx = 0; usageIdx < maxNumButtons; usageIdx++)
-        //     {
-        //       if (buttonUsageArray[usageIdx] == HID_USAGE_DIGITIZER_TIP_SWITCH)
-        //       {
-        //         isContactOnSurface = 1;
-        //         break;
-        //       }
-        //     }
+          if (hidpReturnCode != HIDP_STATUS_SUCCESS)
+          {
+            fprintf(stderr, "%sHidP_GetUsages failed at %s:%d%s\n", FG_BRIGHT_RED, __FILE__, __LINE__, RESET_COLOR);
+            utils_print_hidp_error(hidpReturnCode, __FILE__, __LINE__);
+            exit(-1);
+          }
 
-        //     free(buttonUsageArray);
+          for (ULONG buttonUsageIndex = 0; buttonUsageIndex < maxNumButtonUsages; buttonUsageIndex++)
+          {
+            if (buttonUsageArray[buttonUsageIndex] == HID_USAGE_DIGITIZER_TIP_SWITCH)
+            {
+              contactInfo.onSurface = 1;
+              break;
+            }
+          }
 
-        //     printf(FG_GREEN);
-        //     printf("LinkColId: %d, touchID: %d, tipSwitch: %d, position: (%d, %d)\n", collectionInfo.LinkColID, touchId, isContactOnSurface, xPos, yPos);
-        //     printf(RESET_COLOR);
-        //   }
-        // }
+          kankaku_utils_free(buttonUsageArray, buttonUsageArrayBytesCount, __FILE__, __LINE__);
+
+          print_contact_info(contactInfo);
+        }
       }
 
       free(deviceName);
@@ -434,9 +474,12 @@ int main()
     FlushFileBuffers(pipeHandle);
   }
 
-  retval = main_winmain(GetModuleHandle(NULL), NULL, GetCommandLine(), SW_SHOWNORMAL);
-  // TODO clean up resources
+  if (!retval)
+  {
+    retval = main_winmain(GetModuleHandle(NULL), NULL, GetCommandLine(), SW_SHOWNORMAL);
+  }
 
+  // TODO clean up resources
   DisconnectNamedPipe(pipeHandle);
   CloseHandle(pipeHandle);
 

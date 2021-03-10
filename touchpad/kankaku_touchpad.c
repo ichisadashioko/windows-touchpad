@@ -62,7 +62,6 @@ int kankaku_touchpad_get_raw_input_device_name(_In_ HANDLE hDevice, _Out_ wchar_
     }
     else
     {
-      printf("device name length: %d\n", (*deviceNameLengthPtr));
       // size + 1 for NULL terminated string
       (*deviceNameBytesCount) = (sizeof(wchar_t) * (*deviceNameLengthPtr));
       (*deviceName)           = (wchar_t*)kankaku_utils_malloc_or_die((*deviceNameBytesCount), __FILE__, __LINE__);

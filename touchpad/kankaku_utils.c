@@ -32,23 +32,23 @@ void utils_print_hidp_error(NTSTATUS hidpReturnCode, const char* filePath, int l
 
   if (hidpReturnCode == HIDP_STATUS_INVALID_REPORT_LENGTH)
   {
-    fprintf(stderr, "The report length is not valid.");
+    fprintf(stderr, "HIDP_STATUS_INVALID_REPORT_LENGTH - The report length is not valid.");
   }
   else if (hidpReturnCode == HIDP_STATUS_INVALID_REPORT_TYPE)
   {
-    fprintf(stderr, "The specified report type is not valid.");
+    fprintf(stderr, "HIDP_STATUS_INVALID_REPORT_TYPE - The specified report type is not valid.");
   }
   else if (hidpReturnCode == HIDP_STATUS_INCOMPATIBLE_REPORT_ID)
   {
-    fprintf(stderr, "The collection contains a value on the specified usage page in a report of the specified type, but there are no such usages in the specified report.");
+    fprintf(stderr, "HIDP_STATUS_INCOMPATIBLE_REPORT_ID - The collection contains a value on the specified usage page in a report of the specified type, but there are no such usages in the specified report.");
   }
   else if (hidpReturnCode == HIDP_STATUS_INVALID_PREPARSED_DATA)
   {
-    fprintf(stderr, "The preparsed data is not valid.");
+    fprintf(stderr, "HIDP_STATUS_INVALID_PREPARSED_DATA - The preparsed data is not valid.");
   }
   else if (hidpReturnCode == HIDP_STATUS_USAGE_NOT_FOUND)
   {
-    fprintf(stderr, "The collection does not contain a value on the specified usage page in any report of the specified report type.");
+    fprintf(stderr, "HIDP_STATUS_USAGE_NOT_FOUND - The collection does not contain a value on the specified usage page in any report of the specified report type.");
   }
   else
   {
