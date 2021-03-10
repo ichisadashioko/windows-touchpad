@@ -1,6 +1,7 @@
 #include "kankaku_utils.h"
 
 #include <Windows.h>
+#include <tchar.h>
 
 #include <hidusage.h>
 #include <hidpi.h>
@@ -9,7 +10,7 @@
 #include <time.h>
 #include <stdio.h>
 #include <stdlib.h>
-#include <tchar.h>
+#include <string.h>
 
 #include "termcolor.h"
 
@@ -31,23 +32,23 @@ void utils_print_hidp_error(NTSTATUS hidpReturnCode, const char* filePath, int l
 
   if (hidpReturnCode == HIDP_STATUS_INVALID_REPORT_LENGTH)
   {
-    fprintf(stderr, "The report length is not valid.");
+    fprintf(stderr, "HIDP_STATUS_INVALID_REPORT_LENGTH - The report length is not valid.");
   }
   else if (hidpReturnCode == HIDP_STATUS_INVALID_REPORT_TYPE)
   {
-    fprintf(stderr, "The specified report type is not valid.");
+    fprintf(stderr, "HIDP_STATUS_INVALID_REPORT_TYPE - The specified report type is not valid.");
   }
   else if (hidpReturnCode == HIDP_STATUS_INCOMPATIBLE_REPORT_ID)
   {
-    fprintf(stderr, "The collection contains a value on the specified usage page in a report of the specified type, but there are no such usages in the specified report.");
+    fprintf(stderr, "HIDP_STATUS_INCOMPATIBLE_REPORT_ID - The collection contains a value on the specified usage page in a report of the specified type, but there are no such usages in the specified report.");
   }
   else if (hidpReturnCode == HIDP_STATUS_INVALID_PREPARSED_DATA)
   {
-    fprintf(stderr, "The preparsed data is not valid.");
+    fprintf(stderr, "HIDP_STATUS_INVALID_PREPARSED_DATA - The preparsed data is not valid.");
   }
   else if (hidpReturnCode == HIDP_STATUS_USAGE_NOT_FOUND)
   {
-    fprintf(stderr, "The collection does not contain a value on the specified usage page in any report of the specified report type.");
+    fprintf(stderr, "HIDP_STATUS_USAGE_NOT_FOUND - The collection does not contain a value on the specified usage page in any report of the specified report type.");
   }
   else
   {
@@ -57,7 +58,7 @@ void utils_print_hidp_error(NTSTATUS hidpReturnCode, const char* filePath, int l
   fprintf(stderr, " HidP function failed at %s:%d%s\n", filePath, lineNumber, RESET_COLOR);
 }
 
-int utils_find_input_device_index_by_name(HID_DEVICE_INFO_LIST* hidInfoList, TCHAR* deviceName, const unsigned int cbDeviceName, PHIDP_PREPARSED_DATA preparsedData, const UINT cbPreparsedData, unsigned int* foundHidIndex)
+int utils_find_input_device_index_by_name(HID_DEVICE_INFO_LIST* hidInfoList, char* deviceName, size_t cbDeviceName, PHIDP_PREPARSED_DATA preparsedData, const UINT cbPreparsedData, unsigned int* foundHidIndex)
 {
   (*foundHidIndex)              = (unsigned int)-1;
   HID_DEVICE_INFO* hidInfoArray = hidInfoList->Entries;
@@ -84,7 +85,7 @@ int utils_find_input_device_index_by_name(HID_DEVICE_INFO_LIST* hidInfoList, TCH
     hidInfoArray[(*foundHidIndex)].PreparedData    = preparsedData;
     hidInfoArray[(*foundHidIndex)].cbPreparsedData = cbPreparsedData;
 
-    hidInfoArray[(*foundHidIndex)].Name                       = (TCHAR*)kankaku_utils_malloc_or_die(cbDeviceName, __FILE__, __LINE__);
+    hidInfoArray[(*foundHidIndex)].Name                       = (char*)kankaku_utils_malloc_or_die(cbDeviceName, __FILE__, __LINE__);
     hidInfoArray[(*foundHidIndex)].ContactCountLinkCollection = (USHORT)-1;
 
     memcpy(hidInfoArray[(*foundHidIndex)].Name, deviceName, cbDeviceName);
@@ -97,7 +98,7 @@ int utils_find_input_device_index_by_name(HID_DEVICE_INFO_LIST* hidInfoList, TCH
   {
     for (unsigned int touchpadIndex = 0; touchpadIndex < hidInfoArraySize; touchpadIndex++)
     {
-      int compareNameResult = _tcscmp(deviceName, hidInfoArray[touchpadIndex].Name);
+      int compareNameResult = strcmp(deviceName, hidInfoArray[touchpadIndex].Name);
       if (compareNameResult == 0)
       {
         (*foundHidIndex) = touchpadIndex;
@@ -144,7 +145,7 @@ int utils_find_input_device_index_by_name(HID_DEVICE_INFO_LIST* hidInfoList, TCH
     hidInfoArray[(*foundHidIndex)].LinkColInfoList = (kankaku_link_collection_info_list){.Entries = NULL, .Size = 0};
     hidInfoArray[(*foundHidIndex)].cbPreparsedData = cbPreparsedData;
 
-    hidInfoArray[(*foundHidIndex)].Name = (TCHAR*)kankaku_utils_malloc_or_die(cbDeviceName, __FILE__, __LINE__);
+    hidInfoArray[(*foundHidIndex)].Name = (char*)kankaku_utils_malloc_or_die(cbDeviceName, __FILE__, __LINE__);
 
     memcpy(hidInfoArray[(*foundHidIndex)].Name, deviceName, cbDeviceName);
 

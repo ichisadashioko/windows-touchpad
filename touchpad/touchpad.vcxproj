@@ -47,6 +47,7 @@
     </Link>
   </ItemDefinitionGroup>
   <ItemGroup>
+    <ClCompile Include="kankaku_serialization.c" />
     <ClCompile Include="kankaku_tensorflow.c" />
     <ClCompile Include="kankaku_point2d.c" />
     <ClCompile Include="kankaku_stroke.c" />
@@ -55,6 +56,7 @@
     <ClCompile Include="kankaku_utils.c" />
     <ClCompile Include="termcolor.h" />
     <ClCompile Include="main.c" />
+    <ClInclude Include="kankaku_serialization.h" />
     <ClInclude Include="kankaku_tensorflow.h" />
     <ClInclude Include="kankaku_point2d.h" />
     <ClInclude Include="kankaku_stroke.h" />

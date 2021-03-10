@@ -39,6 +39,9 @@
     <ClCompile Include="kankaku_tensorflow.c">
       <Filter>Source Files</Filter>
     </ClCompile>
+    <ClCompile Include="kankaku_serialization.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="kankaku_point2d.h">
@@ -57,6 +60,9 @@
       <Filter>Header Files</Filter>
     </ClInclude>
     <ClInclude Include="kankaku_tensorflow.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="kankaku_serialization.h">
       <Filter>Header Files</Filter>
     </ClInclude>
   </ItemGroup>

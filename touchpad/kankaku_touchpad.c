@@ -15,7 +15,7 @@
 #include "termcolor.h"
 #include "kankaku_utils.h"
 
-int kankaku_touchpad_get_raw_input_device_name(_In_ HANDLE hDevice, _Out_ TCHAR** deviceName, _Out_ UINT* nameSize, _Out_ size_t* deviceNameByteCount)
+int kankaku_touchpad_get_raw_input_device_name(_In_ HANDLE hDevice, _Out_ wchar_t** deviceName, _Out_ UINT* deviceNameLengthPtr, _Out_ size_t* deviceNameBytesCount)
 {
   int retval = 0;
   UINT winReturnCode;
@@ -25,25 +25,25 @@ int kankaku_touchpad_get_raw_input_device_name(_In_ HANDLE hDevice, _Out_ TCHAR*
   if (deviceName == NULL)
   {
     retval = -1;
-    fprintf(stderr, "%s(TCHAR**) deviceName is NULL%s\n", FG_BRIGHT_RED, RESET_COLOR);
+    fprintf(stderr, "%s(wchar_t**) deviceName is NULL%s\n", FG_BRIGHT_RED, RESET_COLOR);
     exit(-1);
   }
-  else if (nameSize == NULL)
+  else if (deviceNameLengthPtr == NULL)
   {
     retval = -1;
-    fprintf(stderr, "%snameSize is NULL! You will not able to know the number of characters in deviceName string%s\n", FG_BRIGHT_RED, RESET_COLOR);
+    fprintf(stderr, "%sdeviceNameLengthPtr is NULL! You will not able to know the number of characters in deviceName string%s\n", FG_BRIGHT_RED, RESET_COLOR);
     exit(-1);
   }
   else if ((*deviceName) != NULL)
   {
     retval = -1;
-    fprintf(stderr, "%s(TCHAR*) deviceName is not NULL! Please free your memory and set the pointer value to NULL%s\n", FG_BRIGHT_RED, RESET_COLOR);
+    fprintf(stderr, "%s(wchar_t*) deviceName is not NULL! Please free your memory and set the pointer value to NULL%s\n", FG_BRIGHT_RED, RESET_COLOR);
     exit(-1);
   }
-  else if (deviceNameByteCount == NULL)
+  else if (deviceNameBytesCount == NULL)
   {
     retval = -1;
-    fprintf(stderr, "%scbDeviceName is NULL! You will not able to know the size of the return array%s\n", FG_BRIGHT_RED, RESET_COLOR);
+    fprintf(stderr, "%sdeviceNameBytesCount is NULL! You will not able to know the size of the return array%s\n", FG_BRIGHT_RED, RESET_COLOR);
     exit(-1);
   }
   else
@@ -52,37 +52,36 @@ int kankaku_touchpad_get_raw_input_device_name(_In_ HANDLE hDevice, _Out_ TCHAR*
     // the actual code is here
 
     // get the device name size (number of characters)
-    winReturnCode = GetRawInputDeviceInfo(_In_ hDevice, RIDI_DEVICENAME, NULL, nameSize);
+    winReturnCode = GetRawInputDeviceInfoW(_In_ hDevice, RIDI_DEVICENAME, NULL, deviceNameLengthPtr);
     if (winReturnCode == (UINT)-1)
     {
       retval = -1;
-      fprintf(stderr, "%sGetRawInputDeviceInfo failed at %s:%d%s\n", FG_BRIGHT_RED, __FILE__, __LINE__, RESET_COLOR);
+      fprintf(stderr, "%sGetRawInputDeviceInfoW failed at %s:%d%s\n", FG_BRIGHT_RED, __FILE__, __LINE__, RESET_COLOR);
       utils_print_win32_last_error();
       exit(-1);
     }
     else
     {
       // size + 1 for NULL terminated string
-      (*deviceNameByteCount) = (sizeof(TCHAR) * ((*nameSize) + 1));
-      (*deviceName)          = (TCHAR*)kankaku_utils_malloc_or_die((*deviceNameByteCount), __FILE__, __LINE__);
+      (*deviceNameBytesCount) = (sizeof(wchar_t) * (*deviceNameLengthPtr));
+      (*deviceName)           = (wchar_t*)kankaku_utils_malloc_or_die((*deviceNameBytesCount), __FILE__, __LINE__);
 
-      (*deviceName)[(*nameSize)] = 0;
-
-      winReturnCode = GetRawInputDeviceInfo(hDevice, RIDI_DEVICENAME, (*deviceName), nameSize);
+      winReturnCode = GetRawInputDeviceInfoW(hDevice, RIDI_DEVICENAME, (*deviceName), deviceNameLengthPtr);
       if (winReturnCode == (UINT)-1)
       {
         retval = -1;
-        fprintf(stderr, "%sGetRawInputDeviceInfo failed at %s:%d%s\n", FG_BRIGHT_RED, __FILE__, __LINE__, RESET_COLOR);
+        fprintf(stderr, "%sGetRawInputDeviceInfoW failed at %s:%d%s\n", FG_BRIGHT_RED, __FILE__, __LINE__, RESET_COLOR);
         utils_print_win32_last_error();
-        kankaku_utils_free((*deviceName), (*deviceNameByteCount), __FILE__, __LINE__);
+        kankaku_utils_free((*deviceName), (*deviceNameBytesCount), __FILE__, __LINE__);
         exit(-1);
       }
-      else if (winReturnCode != (*nameSize))
+      else if (winReturnCode != (*deviceNameLengthPtr))
       {
-        retval = -1;
-        fprintf(stderr, "%sGetRawInputDeviceInfo does not return the expected size %d (actual) vs %d (expected) at  %s:%d%s\n", FG_BRIGHT_RED, winReturnCode, (*nameSize), __FILE__, __LINE__, RESET_COLOR);
-        kankaku_utils_free((*deviceName), (*deviceNameByteCount), __FILE__, __LINE__);
-        exit(-1);
+        fprintf(stderr, "%sGetRawInputDeviceInfoW does not return the expected size %d (actual) vs %d (expected) at  %s:%d%s\n", FG_BRIGHT_RED, winReturnCode, (*deviceNameLengthPtr), __FILE__, __LINE__, RESET_COLOR);
+        // TODO handle this
+        // retval = -1;
+        // kankaku_utils_free((*deviceName), (*deviceNameBytesCount), __FILE__, __LINE__);
+        // exit(-1);
       }
     }
   }
@@ -127,16 +126,16 @@ int kankaku_touchpad_get_raw_input_device_list(_Out_ UINT* numDevices, _Out_ RAW
     }
     else
     {
-      size_t deviceListByteCount = sizeof(RAWINPUTDEVICELIST) * (*numDevices);
+      size_t deviceListBytesCount = sizeof(RAWINPUTDEVICELIST) * (*numDevices);
 
-      (*deviceList) = (RAWINPUTDEVICELIST*)kankaku_utils_malloc_or_die(deviceListByteCount, __FILE__, __LINE__);
+      (*deviceList) = (RAWINPUTDEVICELIST*)kankaku_utils_malloc_or_die(deviceListBytesCount, __FILE__, __LINE__);
       winReturnCode = GetRawInputDeviceList((*deviceList), numDevices, sizeof(RAWINPUTDEVICELIST));
       if (winReturnCode == (UINT)-1)
       {
         retval = -1;
         fprintf(stderr, "%sGetRawInputDeviceList failed at %s:%d%s\n", FG_BRIGHT_RED, __FILE__, __LINE__, RESET_COLOR);
         utils_print_win32_last_error();
-        kankaku_utils_free((*deviceList), deviceListByteCount, __FILE__, __LINE__);
+        kankaku_utils_free((*deviceList), deviceListBytesCount, __FILE__, __LINE__);
         exit(-1);
       }
     }
@@ -173,11 +172,11 @@ int kankaku_touchpad_get_raw_input_device_preparsed_data(_In_ HANDLE hDevice, _O
   }
   else
   {
-    winReturnCode = GetRawInputDeviceInfo(hDevice, RIDI_PREPARSEDDATA, NULL, cbSize);
+    winReturnCode = GetRawInputDeviceInfoA(hDevice, RIDI_PREPARSEDDATA, NULL, cbSize);
     if (winReturnCode == (UINT)-1)
     {
       retval = -1;
-      fprintf(stderr, "%sGetRawInputDeviceInfo failed at %s:%d%s\n", FG_BRIGHT_RED, __FILE__, __LINE__, RESET_COLOR);
+      fprintf(stderr, "%sGetRawInputDeviceInfoA failed at %s:%d%s\n", FG_BRIGHT_RED, __FILE__, __LINE__, RESET_COLOR);
       utils_print_win32_last_error();
       exit(-1);
     }
@@ -185,11 +184,11 @@ int kankaku_touchpad_get_raw_input_device_preparsed_data(_In_ HANDLE hDevice, _O
     {
       (*data) = (PHIDP_PREPARSED_DATA)kankaku_utils_malloc_or_die((*cbSize), __FILE__, __LINE__);
 
-      winReturnCode = GetRawInputDeviceInfo(hDevice, RIDI_PREPARSEDDATA, (*data), cbSize);
+      winReturnCode = GetRawInputDeviceInfoA(hDevice, RIDI_PREPARSEDDATA, (*data), cbSize);
       if (winReturnCode == (UINT)-1)
       {
         retval = -1;
-        fprintf(stderr, "%sGetRawInputDeviceInfo failed at %s:%d%s\n", FG_BRIGHT_RED, __FILE__, __LINE__, RESET_COLOR);
+        fprintf(stderr, "%sGetRawInputDeviceInfoA failed at %s:%d%s\n", FG_BRIGHT_RED, __FILE__, __LINE__, RESET_COLOR);
         utils_print_win32_last_error();
         exit(-1);
       }
@@ -316,11 +315,25 @@ int kankaku_touchpad_append_new_link_collection_info(USHORT linkCollectionId, ka
 #pragma endregion input checking
   {
     unsigned int newNumberOfEntries                          = linkCollectionInfoList.size + 1;
-    size_t previousEntriesByteCount                          = sizeof(kankaku_hid_link_collection_info) * linkCollectionInfoList.size;
-    size_t newEntriesByteCount                               = previousEntriesByteCount + sizeof(kankaku_hid_link_collection_info);
-    kankaku_hid_link_collection_info* newLinkCollectionArray = kankaku_utils_malloc_or_die(newEntriesByteCount, __FILE__, __LINE__);
+    size_t previousEntriesBytesCount                         = sizeof(kankaku_hid_link_collection_info) * linkCollectionInfoList.size;
+    size_t newEntriesBytesCount                              = previousEntriesBytesCount + sizeof(kankaku_hid_link_collection_info);
+    kankaku_hid_link_collection_info* newLinkCollectionArray = kankaku_utils_malloc_or_die(newEntriesBytesCount, __FILE__, __LINE__);
 
-    kankaku_hid_link_collection_info newEntry = {.linkCollectionId = linkCollectionId, .hasX = 0, .hasY = 0, .hasContactID = 0, .hasTipSwitch = 0, .physicalRectangle = {.left = -1, .top = -1, .right = -1, .bottom = -1}};
+    kankaku_hid_link_collection_info newEntry = {
+        .linkCollectionId  = linkCollectionId,  //
+        .hasX              = 0,                 //
+        .hasY              = 0,                 //
+        .hasContactID      = 0,                 //
+        .hasTipSwitch      = 0,                 //
+        .hasContactCount   = 0,                 //
+        .physicalRectangle =                    //
+        {
+            .left   = -1,  //
+            .top    = -1,  //
+            .right  = -1,  //
+            .bottom = -1   //
+        }                  //
+    };
 
     if (linkCollectionInfoList.size != 0)
     {
@@ -329,7 +342,7 @@ int kankaku_touchpad_append_new_link_collection_info(USHORT linkCollectionId, ka
         newLinkCollectionArray[i] = linkCollectionInfoList.entries[i];
       }
 
-      kankaku_utils_free(linkCollectionInfoList.entries, previousEntriesByteCount, __FILE__, __LINE__);
+      kankaku_utils_free(linkCollectionInfoList.entries, previousEntriesBytesCount, __FILE__, __LINE__);
     }
 
     linkCollectionInfoList.entries                              = newLinkCollectionArray;
@@ -351,9 +364,9 @@ int kankaku_touchpad_parse_value_capability_array(HIDP_CAPS hidCapability, PHIDP
   int retval                                                   = 0;
   kankaku_hid_link_collection_info_list linkCollectionInfoDict = (*linkCollectionInfoDictPtr);
 
-  size_t valueCapabilityArrayByteCount = sizeof(HIDP_VALUE_CAPS) * hidCapability.NumberInputValueCaps;
+  size_t valueCapabilityArrayBytesCount = sizeof(HIDP_VALUE_CAPS) * hidCapability.NumberInputValueCaps;
 
-  PHIDP_VALUE_CAPS toBeFreedValueCapabilityArray = kankaku_utils_malloc_or_die(valueCapabilityArrayByteCount, __FILE__, __LINE__);
+  PHIDP_VALUE_CAPS toBeFreedValueCapabilityArray = kankaku_utils_malloc_or_die(valueCapabilityArrayBytesCount, __FILE__, __LINE__);
 
   NTSTATUS hidpReturnCode = HidP_GetValueCaps(HidP_Input, toBeFreedValueCapabilityArray, &hidCapability.NumberInputValueCaps, hidPreparsedData);
 
@@ -416,6 +429,11 @@ int kankaku_touchpad_parse_value_capability_array(HIDP_CAPS hidCapability, PHIDP
             {
               linkCollectionInfo.hasContactID = 1;
             }
+            else if (valueCapability.NotRange.Usage == HID_USAGE_DIGITIZER_CONTACT_COUNT)
+            {
+              // we need to store this information (the link collection ID) so that when we receive WM_INPUT message, we can use this information with the HidP_GetUsageValue function to get the number of touches in that message
+              linkCollectionInfo.hasContactCount = 1;
+            }
           }
 
           linkCollectionInfoDict.entries[linkCollectionIndex] = linkCollectionInfo;
@@ -431,7 +449,7 @@ int kankaku_touchpad_parse_value_capability_array(HIDP_CAPS hidCapability, PHIDP
 
   (*linkCollectionInfoDictPtr) = linkCollectionInfoDict;
 
-  kankaku_utils_free(toBeFreedValueCapabilityArray, valueCapabilityArrayByteCount, __FILE__, __LINE__);
+  kankaku_utils_free(toBeFreedValueCapabilityArray, valueCapabilityArrayBytesCount, __FILE__, __LINE__);
 
   return retval;
 }
@@ -444,6 +462,7 @@ void print_link_collection_info(kankaku_hid_link_collection_info linkCollectionI
   printf("- %shasY%s: %d\n", FG_BRIGHT_GREEN, RESET_COLOR, linkCollectionInfo.hasY);
   printf("- %shasContactID%s: %d\n", FG_BRIGHT_GREEN, RESET_COLOR, linkCollectionInfo.hasContactID);
   printf("- %shasTipSwitch%s: %d\n", FG_BRIGHT_GREEN, RESET_COLOR, linkCollectionInfo.hasTipSwitch);
+  printf("- %shasContactCount%s: %d\n", FG_BRIGHT_GREEN, RESET_COLOR, linkCollectionInfo.hasContactCount);
   printf("- %sphysicalRectangle%s: (%d, %d, %d, %d)\n", FG_BRIGHT_GREEN, RESET_COLOR, linkCollectionInfo.physicalRectangle.left, linkCollectionInfo.physicalRectangle.top, linkCollectionInfo.physicalRectangle.right, linkCollectionInfo.physicalRectangle.bottom);
 }
 
@@ -494,8 +513,8 @@ int kankaku_touchpad_parse_button_capability_array(HIDP_CAPS hidCapability, PHID
 {
   int retval                                                   = 0;
   kankaku_hid_link_collection_info_list linkCollectionInfoDict = (*linkCollectionInfoDictPtr);
-  size_t buttonCapabilityArrayByteCount                        = hidCapability.NumberInputButtonCaps * sizeof(HIDP_BUTTON_CAPS);
-  PHIDP_BUTTON_CAPS toBeFreedButtonCapabilityArray             = kankaku_utils_malloc_or_die(buttonCapabilityArrayByteCount, __FILE__, __LINE__);
+  size_t buttonCapabilityArrayBytesCount                       = hidCapability.NumberInputButtonCaps * sizeof(HIDP_BUTTON_CAPS);
+  PHIDP_BUTTON_CAPS toBeFreedButtonCapabilityArray             = kankaku_utils_malloc_or_die(buttonCapabilityArrayBytesCount, __FILE__, __LINE__);
   NTSTATUS hidpReturnCode                                      = HidP_GetButtonCaps(HidP_Input, toBeFreedButtonCapabilityArray, &hidCapability.NumberInputButtonCaps, hidPreparsedData);
 
   if (hidpReturnCode != HIDP_STATUS_SUCCESS)
@@ -546,7 +565,7 @@ int kankaku_touchpad_parse_button_capability_array(HIDP_CAPS hidCapability, PHID
 
   (*linkCollectionInfoDictPtr) = linkCollectionInfoDict;
 
-  kankaku_utils_free(toBeFreedButtonCapabilityArray, buttonCapabilityArrayByteCount, __FILE__, __LINE__);
+  kankaku_utils_free(toBeFreedButtonCapabilityArray, buttonCapabilityArrayBytesCount, __FILE__, __LINE__);
 
   return retval;
 }
@@ -555,9 +574,9 @@ void kankaku_touchpad_append_link_collection_info(kankaku_hid_link_collection_in
 {
   kankaku_hid_link_collection_info_list linkCollectionInfoList = (*linkCollectionInfoListPtr);
   unsigned int newNumberOfEntries                              = linkCollectionInfoList.size + 1;
-  size_t previousEntriesByteCount                              = sizeof(kankaku_hid_link_collection_info) * linkCollectionInfoList.size;
-  size_t newEntriesByteCount                                   = previousEntriesByteCount + sizeof(kankaku_hid_link_collection_info);
-  kankaku_hid_link_collection_info* newLinkCollectionArray     = kankaku_utils_malloc_or_die(newEntriesByteCount, __FILE__, __LINE__);
+  size_t previousEntriesBytesCount                             = sizeof(kankaku_hid_link_collection_info) * linkCollectionInfoList.size;
+  size_t newEntriesBytesCount                                  = previousEntriesBytesCount + sizeof(kankaku_hid_link_collection_info);
+  kankaku_hid_link_collection_info* newLinkCollectionArray     = kankaku_utils_malloc_or_die(newEntriesBytesCount, __FILE__, __LINE__);
 
   if (linkCollectionInfoList.size != 0)
   {
@@ -566,7 +585,7 @@ void kankaku_touchpad_append_link_collection_info(kankaku_hid_link_collection_in
       newLinkCollectionArray[i] = linkCollectionInfoList.entries[i];
     }
 
-    kankaku_utils_free(linkCollectionInfoList.entries, previousEntriesByteCount, __FILE__, __LINE__);
+    kankaku_utils_free(linkCollectionInfoList.entries, previousEntriesBytesCount, __FILE__, __LINE__);
   }
 
   linkCollectionInfoList.entries                              = newLinkCollectionArray;
@@ -594,14 +613,39 @@ void kankaku_touchpad_filter_link_collection_info(kankaku_hid_link_collection_in
 
   (*linkCollectionInfoListPtr) = tmpLinkCollectionInfoList;
 }
+int kankaku_touchpad_is_valid_touchpad(kankaku_hid_touchpad hidTouchpad)
+{
+  int retval = 0;
 
-int kankaku_touchpad_parse_available_devices()
+  if (hidTouchpad.width == 0)
+  {
+    // TODO print notification about this device?
+  }
+  else if (hidTouchpad.height == 0)
+  {
+    // TODO print notification about this device?
+  }
+  else if (hidTouchpad.contactCountLinkCollectionId == ((USHORT)-1))
+  {
+    // TODO print notification about this device?
+  }
+  else
+  {
+    retval = 1;
+  }
+
+  return retval;
+}
+
+int kankaku_touchpad_parse_available_devices(kankaku_hid_touchpad_list* outTouchpadList)
 {
   int retval = 0;
 
   UINT numberOfDevices;
   // Even though the structure has the word LIST in it, it is not refering to a list but a single element.
   RAWINPUTDEVICELIST* toBeFreedDeviceList = NULL;
+
+  kankaku_hid_touchpad_list touchpadList = {.entries = NULL, .size = 0};
 
   retval = kankaku_touchpad_get_raw_input_device_list(&numberOfDevices, &toBeFreedDeviceList);
   if (retval)
@@ -629,10 +673,10 @@ int kankaku_touchpad_parse_available_devices()
       // - HID_USAGE_DIGITIZER_CONTACT_COUNT
       // - HID_USAGE_DIGITIZER_TIP_SWITCH
 
-      UINT preparsedDataByteCount                 = 0;
-      PHIDP_PREPARSED_DATA toBeFreedPreparsedData = NULL;
+      UINT preparsedDataBytesCount       = 0;
+      PHIDP_PREPARSED_DATA preparsedData = NULL;
 
-      retval = kankaku_touchpad_get_raw_input_device_preparsed_data(rawInputDevice.hDevice, &toBeFreedPreparsedData, &preparsedDataByteCount);
+      retval = kankaku_touchpad_get_raw_input_device_preparsed_data(rawInputDevice.hDevice, &preparsedData, &preparsedDataBytesCount);
       if (retval)
       {
         fprintf(stderr, "%skankaku_touchpad_get_raw_input_device_preparsed_data failed at %s:%d%s\n", FG_BRIGHT_RED, __FILE__, __LINE__, RESET_COLOR);
@@ -641,8 +685,9 @@ int kankaku_touchpad_parse_available_devices()
       {
         NTSTATUS hidpReturnCode;
         HIDP_CAPS caps;
+        int isPreparsedDataStored = 0;
 
-        hidpReturnCode = HidP_GetCaps(toBeFreedPreparsedData, &caps);
+        hidpReturnCode = HidP_GetCaps(preparsedData, &caps);
         if (hidpReturnCode != HIDP_STATUS_SUCCESS)
         {
           retval = -1;
@@ -656,62 +701,154 @@ int kankaku_touchpad_parse_available_devices()
           {
             kankaku_hid_link_collection_info_list linkCollectionInfoDict = {.entries = NULL, .size = 0};
 
-            UINT deviceNameLength;
-            TCHAR* toBeFreedDeviceName = NULL;
-            size_t deviceNameByteCount;
+            retval = kankaku_touchpad_parse_value_capability_array(caps, preparsedData, &linkCollectionInfoDict);
 
-            retval = kankaku_touchpad_get_raw_input_device_name(rawInputDevice.hDevice, &toBeFreedDeviceName, &deviceNameLength, &deviceNameByteCount);
             if (retval)
             {
-              fprintf(stderr, "%skankaku_touchpad_get_raw_input_device_name failed at %s:%d%s\n", FG_BRIGHT_RED, __FILE__, __LINE__, RESET_COLOR);
+              fprintf(stderr, "%skankaku_touchpad_parse_value_capability_array failed at %s:%d%s\n", FG_BRIGHT_RED, __FILE__, __LINE__, RESET_COLOR);
             }
             else
             {
-              retval = kankaku_touchpad_parse_value_capability_array(caps, toBeFreedPreparsedData, &linkCollectionInfoDict);
+              retval = kankaku_touchpad_parse_button_capability_array(caps, preparsedData, &linkCollectionInfoDict);
+            }
 
-              if (retval)
+            if (retval)
+            {
+              if (linkCollectionInfoDict.size > 0)
               {
-                fprintf(stderr, "%skankaku_touchpad_parse_value_capability_array failed at %s:%d%s\n", FG_BRIGHT_RED, __FILE__, __LINE__, RESET_COLOR);
+                kankaku_utils_free(linkCollectionInfoDict.entries, sizeof(kankaku_hid_link_collection_info) * linkCollectionInfoDict.size, __FILE__, __LINE__);
+                linkCollectionInfoDict.entries = NULL;
+                linkCollectionInfoDict.size    = 0;
               }
-              else
-              {
-                retval = kankaku_touchpad_parse_button_capability_array(caps, toBeFreedPreparsedData, &linkCollectionInfoDict);
-              }
+            }
+            else
+            {
+              kankaku_hid_touchpad hidTouchpad = {
+                  .name =
+                      {
+                          .ptr        = NULL,                                    //
+                          .length     = 0,                                       //
+                          .bytesCount = 0                                        //
+                      },                                                         //
+                  .width                        = 0,                             //
+                  .height                       = 0,                             //
+                  .contactCountLinkCollectionId = ((USHORT)-1),                  //
+                  .contactLinkCollections       = {.entries = NULL, .size = 0},  //
+                  .preparsedData                = preparsedData,                 //
+                  .preparsedDataBytesCount      = preparsedDataBytesCount        //
+              };
 
-              if (retval)
+              isPreparsedDataStored = 1;
+
+              for (unsigned int i = 0; i < linkCollectionInfoDict.size; i++)
               {
-                if (linkCollectionInfoDict.size > 0)
+                kankaku_hid_link_collection_info linkCollectionInfo = linkCollectionInfoDict.entries[i];
+                printf("===============================\n");
+                print_link_collection_info(linkCollectionInfo);
+
+                if (hidTouchpad.width == 0)
                 {
-                  kankaku_utils_free(linkCollectionInfoDict.entries, sizeof(kankaku_hid_link_collection_info) * linkCollectionInfoDict.size, __FILE__, __LINE__);
-                  linkCollectionInfoDict.entries = NULL;
-                  linkCollectionInfoDict.size    = 0;
+                  // uninitialized width
+                  if (linkCollectionInfo.hasX)
+                  {
+                    hidTouchpad.width = linkCollectionInfo.physicalRectangle.right;
+                  }
+                }
+
+                if (hidTouchpad.height == 0)
+                {
+                  // unintialized height
+                  if (linkCollectionInfo.hasY)
+                  {
+                    hidTouchpad.height = linkCollectionInfo.physicalRectangle.bottom;
+                  }
+                }
+
+                if (hidTouchpad.contactCountLinkCollectionId == ((USHORT)-1))
+                {
+                  if (linkCollectionInfo.hasContactCount)
+                  {
+                    hidTouchpad.contactCountLinkCollectionId = linkCollectionInfo.linkCollectionId;
+                  }
                 }
               }
 
-              // filter invalid link collection entries
-              kankaku_touchpad_filter_link_collection_info(&linkCollectionInfoDict);
               // TODO check link collection array for validation touchpad devices
-              // TODO write up about device name's usage
-              wprintf(toBeFreedDeviceName);
-              printf("\n");
-              // WIP
-              kankaku_utils_free(toBeFreedDeviceName, deviceNameByteCount, __FILE__, __LINE__);
-            }
+              int isValidTouchpad = kankaku_touchpad_is_valid_touchpad(hidTouchpad);
 
-            for (unsigned int i = 0; i < linkCollectionInfoDict.size; i++)
-            {
-              printf("===============================\n");
-              print_link_collection_info(linkCollectionInfoDict.entries[i]);
+              if (isValidTouchpad)
+              {
+                // TODO explain about device name's usage
+                UINT deviceNameLength;
+                wchar_t* deviceName = NULL;
+                size_t deviceNameBytesCount;
+
+                retval = kankaku_touchpad_get_raw_input_device_name(rawInputDevice.hDevice, &deviceName, &deviceNameLength, &deviceNameBytesCount);
+                if (retval)
+                {
+                  fprintf(stderr, "%skankaku_touchpad_get_raw_input_device_name failed at %s:%d%s\n", FG_BRIGHT_RED, __FILE__, __LINE__, RESET_COLOR);
+                }
+                else
+                {
+                  hidTouchpad.name.ptr        = deviceName;
+                  hidTouchpad.name.length     = deviceNameLength;
+                  hidTouchpad.name.bytesCount = deviceNameBytesCount;
+
+                  // filter "non-contact" link collection entries for storing in kankaku_hid_touchpad
+                  // we need to use these link collection ID for retrieving touch input later
+                  kankaku_touchpad_filter_link_collection_info(&linkCollectionInfoDict);
+                  hidTouchpad.contactLinkCollections = linkCollectionInfoDict;
+
+                  // TODO store the hidTouchpad
+                  int touchpadIndex = -1;
+                  if (touchpadList.size == 0)
+                  {
+                    touchpadList.size    = 1;
+                    touchpadList.entries = kankaku_utils_malloc_or_die(sizeof(kankaku_hid_touchpad), __FILE__, __LINE__);
+                    touchpadIndex        = 0;
+                  }
+                  else
+                  {
+                    touchpadIndex                         = touchpadList.size;
+                    touchpadList.size                     = touchpadIndex + 1;
+                    kankaku_hid_touchpad* tmpHidTouchpads = kankaku_utils_malloc_or_die(touchpadList.size * sizeof(kankaku_hid_touchpad), __FILE__, __LINE__);
+
+                    size_t previousListBytesCount = touchpadIndex * sizeof(kankaku_hid_touchpad);
+                    memcpy(tmpHidTouchpads, touchpadList.entries, previousListBytesCount);
+
+                    kankaku_utils_free(touchpadList.entries, previousListBytesCount, __FILE__, __LINE__);
+
+                    touchpadList.entries = tmpHidTouchpads;
+                  }
+
+                  touchpadList.entries[touchpadIndex] = hidTouchpad;
+                }
+              }
+              else
+              {
+                kankaku_utils_free(linkCollectionInfoDict.entries, linkCollectionInfoDict.size * sizeof(kankaku_hid_link_collection_info), __FILE__, __LINE__);
+              }
             }
           }
         }
-        // WIP
 
-        kankaku_utils_free(toBeFreedPreparsedData, preparsedDataByteCount, __FILE__, __LINE__);
+        if (!isPreparsedDataStored)
+        {
+          kankaku_utils_free(preparsedData, preparsedDataBytesCount, __FILE__, __LINE__);
+        }
       }
     }
 
     kankaku_utils_free(toBeFreedDeviceList, (sizeof(RAWINPUTDEVICELIST) * numberOfDevices), __FILE__, __LINE__);
+  }
+
+  if (retval == 0)
+  {
+    (*outTouchpadList) = touchpadList;
+  }
+  else
+  {
+    // TODO free resources
   }
 
   return retval;
