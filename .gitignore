@@ -342,3 +342,4 @@ healthchecksdb
 .vscode
 *.png
 dependencies
+.ipynb_checkpoints
