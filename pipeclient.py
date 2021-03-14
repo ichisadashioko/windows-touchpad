@@ -1,4 +1,5 @@
 import os
+import io
 import sys
 import time
 import traceback
@@ -18,6 +19,52 @@ import PIL.ImageTk
 import cv2
 import cairo
 
+global_last_update_clock = None
+global_last_update_clock_lock = threading.Lock()
+global_tk_photo_ref = None
+
+
+class UpdateCanvasThread(threading.Thread):
+    def __init__(
+        self,
+        clock,
+        delay: float,
+        cairo_surface: cairo.ImageSurface,
+        tk_root: tk.Tk,
+        tk_canvas: tk.Canvas,
+    ):
+        super().__init__()
+        self.clock = clock
+        self.delay = delay
+        self.cairo_surface = cairo_surface
+        self.tk_root = tk_root
+        self.tk_canvas = tk_canvas
+
+    def run(self):
+        global global_last_update_clock, global_last_update_clock, global_tk_photo_ref
+
+        time.sleep(self.delay)
+
+        global_last_update_clock_lock.acquire()
+        if self.clock == global_last_update_clock:
+            # TODO update canvas
+            print(self.clock, 'excuted')
+            # with io.BytesIO() as fileobj:
+            #     self.cairo_surface.write_to_png(fileobj)
+            #     pil_image = PIL.Image.open(fileobj)
+            #     global_tk_photo_ref = PIL.ImageTk.PhotoImage(image=pil_image)
+            #     self.tk_canvas.create_image(
+            #         0, 0,
+            #         anchor='nw',
+            #         image=global_tk_photo_ref,
+            #     )
+
+            # TODO update tkinter window
+            # self.tk_root.update()
+            pass
+
+        global_last_update_clock_lock.release()
+
 
 class PipeClientThread(threading.Thread):
     def __init__(
@@ -25,12 +72,93 @@ class PipeClientThread(threading.Thread):
         tk_root,
         tk_canvas,
     ):
+        super().__init__()
 
         self.tk_root = tk_root
         self.tk_canvas = tk_canvas
-        super().__init__()
+
+        self.tracking_id = None
+        self.last_contacts = {}
+        self.current_stroke = None
+        self.strokes = []
+        self.update_canvas = False
+        self.cairo_surface: cairo.ImageSurface = None
+        self.cairo_ctx: cairo.Context = None
+
+    def translate_and_trigger_events(self, contact_info: dict):
+        # translate to touch events
+        contact_id = contact_info['id']
+        is_contact_on_surface = contact_info['onSurface']
+
+        if contact_id in self.last_contacts:
+            if is_contact_on_surface:
+                # touch move event
+                contact_info['type'] = 'move'
+                self.on_touch_move(contact_info)
+                self.last_contacts[contact_id] = contact_info
+            else:
+                # touch up event
+                contact_info['type'] = 'up'
+                self.on_touch_up(contact_info)
+                del self.last_contacts[contact_id]
+        else:
+            if is_contact_on_surface:
+                # touch down event
+                contact_info['type'] = 'down'
+                self.on_touch_down(contact_info)
+                self.last_contacts[contact_id] = contact_info
+            else:
+                # broken state
+                contact_info['type'] = 'broken'
+
+    def on_touch_down(self, contact_info: dict):
+        if self.tracking_id is None:
+            self.tracking_id = contact_info['id']
+            self.current_stroke = [contact_info]
+
+            self.strokes.append(self.current_stroke)
+
+            # TODO update canvas
+            self.update_canvas = True
+            self.cairo_ctx.move_to(contact_info['x'], contact_info['y'])
+            self.cairo_ctx.stroke()
+
+    def on_touch_move(self, contact_info: dict):
+        if self.tracking_id is not None:
+            if self.tracking_id == contact_info['id']:
+                last_contact = self.current_stroke[-1]
+
+                if (last_contact['x'] == contact_info['x']) and (last_contact['y'] == contact_info['y']):
+                    pass
+                else:
+                    self.current_stroke.append(contact_info)
+
+                    # TODO update canvas
+                    self.update_canvas = True
+                    self.cairo_ctx.line_to(contact_info['x'], contact_info['y'])
+                    self.cairo_ctx.stroke()
+
+    def on_touch_up(self, contact_info: dict):
+        if self.tracking_id is not None:
+            if self.tracking_id == contact_info['id']:
+                self.tracking_id = None
+                last_contact = self.current_stroke[-1]
+
+                if (last_contact['x'] == contact_info['x']) and (last_contact['y'] == contact_info['y']):
+                    pass
+                else:
+                    self.current_stroke.append(contact_info)
+
+                    # TODO update canvas
+                    self.update_canvas = True
+                    self.cairo_ctx.line_to(contact_info['x'], contact_info['y'])
+                    self.cairo_ctx.stroke()
+
+                self.current_stroke = None
 
     def run(self):
+        global global_last_update_clock, global_last_update_clock
+
         pipe_name = '\\\\.\\pipe\\kankaku'
         print(pipe_name)
 
@@ -75,15 +203,15 @@ class PipeClientThread(threading.Thread):
             print(device_width, device_height)
 
             # create a canvas with those dimensions
-            cairo_canvas = cairo.ImageSurface(cairo.FORMAT_ARGB32, device_width, device_height)
+            self.cairo_surface = cairo.ImageSurface(cairo.FORMAT_ARGB32, device_width, device_height)
 
-            cairo_ctx = cairo.Context(cairo_canvas)
-            cairo_ctx.set_source_rgb(1, 1, 1)
+            self.cairo_ctx = cairo.Context(self.cairo_surface)
+            self.cairo_ctx.set_source_rgb(1, 1, 1)
 
             # TODO allow user to change stroke width
             stroke_width = 12  # pixels
-            cairo_ctx.set_line_width(stroke_width)
-            cairo_ctx.set_line_cap(cairo.LINE_CAP_ROUND)
+            self.cairo_ctx.set_line_width(stroke_width)
+            self.cairo_ctx.set_line_cap(cairo.LINE_CAP_ROUND)
 
             # resize the tkinter Canvas
             self.tk_canvas.configure(
@@ -91,16 +219,9 @@ class PipeClientThread(threading.Thread):
                 height=device_height,
             )
 
-            tracking_id = None
-            last_contacts_log = {}
-            current_stroke = None
-            strokes = []
-
             remain_bs: bytes = res_bs[4:]
 
             while True:
-                need_update_canvas = False
-
                 while len(remain_bs) >= 6:
                     contact_bs = remain_bs[:6]
                     # print(contact_bs)
@@ -116,29 +237,8 @@ class PipeClientThread(threading.Thread):
                         'y': contact_y,
                     }
 
-                    # TODO translate to touch events
-                    if contact_id in last_contacts_log:
-                        if is_contact_on_surface:
-                            # touch move event
-                            contact_info['type'] = 'move'
-                            last_contacts_log[contact_id] = contact_info
-                            pass
-                        else:
-                            # touch up event
-                            contact_info['type'] = 'up'
-                            del last_contacts_log[contact_id]
-                            pass
-                    else:
-                        if is_contact_on_surface:
-                            # touch down event
-                            contact_info['type'] = 'down'
-                            last_contacts_log[contact_id] = contact_info
-                            pass
-                        else:
-                            # broken state
-                            pass
-
-                    print(contact_info)
+                    self.translate_and_trigger_events(contact_info)
+                    # print(contact_info)
 
                     remain_bs = remain_bs[6:]
 
@@ -147,9 +247,22 @@ class PipeClientThread(threading.Thread):
 
                     # need_update_canvas = True
 
-                if need_update_canvas:
-                    # TODO create a timeout thread for refreshing the UI
-                    need_update_canvas = False
+                if self.update_canvas:
+                    # TODO create a delay thread for refreshing the UI
+                    self.update_canvas = False
+                    global_last_update_clock_lock.acquire()
+
+                    global_last_update_clock = time.perf_counter()
+                    print(global_last_update_clock, 'started')
+                    UpdateCanvasThread(
+                        clock=global_last_update_clock,
+                        delay=0.0625,
+                        cairo_surface=cairo_surface,
+                        tk_root=tk_window,
+                        tk_canvas=tk_canvas,
+                    ).start()
+
+                    global_last_update_clock_lock.release()
 
                 resp = win32file.ReadFile(handle, READ_BUFFER_SIZE)
                 # print(resp)
@@ -166,10 +279,11 @@ class PipeClientThread(threading.Thread):
 np_canvas = None
 pil_canvas = None
 tk_canvas = None
-cairo_canvas = None
+cairo_surface = None
 
 tk_window = tk.Tk()
 tk_window.wm_title('kankaku client')
+tk_window.wm_attributes('-alpha', 0.5)
 
 tk_canvas = tk.Canvas(tk_window, width=640, height=480)
 tk_canvas.grid()

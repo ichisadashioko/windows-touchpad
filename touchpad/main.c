@@ -340,8 +340,8 @@ int CALLBACK main_winmain(_In_ HINSTANCE hInstance, _In_opt_ HINSTANCE hPrevInst
       WS_OVERLAPPEDWINDOW | WS_EX_LAYERED,  // dwStyle
       CW_USEDEFAULT,                        // x
       CW_USEDEFAULT,                        // y
-      0,                                    // nWidth
-      0,                                    // nHeight
+      320,                                  // nWidth
+      240,                                  // nHeight
       NULL,                                 // hWndParent
       NULL,                                 // hMenu
       hInstance,                            // hInstance
