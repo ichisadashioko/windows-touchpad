@@ -4,6 +4,7 @@ import sys
 import time
 import traceback
 import threading
+import ctypes
 
 # pywin32 modules
 import win32file
@@ -51,6 +52,7 @@ class UpdateCanvasThread(threading.Thread):
         if self.clock == global_last_update_clock:
             # TODO update canvas
             # print(self.clock, 'excuted')
+            start_ts = time.perf_counter()
             with io.BytesIO() as fileobj:
                 self.cairo_surface.write_to_png(fileobj)
                 pil_image = PIL.Image.open(fileobj)
@@ -70,7 +72,9 @@ class UpdateCanvasThread(threading.Thread):
 
             # TODO update tkinter window
             # self.tk_root.update()
-            pass
+            end_ts = time.perf_counter()
+            taken_time = end_ts - start_ts
+            print(f'took {taken_time} to render')
 
         global_last_update_clock_lock.release()
 
@@ -80,6 +84,7 @@ class PipeClientThread(threading.Thread):
         self,
         tk_root,
         tk_canvas,
+        render_thread_delay=.0078125,
     ):
         super().__init__()
 
@@ -93,6 +98,7 @@ class PipeClientThread(threading.Thread):
         self.update_canvas = False
         self.cairo_surface: cairo.ImageSurface = None
         self.cairo_ctx: cairo.Context = None
+        self.render_thread_delay = render_thread_delay
 
     def translate_and_trigger_events(self, contact_info: dict):
         # translate to touch events
@@ -198,16 +204,6 @@ class PipeClientThread(threading.Thread):
                 None,
             )
 
-            # TODO this thing block the call and never return
-            # print('SetNamedPipeHandleState')
-
-            # res = win32pipe.SetNamedPipeHandleState(
-            #     handle,
-            #     win32pipe.PIPE_READMODE_BYTE,
-            #     None,
-            #     None,
-            # )
-
             print('reading data from pipe server')
 
             resp = win32file.ReadFile(handle, READ_BUFFER_SIZE)
@@ -218,6 +214,7 @@ class PipeClientThread(threading.Thread):
             if len(res_bs) < 4:
                 print('not enough data for device width and height dimension')
                 # TODO wait for more data
+                return
 
             device_width = int.from_bytes(res_bs[0:2], byteorder='little', signed=False)
             device_height = int.from_bytes(res_bs[2:4], byteorder='little', signed=False)
@@ -264,13 +261,8 @@ class PipeClientThread(threading.Thread):
 
                     remain_bs = remain_bs[6:]
 
-                    # if tracking_id is not None:
-                    #     if contact_id == tracking_id:
-
-                    # need_update_canvas = True
-
                 if self.update_canvas:
-                    # TODO create a delay thread for refreshing the UI
+                    # create a delay thread for refreshing the UI
                     self.update_canvas = False
                     global_last_update_clock_lock.acquire()
 
@@ -278,7 +270,7 @@ class PipeClientThread(threading.Thread):
                     # print(global_last_update_clock, 'started')
                     UpdateCanvasThread(
                         clock=global_last_update_clock,
-                        delay=0.0625,
+                        delay=self.render_thread_delay,
                         cairo_surface=self.cairo_surface,
                         tk_root=self.tk_root,
                         tk_canvas=self.tk_canvas,
@@ -305,7 +297,7 @@ cairo_surface = None
 
 tk_root = tk.Tk()
 tk_root.wm_title('kankaku client')
-tk_root.wm_attributes('-alpha', 0.5)
+tk_root.wm_attributes('-alpha', 0.7)
 
 tk_canvas = tk.Canvas(tk_root, width=640, height=480)
 tk_canvas.grid()
@@ -316,7 +308,7 @@ def cv2_show_image_thread_fn():
     while True:
         if global_np_rgb_image is not None:
             cv2.imshow('frame', global_np_rgb_image)
-            print(np.max(global_np_rgb_image))
+            # print(np.max(global_np_rgb_image))
             k = cv2.waitKey(100)
             k = k & 0xff
 
