@@ -184,10 +184,10 @@ void main_handle_wm_input(HWND hwnd, UINT message, WPARAM wParam, LPARAM lParam)
           }
 
           kankaku_contact_info contactInfo = {
-              .id        = contactId,         //
-              .onSurface = 0,                 // TODO
-              .x         = contactXPosition,  //
-              .y         = contactYPosition,  //
+              .id        = (uint8_t)contactId,         //
+              .onSurface = 0,                          // TODO
+              .x         = (uint8_t)contactXPosition,  //
+              .y         = (uint8_t)contactYPosition,  //
           };
 
           ULONG maxNumButtonUsages = HidP_MaxUsageListLength(  //
@@ -243,12 +243,12 @@ void main_handle_wm_input(HWND hwnd, UINT message, WPARAM wParam, LPARAM lParam)
           // asynchronous sending data
           DWORD numberOfBytesWritten = 0;
 
-          BOOL wfRetval = WriteFile(     //
-              gPipeHandle,               // hFile
-              serializedData,            // lpBuffer
-              serializedDataBytesCount,  // nNumberOfBytesToWrite
-              &numberOfBytesWritten,     // lpNumberOfBytesWritten
-              NULL                       // lpOverlapped
+          BOOL wfRetval = WriteFile(            //
+              gPipeHandle,                      // hFile
+              serializedData,                   // lpBuffer
+              (DWORD)serializedDataBytesCount,  // nNumberOfBytesToWrite
+              &numberOfBytesWritten,            // lpNumberOfBytesWritten
+              NULL                              // lpOverlapped
           );
 
           if (!wfRetval)
@@ -260,7 +260,7 @@ void main_handle_wm_input(HWND hwnd, UINT message, WPARAM wParam, LPARAM lParam)
           else if (numberOfBytesWritten != serializedDataBytesCount)
           {
             fprintf(stderr, "%snumberOfBytesWritten != serializedDataBytesCount%s\n", FG_BRIGHT_RED, RESET_COLOR);
-            fprintf(stderr, "%zu != %zu\n", numberOfBytesWritten, serializedDataBytesCount);
+            fprintf(stderr, "%ul != %zu\n", numberOfBytesWritten, serializedDataBytesCount);
             fprintf(stderr, "%s:%d\n", __FILE__, __LINE__);
             exit(-1);
           }
@@ -492,12 +492,12 @@ int main()
 
   DWORD numberOfBytesWritten = 0;
 
-  BOOL wfRetval = WriteFile(     //
-      pipeHandle,                // hFile
-      serializedData,            // lpBuffer
-      serializedDataBytesCount,  // nNumberOfBytesToWrite
-      &numberOfBytesWritten,     // lpNumberOfBytesWritten
-      NULL                       // lpOverlapped
+  BOOL wfRetval = WriteFile(            //
+      pipeHandle,                       // hFile
+      serializedData,                   // lpBuffer
+      (DWORD)serializedDataBytesCount,  // nNumberOfBytesToWrite
+      &numberOfBytesWritten,            // lpNumberOfBytesWritten
+      NULL                              // lpOverlapped
   );
 
   kankaku_utils_free(serializedData, serializedDataBytesCount, __FILE__, __LINE__);
