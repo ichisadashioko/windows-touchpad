@@ -1,9 +1,9 @@
 <?xml version="1.0" encoding="utf-8"?>
 <Project DefaultTargets="Build" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
   <ItemGroup Label="ProjectConfigurations">
-    <ProjectConfiguration Include="Debug|Win32">
+    <ProjectConfiguration Include="Debug|x64">
       <Configuration>Debug</Configuration>
-      <Platform>Win32</Platform>
+      <Platform>x64</Platform>
     </ProjectConfiguration>
   </ItemGroup>
   <PropertyGroup Label="Globals">
@@ -13,7 +13,7 @@
     <WindowsTargetPlatformVersion>10.0</WindowsTargetPlatformVersion>
   </PropertyGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.Default.props" />
-  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'" Label="Configuration">
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'" Label="Configuration">
     <ConfigurationType>Application</ConfigurationType>
     <UseDebugLibraries>true</UseDebugLibraries>
     <PlatformToolset>v142</PlatformToolset>
@@ -24,14 +24,17 @@
   </ImportGroup>
   <ImportGroup Label="Shared">
   </ImportGroup>
-  <ImportGroup Label="PropertySheets" Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">
+  <ImportGroup Label="PropertySheets" Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
     <Import Project="$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props" Condition="exists('$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props')" Label="LocalAppDataPlatform" />
   </ImportGroup>
   <PropertyGroup Label="UserMacros" />
-  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
     <LinkIncremental>true</LinkIncremental>
+    <IncludePath>$(SolutionDir)dependencies\include;$(IncludePath)</IncludePath>
+    <LibraryPath>$(SolutionDir)dependencies\lib;$(LibraryPath)</LibraryPath>
+    <CustomBuildAfterTargets>Build</CustomBuildAfterTargets>
   </PropertyGroup>
-  <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">
+  <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
     <ClCompile>
       <WarningLevel>Level3</WarningLevel>
       <SDLCheck>true</SDLCheck>
@@ -44,18 +47,22 @@
     </Link>
   </ItemDefinitionGroup>
   <ItemGroup>
-    <ClCompile Include="point2d.c" />
-    <ClCompile Include="stroke.c" />
-    <ClCompile Include="touchevents.c" />
-    <ClCompile Include="touchpad.c" />
-    <ClCompile Include="utils.c" />
+    <ClCompile Include="kankaku_serialization.c" />
+    <ClCompile Include="kankaku_tensorflow.c" />
+    <ClCompile Include="kankaku_point2d.c" />
+    <ClCompile Include="kankaku_stroke.c" />
+    <ClCompile Include="kankaku_touchevents.c" />
+    <ClCompile Include="kankaku_touchpad.c" />
+    <ClCompile Include="kankaku_utils.c" />
     <ClCompile Include="termcolor.h" />
     <ClCompile Include="main.c" />
-    <ClInclude Include="point2d.h" />
-    <ClInclude Include="stroke.h" />
-    <ClInclude Include="touchevents.h" />
-    <ClInclude Include="touchpad.h" />
-    <ClInclude Include="utils.h" />
+    <ClInclude Include="kankaku_serialization.h" />
+    <ClInclude Include="kankaku_tensorflow.h" />
+    <ClInclude Include="kankaku_point2d.h" />
+    <ClInclude Include="kankaku_stroke.h" />
+    <ClInclude Include="kankaku_touchevents.h" />
+    <ClInclude Include="kankaku_touchpad.h" />
+    <ClInclude Include="kankaku_utils.h" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">

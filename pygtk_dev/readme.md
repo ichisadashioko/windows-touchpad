@@ -1,0 +1,1 @@
+- GTK - Python (`pygobject`) on Windows must be run from MSYS2/MINGW64 shell as `pygobject` hasn't supported native `cpython` on Windows yet.

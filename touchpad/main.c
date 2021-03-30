@@ -1,4 +1,7 @@
+#pragma once
 #include <Windows.h>
+#include <sal.h>
+#include <tchar.h>
 
 #include <hidusage.h>
 #include <hidpi.h>
@@ -7,282 +10,22 @@
 #include <time.h>
 #include <stdio.h>
 #include <stdlib.h>
-#include <tchar.h>
+#include <stdint.h>
+#include <string.h>
 
 #include "termcolor.h"
-#include "utils.h"
-#include "touchpad.h"
-#include "touchevents.h"
-#include "point2d.h"
-#include "stroke.h"
+#include "kankaku_utils.h"
+#include "kankaku_touchpad.h"
+#include "kankaku_touchevents.h"
+#include "kankaku_point2d.h"
+#include "kankaku_stroke.h"
+#include "kankaku_serialization.h"
 
-#define LOG_EVERY_INPUT_MESSAGES
-#undef LOG_EVERY_INPUT_MESSAGES
+static wchar_t KANKAKU_WINDOW_CLASS_NAME[] = L"kankaku";
+static kankaku_hid_touchpad gTouchpad;
+static HANDLE gPipeHandle;
 
-static TCHAR szWindowClass[] = _T("DesktopApp");
-static TCHAR szTitle[]       = _T("F3: start writing - ESC: stop writing - C: clear - Q: close the application");
-
-// https://docs.microsoft.com/en-us/windows/win32/inputdev/virtual-key-codes
-#define VK_C_KEY 0x43;
-#define VK_Q_KEY 0x51;
-#define VK_S_KEY 0x53;
-
-struct ApplicationState
-{
-  HID_DEVICE_INFO_LIST device_info_list;
-  TOUCH_DATA_LIST previous_touches;
-  StrokeList strokes;
-  ULONG tracking_touch_id;
-  // flag to toggle drawing state
-  int is_drawing;
-
-  // TODO add option to change the key bindings
-  // TODO add option to add multiple key bindings (array of key bindings for each actions)
-
-  int turn_off_drawing_key_code;
-  int turn_on_drawing_key_code;
-  int export_writing_data_key_code;
-  int quit_application_key_code;
-  int clear_drawing_canvas_key_code;
-  int call_block_input_flag;
-  int call_unblock_input_flag;
-};
-
-typedef struct ApplicationState ApplicationState;
-
-static ApplicationState* g_app_state = NULL;
-
-LRESULT CALLBACK mBlockMouseInputHookProc(_In_ int nCode, _In_ WPARAM wParam, _In_ LPARAM lParam)
-{
-  // https://docs.microsoft.com/en-us/previous-versions/windows/desktop/legacy/ms644986(v=vs.85)
-  if (nCode < 0)
-  {
-    return CallNextHookEx(NULL, nCode, wParam, lParam);
-  }
-  else
-  {
-    return -1;
-  }
-}
-
-void mParseConnectedInputDevices()
-{
-  printf(FG_BLUE);
-  printf("Parsing all HID devices...\n");
-  printf(RESET_COLOR);
-
-  // find number of connected devices
-
-  UINT numDevices;
-  RAWINPUTDEVICELIST* rawInputDeviceList = NULL;
-
-  mGetRawInputDeviceList(&numDevices, &rawInputDeviceList);
-
-  printf("Number of raw input devices: %d\n", numDevices);
-  for (UINT deviceIndex = 0; deviceIndex < numDevices; deviceIndex++)
-  {
-    printf(BG_GREEN);
-    printf("===== Device #%d =====\n", deviceIndex);
-    printf(RESET_COLOR);
-    RAWINPUTDEVICELIST rawInputDevice = rawInputDeviceList[deviceIndex];
-    if (rawInputDevice.dwType != RIM_TYPEHID)
-    {
-      // skip keyboards and mouses
-      continue;
-    }
-
-    // get preparsed data for HidP
-    UINT cbDataSize                    = 0;
-    PHIDP_PREPARSED_DATA preparsedData = NULL;
-
-    mGetRawInputDevicePreparsedData(rawInputDevice.hDevice, &preparsedData, &cbDataSize);
-
-    NTSTATUS hidpReturnCode;
-
-    // find HID capabilities
-    HIDP_CAPS caps;
-    hidpReturnCode = HidP_GetCaps(preparsedData, &caps);
-    if (hidpReturnCode != HIDP_STATUS_SUCCESS)
-    {
-      print_HidP_errors(hidpReturnCode, __FILE__, __LINE__);
-      exit(-1);
-    }
-
-    printf("NumberInputValueCaps: %d\n", caps.NumberInputValueCaps);
-    printf("NumberInputButtonCaps: %d\n", caps.NumberInputButtonCaps);
-
-    int isButtonCapsEmpty = (caps.NumberInputButtonCaps == 0);
-
-    if (!isButtonCapsEmpty)
-    {
-      UINT deviceNameLength;
-      TCHAR* deviceName = NULL;
-      unsigned int cbDeviceName;
-
-      mGetRawInputDeviceName(rawInputDevice.hDevice, &deviceName, &deviceNameLength, &cbDeviceName);
-
-      printf("Device name: ");
-      wprintf(deviceName);
-      printf("\n");
-
-      printf(FG_GREEN);
-      printf("Finding device in global list...\n");
-      printf(RESET_COLOR);
-      unsigned int foundHidIdx;
-      int returnCode = FindInputDeviceInList(&(g_app_state->device_info_list), deviceName, cbDeviceName, preparsedData, cbDataSize, &foundHidIdx);
-      if (returnCode != 0)
-      {
-        printf("FindInputDeviceInList failed at %s:%d\n", __FILE__, __LINE__);
-        exit(-1);
-      }
-
-      printf(FG_GREEN);
-      printf("foundHIDIdx: %d\n", foundHidIdx);
-      printf(RESET_COLOR);
-
-      printf(FG_BRIGHT_BLUE);
-      printf("found device name: ");
-      wprintf(g_app_state->device_info_list.Entries[foundHidIdx].Name);
-      printf("\n");
-      printf(RESET_COLOR);
-
-      printf(FG_BRIGHT_BLUE);
-      printf("current device name: ");
-      wprintf(deviceName);
-      printf("\n");
-      printf(RESET_COLOR);
-
-      if (caps.NumberInputValueCaps != 0)
-      {
-        const USHORT numValueCaps = caps.NumberInputValueCaps;
-        USHORT _numValueCaps      = numValueCaps;
-
-        PHIDP_VALUE_CAPS valueCaps = (PHIDP_VALUE_CAPS)mMalloc(sizeof(HIDP_VALUE_CAPS) * numValueCaps, __FILE__, __LINE__);
-
-        hidpReturnCode = HidP_GetValueCaps(HidP_Input, valueCaps, &_numValueCaps, preparsedData);
-        if (hidpReturnCode != HIDP_STATUS_SUCCESS)
-        {
-          print_HidP_errors(hidpReturnCode, __FILE__, __LINE__);
-        }
-
-        // x check if numValueCaps value has been changed
-        printf("NumberInputValueCaps: %d (old) vs %d (new)\n", numValueCaps, _numValueCaps);
-
-        for (USHORT valueCapIndex = 0; valueCapIndex < numValueCaps; valueCapIndex++)
-        {
-          HIDP_VALUE_CAPS cap = valueCaps[valueCapIndex];
-
-          if (cap.IsRange || !cap.IsAbsolute)
-          {
-            continue;
-          }
-
-          unsigned int foundLinkColIdx;
-          int returnCode = FindLinkCollectionInList(&(g_app_state->device_info_list.Entries[foundHidIdx].LinkColInfoList), cap.LinkCollection, &foundLinkColIdx);
-          if (returnCode != 0)
-          {
-            printf("FindLinkCollectionInList failed at %s:%d\n", __FILE__, __LINE__);
-            exit(-1);
-          }
-
-          printf(FG_GREEN);
-          printf("[ValueCaps] foundLinkCollectionIndex: %d\n", foundLinkColIdx);
-          printf(RESET_COLOR);
-
-          if (cap.UsagePage == HID_USAGE_PAGE_GENERIC)
-          {
-            printf("=====================================================\n");
-            printf("LinkCollection: %d\n", cap.LinkCollection);
-
-            if (cap.NotRange.Usage == HID_USAGE_GENERIC_X)
-            {
-              g_app_state->device_info_list.Entries[foundHidIdx].LinkColInfoList.Entries[foundLinkColIdx].HasX               = 1;
-              g_app_state->device_info_list.Entries[foundHidIdx].LinkColInfoList.Entries[foundLinkColIdx].PhysicalRect.left  = cap.PhysicalMin;
-              g_app_state->device_info_list.Entries[foundHidIdx].LinkColInfoList.Entries[foundLinkColIdx].PhysicalRect.right = cap.PhysicalMax;
-              printf("  Left: %d\n", cap.PhysicalMin);
-              printf("  Right: %d\n", cap.PhysicalMax);
-            }
-            else if (cap.NotRange.Usage == HID_USAGE_GENERIC_Y)
-            {
-              g_app_state->device_info_list.Entries[foundHidIdx].LinkColInfoList.Entries[foundLinkColIdx].HasY                = 1;
-              g_app_state->device_info_list.Entries[foundHidIdx].LinkColInfoList.Entries[foundLinkColIdx].PhysicalRect.top    = cap.PhysicalMin;
-              g_app_state->device_info_list.Entries[foundHidIdx].LinkColInfoList.Entries[foundLinkColIdx].PhysicalRect.bottom = cap.PhysicalMax;
-              printf("  Top: %d\n", cap.PhysicalMin);
-              printf("  Bottom: %d\n", cap.PhysicalMax);
-            }
-          }
-          else if (cap.UsagePage == HID_USAGE_PAGE_DIGITIZER)
-          {
-            if (cap.NotRange.Usage == HID_USAGE_DIGITIZER_CONTACT_ID)
-            {
-              g_app_state->device_info_list.Entries[foundHidIdx].LinkColInfoList.Entries[foundLinkColIdx].HasContactID = 1;
-            }
-            else if (cap.NotRange.Usage == HID_USAGE_DIGITIZER_CONTACT_COUNT)
-            {
-              g_app_state->device_info_list.Entries[foundHidIdx].ContactCountLinkCollection = cap.LinkCollection;
-            }
-          }
-        }
-
-        free(valueCaps);
-      }
-
-      if (caps.NumberInputButtonCaps != 0)
-      {
-        const USHORT numButtonCaps = caps.NumberInputButtonCaps;
-        USHORT _numButtonCaps      = numButtonCaps;
-
-        PHIDP_BUTTON_CAPS buttonCaps = (PHIDP_BUTTON_CAPS)mMalloc(sizeof(HIDP_BUTTON_CAPS) * numButtonCaps, __FILE__, __LINE__);
-
-        hidpReturnCode = HidP_GetButtonCaps(HidP_Input, buttonCaps, &_numButtonCaps, preparsedData);
-        if (hidpReturnCode != HIDP_STATUS_SUCCESS)
-        {
-          print_HidP_errors(hidpReturnCode, __FILE__, __LINE__);
-          exit(-1);
-        }
-
-        for (USHORT buttonCapIndex = 0; buttonCapIndex < numButtonCaps; buttonCapIndex++)
-        {
-          HIDP_BUTTON_CAPS buttonCap = buttonCaps[buttonCapIndex];
-
-          if (buttonCap.IsRange)
-          {
-            continue;
-          }
-
-          printf(FG_BLUE);
-          printf("[ButtonCaps] Index: %d, UsagePage: %d, Usage: %d, DIGITIZER: %d, IsRange: %d\n", buttonCapIndex, buttonCap.UsagePage, buttonCap.NotRange.Usage, buttonCap.UsagePage, buttonCap.IsRange);
-          printf(RESET_COLOR);
-
-          if (buttonCap.UsagePage == HID_USAGE_PAGE_DIGITIZER)
-          {
-            if (buttonCap.NotRange.Usage == HID_USAGE_DIGITIZER_TIP_SWITCH)
-            {
-              unsigned int foundLinkColIdx;
-              int returnCode = FindLinkCollectionInList(&(g_app_state->device_info_list.Entries[foundHidIdx].LinkColInfoList), buttonCap.LinkCollection, &foundLinkColIdx);
-
-              printf(FG_GREEN);
-              printf("[ButtonCaps] foundLinkCollectionIndex: %d\n", foundLinkColIdx);
-              printf(RESET_COLOR);
-
-              g_app_state->device_info_list.Entries[foundHidIdx].LinkColInfoList.Entries[foundLinkColIdx].HasTipSwitch = 1;
-            }
-          }
-        }
-
-        free(buttonCaps);
-      }
-
-      free(deviceName);
-    }
-
-    free(preparsedData);
-  }
-
-  free(rawInputDeviceList);
-}
-
-void mRegisterRawInput(HWND hwnd)
+void main_register_input_devices(HWND hwnd)
 {
   // register Windows Precision Touchpad top-level HID collection
   RAWINPUTDEVICE rid;
@@ -304,445 +47,240 @@ void mRegisterRawInput(HWND hwnd)
     printf(FG_RED);
     printf("[%d] Failed to register touchpad at %s:%d\n", ts, __FILE__, __LINE__);
     printf(RESET_COLOR);
-    mGetLastError();
+    utils_print_win32_last_error();
     exit(-1);
   }
 }
 
-void mHandleCreateMessage(HWND hwnd, UINT message, WPARAM wParam, LPARAM lParam)
+void main_handle_wm_create(HWND hwnd, UINT message, WPARAM wParam, LPARAM lParam)
 {
-  mRegisterRawInput(hwnd);
+  main_register_input_devices(hwnd);
 }
 
-void mHandleInputMessage(HWND hwnd, UINT message, WPARAM wParam, LPARAM lParam)
+// TODO remove this debug function
+void print_contact_info(kankaku_contact_info contactInfo)
+{
+  printf("{id: %d, onSurface: %d, x: %d, y: %d}\n", contactInfo.id, contactInfo.onSurface, contactInfo.x, contactInfo.y);
+}
+
+void main_handle_wm_input(HWND hwnd, UINT message, WPARAM wParam, LPARAM lParam)
 {
   clock_t ts = clock();
+  UINT rawInputSize;
+  PRAWINPUT rawInputData = NULL;
 
-  // following guide: https://docs.microsoft.com/en-us/windows/win32/inputdev/using-raw-input#performing-a-standard-read-of-raw-input
+  kankaku_touchpad_get_raw_input_data((HRAWINPUT)lParam, &rawInputSize, (LPVOID*)(&rawInputData));
 
-  // Get the size of RAWINPUT by calling GetRawInputData() with pData = NULL
-
-  if (g_app_state->is_drawing != 0)
+  // Parse the RAWINPUT data.
+  if (rawInputData->header.dwType == RIM_TYPEHID)
   {
-    UINT rawInputSize;
-    PRAWINPUT rawInputData = NULL;
+    // TODO what does `dwCount` represent?
+    BYTE* hidReportData       = rawInputData->data.hid.bRawData;
+    DWORD hidReportDataLength = rawInputData->data.hid.dwSizeHid;
 
-    mGetRawInputData((HRAWINPUT)lParam, &rawInputSize, (LPVOID*)(&rawInputData));
-
-    // Parse the RAWINPUT data.
-    if (rawInputData->header.dwType == RIM_TYPEHID)
+    if (hidReportDataLength > 0)
     {
-      // TODO what does `dwCount` represent?
-      DWORD count   = rawInputData->data.hid.dwCount;
-      BYTE* rawData = rawInputData->data.hid.bRawData;
+      UINT deviceNameLength;
+      wchar_t* deviceName = NULL;
+      size_t deviceNameBytesCount;
 
-      if (count != 0)
+      kankaku_touchpad_get_raw_input_device_name(rawInputData->header.hDevice, &deviceName, &deviceNameLength, &deviceNameBytesCount);
+      // TODO compare device name
+
+      printf("[%d]", ts);
+      NTSTATUS hidpReturnCode;
+      ULONG usageValue;
+
+      PHIDP_PREPARSED_DATA hidPrepasedData = gTouchpad.preparsedData;
+
+      hidpReturnCode = HidP_GetUsageValue(HidP_Input, HID_USAGE_PAGE_DIGITIZER, gTouchpad.contactCountLinkCollectionId, HID_USAGE_DIGITIZER_CONTACT_COUNT, &usageValue, hidPrepasedData, (PCHAR)rawInputData->data.hid.bRawData, rawInputData->data.hid.dwSizeHid);
+
+      if (hidpReturnCode != HIDP_STATUS_SUCCESS)
       {
-        UINT deviceNameLength;
-        TCHAR* deviceName = NULL;
-        unsigned int cbDeviceName;
-
-        mGetRawInputDeviceName(rawInputData->header.hDevice, &deviceName, &deviceNameLength, &cbDeviceName);
-
-        unsigned int foundHidIdx = (unsigned int)-1;
-
-        int isTouchpadsNull              = (g_app_state->device_info_list.Entries == NULL);
-        int isTouchpadsRecordedSizeEmpty = (g_app_state->device_info_list.Size == 0);
-        if (isTouchpadsNull || isTouchpadsRecordedSizeEmpty)
-        {
-          // TODO parse new connected device data
-        }
-        else
-        {
-          for (unsigned int touchpadIndex = 0; touchpadIndex < g_app_state->device_info_list.Size; touchpadIndex++)
-          {
-            int compareNameResult = _tcscmp(deviceName, g_app_state->device_info_list.Entries[touchpadIndex].Name);
-            if (compareNameResult == 0)
-            {
-              foundHidIdx = touchpadIndex;
-              break;
-            }
-          }
-        }
-
-        if (foundHidIdx == (unsigned int)-1)
-        {
-          // TODO parse new connected device data
-        }
-        else
-        {
-          int isLinkColArrayNull  = (g_app_state->device_info_list.Entries[foundHidIdx].LinkColInfoList.Entries == NULL);
-          int isLinkColArrayEmpty = (g_app_state->device_info_list.Entries[foundHidIdx].LinkColInfoList.Size == 0);
-          int isPreparsedDataNull = (g_app_state->device_info_list.Entries[foundHidIdx].PreparedData == NULL);
-
-          if (isLinkColArrayNull || isLinkColArrayEmpty)
-          {
-            printf(FG_RED);
-            printf("Cannot find any LinkCollection(s). Try parse the PREPARED_DATA may help. TODO\n");
-            printf(RESET_COLOR);
-          }
-          else if (isPreparsedDataNull)
-          {
-            printf(FG_RED);
-            printf("Cannot find PreparsedData at %s:%d\n", __FILE__, __LINE__);
-            printf(RESET_COLOR);
-          }
-          else
-          {
-#ifdef LOG_EVERY_INPUT_MESSAGES
-            printf("[%d]", ts);
-#endif
-            NTSTATUS hidpReturnCode;
-            ULONG usageValue;
-
-            PHIDP_PREPARSED_DATA preparsedHIDData = g_app_state->device_info_list.Entries[foundHidIdx].PreparedData;
-
-            if (g_app_state->device_info_list.Entries[foundHidIdx].ContactCountLinkCollection == (USHORT)-1)
-            {
-              printf(FG_RED);
-              printf("Cannot find contact count Link Collection!\n");
-              printf(RESET_COLOR);
-            }
-            else
-            {
-              hidpReturnCode = HidP_GetUsageValue(HidP_Input, HID_USAGE_PAGE_DIGITIZER, g_app_state->device_info_list.Entries[foundHidIdx].ContactCountLinkCollection, HID_USAGE_DIGITIZER_CONTACT_COUNT, &usageValue, preparsedHIDData, (PCHAR)rawInputData->data.hid.bRawData, rawInputData->data.hid.dwSizeHid);
-
-              if (hidpReturnCode != HIDP_STATUS_SUCCESS)
-              {
-                printf(FG_RED);
-                printf("Failed to read number of contacts!\n");
-                printf(RESET_COLOR);
-                print_HidP_errors(hidpReturnCode, __FILE__, __LINE__);
-                exit(-1);
-              }
-
-              ULONG numContacts = usageValue;
-
-#ifdef LOG_EVERY_INPUT_MESSAGES
-              printf(FG_BRIGHT_BLUE);
-              printf("numContacts: %d\n", numContacts);
-              printf(RESET_COLOR);
-#endif
-
-              if (numContacts > g_app_state->device_info_list.Entries[foundHidIdx].LinkColInfoList.Size)
-              {
-                // TODO how should we deal with this edge case
-                printf(FG_RED);
-                printf("number of contacts is greater than Link Collection Array size at %s:%d\n", __FILE__, __LINE__);
-                printf(RESET_COLOR);
-                exit(-1);
-              }
-              else
-              {
-                for (unsigned int linkColIdx = 0; linkColIdx < numContacts; linkColIdx++)
-                {
-                  HID_TOUCH_LINK_COL_INFO collectionInfo = g_app_state->device_info_list.Entries[foundHidIdx].LinkColInfoList.Entries[linkColIdx];
-
-                  if (collectionInfo.HasX && collectionInfo.HasY && collectionInfo.HasContactID && collectionInfo.HasTipSwitch)
-                  {
-                    hidpReturnCode = HidP_GetUsageValue(HidP_Input, 0x01, collectionInfo.LinkColID, 0x30, &usageValue, preparsedHIDData, (PCHAR)rawInputData->data.hid.bRawData, rawInputData->data.hid.dwSizeHid);
-
-                    if (hidpReturnCode != HIDP_STATUS_SUCCESS)
-                    {
-                      printf(FG_RED);
-                      printf("Failed to read x position!\n");
-                      printf(RESET_COLOR);
-                      print_HidP_errors(hidpReturnCode, __FILE__, __LINE__);
-                      exit(-1);
-                    }
-
-                    ULONG xPos = usageValue;
-
-                    hidpReturnCode = HidP_GetUsageValue(HidP_Input, 0x01, collectionInfo.LinkColID, 0x31, &usageValue, preparsedHIDData, (PCHAR)rawInputData->data.hid.bRawData, rawInputData->data.hid.dwSizeHid);
-                    if (hidpReturnCode != HIDP_STATUS_SUCCESS)
-                    {
-                      printf(FG_RED);
-                      printf("Failed to read y position!\n");
-                      printf(RESET_COLOR);
-                      print_HidP_errors(hidpReturnCode, __FILE__, __LINE__);
-                      exit(-1);
-                    }
-
-                    ULONG yPos = usageValue;
-
-                    hidpReturnCode = HidP_GetUsageValue(HidP_Input, HID_USAGE_PAGE_DIGITIZER, collectionInfo.LinkColID, HID_USAGE_DIGITIZER_CONTACT_ID, &usageValue, preparsedHIDData, (PCHAR)rawInputData->data.hid.bRawData, rawInputData->data.hid.dwSizeHid);
-                    if (hidpReturnCode != HIDP_STATUS_SUCCESS)
-                    {
-                      printf(FG_RED);
-                      printf("Failed to read touch ID!\n");
-                      printf(RESET_COLOR);
-                      print_HidP_errors(hidpReturnCode, __FILE__, __LINE__);
-                      exit(-1);
-                    }
-
-                    ULONG touchId = usageValue;
-
-                    const ULONG maxNumButtons = HidP_MaxUsageListLength(HidP_Input, HID_USAGE_PAGE_DIGITIZER, preparsedHIDData);
-
-                    ULONG _maxNumButtons = maxNumButtons;
-
-                    USAGE* buttonUsageArray = (USAGE*)mMalloc(sizeof(USAGE) * maxNumButtons, __FILE__, __LINE__);
-
-                    hidpReturnCode = HidP_GetUsages(HidP_Input, HID_USAGE_PAGE_DIGITIZER, collectionInfo.LinkColID, buttonUsageArray, &_maxNumButtons, preparsedHIDData, (PCHAR)rawInputData->data.hid.bRawData, rawInputData->data.hid.dwSizeHid);
-
-                    if (hidpReturnCode != HIDP_STATUS_SUCCESS)
-                    {
-                      printf(FG_RED);
-                      printf("HidP_GetUsages failed!\n");
-                      printf(RESET_COLOR);
-                      print_HidP_errors(hidpReturnCode, __FILE__, __LINE__);
-                      exit(-1);
-                    }
-
-                    int isContactOnSurface = 0;
-
-                    for (ULONG usageIdx = 0; usageIdx < maxNumButtons; usageIdx++)
-                    {
-                      if (buttonUsageArray[usageIdx] == HID_USAGE_DIGITIZER_TIP_SWITCH)
-                      {
-                        isContactOnSurface = 1;
-                        break;
-                      }
-                    }
-
-                    free(buttonUsageArray);
-
-                    TOUCH_DATA curTouch;
-                    curTouch.TouchID   = touchId;
-                    curTouch.X         = xPos;
-                    curTouch.Y         = yPos;
-                    curTouch.OnSurface = isContactOnSurface;
-
-                    unsigned int touchType;
-                    int cStyleFunctionReturnCode = mInterpretRawTouchInput(&g_app_state->previous_touches, curTouch, &touchType);
-                    if (cStyleFunctionReturnCode != 0)
-                    {
-                      printf(FG_RED);
-                      printf("mInterpretRawTouchInput failed at %s:%d\n", __FILE__, __LINE__);
-                      printf(RESET_COLOR);
-                      exit(-1);
-                    }
-
-                    Point2D touchPos = (Point2D){.X = curTouch.X, .Y = curTouch.Y};
-
-                    if (g_app_state->tracking_touch_id == (ULONG)-1)
-                    {
-                      if (touchType == EVENT_TYPE_TOUCH_DOWN)
-                      {
-                        g_app_state->tracking_touch_id = curTouch.TouchID;
-                        // TODO create new stroke
-                        // TODO check return value for indication of errors
-                        mCreateNewStroke(touchPos, &g_app_state->strokes);
-                      }
-                      else
-                      {
-                        // wait for touch down event to register new stroke
-                      }
-                    }
-                    else if (curTouch.TouchID == g_app_state->tracking_touch_id)
-                    {
-                      if (touchType == EVENT_TYPE_TOUCH_MOVE)
-                      {
-                        // we skip EVENT_TYPE_TOUCH_MOVE_UNCHANGED here
-                        // TODO append touch position to the last stroke
-                        if ((g_app_state->strokes.Entries == NULL) || (g_app_state->strokes.Size == 0))
-                        {
-                          printf(FG_RED);
-                          printf("The application state is broken!\n");
-                          printf(RESET_COLOR);
-                          exit(-1);
-                        }
-                        else
-                        {
-                          // TODO check return value for indication of errors
-                          mAppendPoint2DToList(touchPos, &g_app_state->strokes.Entries[g_app_state->strokes.Size - 1]);
-
-                          Point2DList stroke = g_app_state->strokes.Entries[g_app_state->strokes.Size - 1];
-                          if (stroke.Size < 2)
-                          {
-                            printf(FG_RED);
-                            printf("The application state is broken!\n");
-                            printf(RESET_COLOR);
-                            exit(-1);
-                          }
-                          else
-                          {
-                            HDC hdc        = GetDC(hwnd);
-                            HPEN strokePen = CreatePen(PS_SOLID, 20, RGB(255, 255, 255));
-                            SelectObject(hdc, strokePen);
-                            MoveToEx(hdc, (int)stroke.Entries[stroke.Size - 2].X, (int)stroke.Entries[stroke.Size - 2].Y, (LPPOINT)NULL);
-                            LineTo(hdc, (int)stroke.Entries[stroke.Size - 1].X, (int)stroke.Entries[stroke.Size - 1].Y);
-                            ReleaseDC(hwnd, hdc);
-                          }
-                        }
-                      }
-                      else if (touchType == EVENT_TYPE_TOUCH_UP)
-                      {
-                        // I sure that the touch position is the same with the last touch position
-                        g_app_state->tracking_touch_id = (ULONG)-1;
-                      }
-                    }
-
-#ifdef LOG_EVERY_INPUT_MESSAGES
-                    const char* touchTypeStr;
-
-                    if (touchType == EVENT_TYPE_TOUCH_UP)
-                    {
-                      touchTypeStr = "touch up";
-                    }
-                    else if (touchType == EVENT_TYPE_TOUCH_MOVE)
-                    {
-                      touchTypeStr = "touch move";
-                    }
-                    else if (touchType == EVENT_TYPE_TOUCH_DOWN)
-                    {
-                      touchTypeStr = "touch down";
-                    }
-                    else if (touchType == EVENT_TYPE_TOUCH_MOVE_UNCHANGED)
-                    {
-                      touchTypeStr = "touch move unchanged";
-                    }
-                    else
-                    {
-                      printf(FG_RED);
-                      printf("unknown event type: %d\n", touchType);
-                      printf(RESET_COLOR);
-                      exit(-1);
-                    }
-
-                    printf(FG_GREEN);
-                    printf("LinkColId: %d, touchID: %d, tipSwitch: %d, position: (%d, %d), eventType: %s\n", collectionInfo.LinkColID, touchId, isContactOnSurface, xPos, yPos, touchTypeStr);
-                    printf(RESET_COLOR);
-#endif
-                  }
-                }
-              }
-            }
-          }
-
-          free(deviceName);
-        }
+        fprintf(stderr, "%sfailed to read number of contacts!%s\n", FG_BRIGHT_RED, RESET_COLOR);
+        utils_print_hidp_error(hidpReturnCode, __FILE__, __LINE__);
+        exit(-1);
       }
 
-      free(rawInputData);
-    }
-  }
-}
+      ULONG numContacts = usageValue;
+      printf("%snumContacts: %d%s\n", FG_BRIGHT_BLUE, numContacts, RESET_COLOR);
 
-void mHandleResizeMessage(_In_ HWND hwnd, _In_ UINT uMsg, _In_ WPARAM wParam, _In_ LPARAM lParam)
-{
-  InvalidateRect(hwnd, NULL, FALSE);
-}
-
-void mHandlePaintMessage(_In_ HWND hwnd, _In_ UINT uMsg, _In_ WPARAM wParam, _In_ LPARAM lParam)
-{
-  // clock_t ts = clock();
-  HDC hdc;
-  PAINTSTRUCT ps;
-  RECT rc;
-
-  GetClientRect(hwnd, &rc);
-
-  if (rc.bottom == 0)
-  {
-    return;
-  }
-
-  hdc = BeginPaint(hwnd, &ps);
-
-  // draw black background
-  HBRUSH bgBrush = CreateSolidBrush(RGB(0, 0, 0));
-  FillRect(hdc, &rc, bgBrush);
-
-  // TODO change color for every strokes
-  HPEN strokePen = CreatePen(PS_SOLID, 20, RGB(255, 255, 255));
-  SelectObject(hdc, strokePen);
-
-  if ((g_app_state->strokes.Entries != NULL) && (g_app_state->strokes.Size != 0))
-  {
-    for (unsigned int strokeIdx = 0; strokeIdx < g_app_state->strokes.Size; strokeIdx++)
-    {
-      // TODO change rendering color for each strokes
-      Point2DList strokeData = g_app_state->strokes.Entries[strokeIdx];
-      if (strokeData.Size < 2)
+      kankaku_hid_link_collection_info_list contactLinkCollections = gTouchpad.contactLinkCollections;
+      if (numContacts < 1)
       {
-        // TODO improve rendering strokes logic
-        continue;
+      }
+      else if (numContacts > contactLinkCollections.size)
+      {
+        // TODO how should we deal with this edge case
+        fprintf(stderr, "%sdevice reported more contacts than the number of 'contact link collections' that we have! %s:%d%s\n", FG_BRIGHT_RED, __FILE__, __LINE__, RESET_COLOR);
+        exit(-1);
       }
       else
       {
-        MoveToEx(hdc, (int)strokeData.Entries[0].X, (int)strokeData.Entries[0].Y, (LPPOINT)NULL);
-
-        for (unsigned int pointIdx = 1; pointIdx < strokeData.Size; pointIdx++)
+        // TODO
+        // TODO I know the number of contacts. Which link collection ids have the contacts information?
+        for (unsigned int linkCollectionIndex = 0; linkCollectionIndex < numContacts; linkCollectionIndex++)
         {
-          LineTo(hdc, (int)strokeData.Entries[pointIdx].X, (int)strokeData.Entries[pointIdx].Y);
+          kankaku_hid_link_collection_info linkCollectionInfo = contactLinkCollections.entries[linkCollectionIndex];
+
+          ULONG contactXPosition = -1;
+
+          hidpReturnCode = HidP_GetUsageValue(      //
+              HidP_Input,                           // ReportType
+              HID_USAGE_PAGE_GENERIC,               // UsagePage
+              linkCollectionInfo.linkCollectionId,  // LinkCollection
+              HID_USAGE_GENERIC_X,                  // Usage
+              &contactXPosition,                    // UsageValue,
+              hidPrepasedData,                      // PreparsedData
+              hidReportData,                        // Report,
+              hidReportDataLength                   // ReportLength
+          );
+
+          if (hidpReturnCode != HIDP_STATUS_SUCCESS)
+          {
+            fprintf(stderr, "%sHidP_GetUsageValue failed at %s:%d%s\n", FG_BRIGHT_RED, __FILE__, __LINE__, RESET_COLOR);
+            utils_print_hidp_error(hidpReturnCode, __FILE__, __LINE__);
+            exit(-1);
+          }
+
+          ULONG contactYPosition = -1;
+
+          hidpReturnCode = HidP_GetUsageValue(      //
+              HidP_Input,                           // ReportType
+              HID_USAGE_PAGE_GENERIC,               // UsagePage
+              linkCollectionInfo.linkCollectionId,  // LinkCollection
+              HID_USAGE_GENERIC_Y,                  // Usage
+              &contactYPosition,                    // UsageValue,
+              hidPrepasedData,                      // PreparsedData
+              hidReportData,                        // Report,
+              hidReportDataLength                   // ReportLength
+          );
+
+          if (hidpReturnCode != HIDP_STATUS_SUCCESS)
+          {
+            fprintf(stderr, "%sHidP_GetUsageValue failed at %s:%d%s\n", FG_BRIGHT_RED, __FILE__, __LINE__, RESET_COLOR);
+            utils_print_hidp_error(hidpReturnCode, __FILE__, __LINE__);
+            exit(-1);
+          }
+
+          ULONG contactId = -1;
+
+          hidpReturnCode = HidP_GetUsageValue(      //
+              HidP_Input,                           // ReportType
+              HID_USAGE_PAGE_DIGITIZER,             // UsagePage
+              linkCollectionInfo.linkCollectionId,  // LinkCollection
+              HID_USAGE_DIGITIZER_CONTACT_ID,       // Usage
+              &contactId,                           // UsageValue,
+              hidPrepasedData,                      // PreparsedData
+              hidReportData,                        // Report,
+              hidReportDataLength                   // ReportLength
+          );
+
+          if (hidpReturnCode != HIDP_STATUS_SUCCESS)
+          {
+            fprintf(stderr, "%sHidP_GetUsageValue failed at %s:%d%s\n", FG_BRIGHT_RED, __FILE__, __LINE__, RESET_COLOR);
+            utils_print_hidp_error(hidpReturnCode, __FILE__, __LINE__);
+            exit(-1);
+          }
+
+          kankaku_contact_info contactInfo = {
+              .id        = (uint8_t)contactId,         //
+              .onSurface = 0,                          // TODO
+              .x         = (uint8_t)contactXPosition,  //
+              .y         = (uint8_t)contactYPosition,  //
+          };
+
+          ULONG maxNumButtonUsages = HidP_MaxUsageListLength(  //
+              HidP_Input,                                      // ReportType
+              HID_USAGE_PAGE_DIGITIZER,                        // UsagePage
+              hidPrepasedData                                  // PreparsedData
+          );
+
+          size_t buttonUsageArrayBytesCount = sizeof(USAGE) * maxNumButtonUsages;
+          PUSAGE buttonUsageArray           = kankaku_utils_malloc_or_die(buttonUsageArrayBytesCount, __FILE__, __LINE__);
+
+          hidpReturnCode = HidP_GetUsages(          //
+              HidP_Input,                           // ReportType
+              HID_USAGE_PAGE_DIGITIZER,             // UsagePage
+              linkCollectionInfo.linkCollectionId,  // LinkCollection
+              buttonUsageArray,                     // UsageList
+              &maxNumButtonUsages,                  // UsageLength
+              hidPrepasedData,                      // PreparsedData
+              hidReportData,                        // Report
+              hidReportDataLength                   // ReportLength
+          );
+
+          if (hidpReturnCode != HIDP_STATUS_SUCCESS)
+          {
+            fprintf(stderr, "%sHidP_GetUsages failed at %s:%d%s\n", FG_BRIGHT_RED, __FILE__, __LINE__, RESET_COLOR);
+            utils_print_hidp_error(hidpReturnCode, __FILE__, __LINE__);
+            exit(-1);
+          }
+
+          for (ULONG buttonUsageIndex = 0; buttonUsageIndex < maxNumButtonUsages; buttonUsageIndex++)
+          {
+            if (buttonUsageArray[buttonUsageIndex] == HID_USAGE_DIGITIZER_TIP_SWITCH)
+            {
+              contactInfo.onSurface = 1;
+              break;
+            }
+          }
+
+          kankaku_utils_free(buttonUsageArray, buttonUsageArrayBytesCount, __FILE__, __LINE__);
+
+          print_contact_info(contactInfo);
+
+          uint8_t* serializedData         = NULL;
+          size_t serializedDataBytesCount = 0;
+          kankaku_serialize_contact_info(contactInfo, &serializedData, &serializedDataBytesCount);
+
+          for (size_t i = 0; i < serializedDataBytesCount; i++)
+          {
+            printf("%02x", serializedData[i]);
+          }
+          printf("\n");
+
+          // asynchronous sending data
+          DWORD numberOfBytesWritten = 0;
+
+          BOOL wfRetval = WriteFile(            //
+              gPipeHandle,                      // hFile
+              serializedData,                   // lpBuffer
+              (DWORD)serializedDataBytesCount,  // nNumberOfBytesToWrite
+              &numberOfBytesWritten,            // lpNumberOfBytesWritten
+              NULL                              // lpOverlapped
+          );
+
+          if (!wfRetval)
+          {
+            fprintf(stderr, "%sWriteFile failed at %s:%d%s\n", FG_BRIGHT_RED, __FILE__, __LINE__, RESET_COLOR);
+            utils_print_win32_last_error();
+            exit(-1);
+          }
+          else if (numberOfBytesWritten != serializedDataBytesCount)
+          {
+            fprintf(stderr, "%snumberOfBytesWritten != serializedDataBytesCount%s\n", FG_BRIGHT_RED, RESET_COLOR);
+            fprintf(stderr, "%ul != %zu\n", numberOfBytesWritten, serializedDataBytesCount);
+            fprintf(stderr, "%s:%d\n", __FILE__, __LINE__);
+            exit(-1);
+          }
+          else
+          {
+            FlushFileBuffers(gPipeHandle);
+          }
+
+          kankaku_utils_free(serializedData, serializedDataBytesCount, __FILE__, __LINE__);
         }
       }
-    }
-  }
 
-  EndPaint(hwnd, &ps);
-}
-
-void mHandleKeyUpMessage(_In_ HWND hwnd, _In_ UINT uMsg, _In_ WPARAM wParam, _In_ LPARAM lParam)
-{
-  clock_t ts = clock();
-
-  printf(FG_GREEN);
-  printf("[%d] WM_KEYUP: 0x%x\n", ts, wParam);
-  printf(RESET_COLOR);
-
-  int virtual_key_code = (int)wParam;
-  if (virtual_key_code == g_app_state->turn_off_drawing_key_code)
-  {
-    g_app_state->is_drawing = 0;
-
-    g_app_state->call_unblock_input_flag = 1;
-  }
-  else if (virtual_key_code == g_app_state->turn_on_drawing_key_code)
-  {
-    g_app_state->is_drawing = 1;
-
-    g_app_state->call_block_input_flag = 1;
-  }
-  else if (virtual_key_code == g_app_state->clear_drawing_canvas_key_code)
-  {
-    g_app_state->tracking_touch_id = (ULONG)-1;
-
-    if (g_app_state->previous_touches.Entries != NULL)
-    {
-      free(g_app_state->previous_touches.Entries);
-      g_app_state->previous_touches.Entries = NULL;
-      g_app_state->previous_touches.Size    = 0;
+      free(deviceName);
     }
 
-    if (g_app_state->strokes.Entries != NULL)
-    {
-      for (unsigned int strokeIdx = 0; strokeIdx < g_app_state->strokes.Size; strokeIdx++)
-      {
-        Point2DList stroke = g_app_state->strokes.Entries[strokeIdx];
-        if (stroke.Entries != NULL)
-        {
-          free(stroke.Entries);
-          stroke.Entries = NULL;
-          stroke.Size    = 0;
-        }
-      }
-
-      free(g_app_state->strokes.Entries);
-      g_app_state->strokes.Entries = NULL;
-      g_app_state->strokes.Size    = 0;
-    }
-
-    InvalidateRect(hwnd, NULL, FALSE);
-  }
-  else if (virtual_key_code == g_app_state->quit_application_key_code)
-  {
-    PostQuitMessage(0);
+    free(rawInputData);
   }
 }
 
-LRESULT CALLBACK WndProc(_In_ HWND hwnd, _In_ UINT uMsg, _In_ WPARAM wParam, _In_ LPARAM lParam)
+LRESULT CALLBACK main_process_window_message(_In_ HWND hwnd, _In_ UINT uMsg, _In_ WPARAM wParam, _In_ LPARAM lParam)
 {
   clock_t ts = clock();
 
@@ -750,34 +288,12 @@ LRESULT CALLBACK WndProc(_In_ HWND hwnd, _In_ UINT uMsg, _In_ WPARAM wParam, _In
   {
     case WM_CREATE:
     {
-      mHandleCreateMessage(hwnd, uMsg, wParam, lParam);
+      main_handle_wm_create(hwnd, uMsg, wParam, lParam);
       break;
     }
     case WM_INPUT:
     {
-      mHandleInputMessage(hwnd, uMsg, wParam, lParam);
-      break;
-    }
-    case WM_PAINT:
-    {
-      mHandlePaintMessage(hwnd, uMsg, wParam, lParam);
-      break;
-    }
-    case WM_SIZE:
-    {
-      mHandleResizeMessage(hwnd, uMsg, wParam, lParam);
-      break;
-    }
-    case WM_KEYUP:
-    {
-      mHandleKeyUpMessage(hwnd, uMsg, wParam, lParam);
-      break;
-    }
-    case WM_SYSKEYUP:
-    {
-      printf(FG_GREEN);
-      printf("[%d] WM_SYSKEYUP: 0x%x\n", ts, wParam);
-      printf(RESET_COLOR);
+      main_handle_wm_input(hwnd, uMsg, wParam, lParam);
       break;
     }
     case WM_DESTROY:
@@ -794,158 +310,221 @@ LRESULT CALLBACK WndProc(_In_ HWND hwnd, _In_ UINT uMsg, _In_ WPARAM wParam, _In
   return 0;
 }
 
-int CALLBACK wWinMain(_In_ HINSTANCE hInstance, _In_opt_ HINSTANCE hPrevInstance, _In_ LPWSTR lpCmdLine, _In_ int nCmdShow)
+int CALLBACK main_winmain(_In_ HINSTANCE hInstance, _In_opt_ HINSTANCE hPrevInstance, _In_ LPWSTR lpCmdLine, _In_ int nCmdShow)
 {
-  mParseConnectedInputDevices();
+  WNDCLASSEXW windowClass;
 
-  // TODO detect and prompt user to select touchpad device and parse its width and height
+  windowClass.cbSize        = sizeof(WNDCLASSEXW);
+  windowClass.style         = CS_HREDRAW | CS_VREDRAW;
+  windowClass.lpfnWndProc   = main_process_window_message;
+  windowClass.cbClsExtra    = 0;
+  windowClass.cbWndExtra    = 0;
+  windowClass.hInstance     = hInstance;
+  windowClass.hIcon         = LoadIcon(hInstance, IDI_APPLICATION);
+  windowClass.hCursor       = LoadCursor(NULL, IDC_ARROW);
+  windowClass.hbrBackground = (HBRUSH)(0);
+  windowClass.lpszMenuName  = NULL;
+  windowClass.lpszClassName = KANKAKU_WINDOW_CLASS_NAME;
+  windowClass.hIconSm       = LoadIcon(hInstance, IDI_APPLICATION);
 
-  // default window width and height values
-
-  int nWidth  = 720;
-  int nHeight = 480;
-
-  HID_DEVICE_INFO* inputDevices = g_app_state->device_info_list.Entries;
-  unsigned int numInputDevices  = g_app_state->device_info_list.Size;
-  if ((inputDevices != NULL) && (numInputDevices != 0))
+  if (!RegisterClassExW(&windowClass))
   {
-    // TODO check for valid touchpad device
-    for (unsigned int deviceIdx = 0; deviceIdx < numInputDevices; deviceIdx++)
-    {
-      HID_DEVICE_INFO inputDevice = g_app_state->device_info_list.Entries[deviceIdx];
-
-      if ((inputDevice.LinkColInfoList.Entries == NULL) || (inputDevice.LinkColInfoList.Size == 0))
-      {
-        printf(FG_BRIGHT_YELLOW);
-        printf("Skipping input device #%d at %s:%d!\n", deviceIdx, __FILE__, __LINE__);
-        printf(RESET_COLOR);
-        continue;
-      }
-      else
-      {
-        for (unsigned int linkColIdx = 0; linkColIdx < inputDevice.LinkColInfoList.Size; linkColIdx++)
-        {
-          HID_TOUCH_LINK_COL_INFO linkCollectionInfo = inputDevice.LinkColInfoList.Entries[linkColIdx];
-          if (linkCollectionInfo.HasX && linkCollectionInfo.HasY)
-          {
-            // TODO Should we need to parse every single touch link collections? For now, I think one is sufficient.
-            // TODO validate values (e.g. 0 or > screen size)
-            if (linkCollectionInfo.PhysicalRect.right > nWidth)
-            {
-              nWidth = linkCollectionInfo.PhysicalRect.right;
-            }
-
-            if (linkCollectionInfo.PhysicalRect.bottom > nHeight)
-            {
-              nHeight = linkCollectionInfo.PhysicalRect.bottom;
-            }
-
-            break;
-          }
-        }
-      }
-    }
-  }
-  else
-  {
-    printf(FG_RED);
-    printf("Failed to parse input devices at %s:%d!\n", __FILE__, __LINE__);
-    printf(RESET_COLOR);
+    printf("RegisterClassExW failed at %s:%d\n", __FILE__, __LINE__);
+    utils_print_win32_last_error();
     return -1;
   }
 
-  WNDCLASSEX wcex;
-
-  wcex.cbSize        = sizeof(WNDCLASSEX);
-  wcex.style         = CS_HREDRAW | CS_VREDRAW;
-  wcex.lpfnWndProc   = WndProc;
-  wcex.cbClsExtra    = 0;
-  wcex.cbWndExtra    = 0;
-  wcex.hInstance     = hInstance;
-  wcex.hIcon         = LoadIcon(hInstance, IDI_APPLICATION);
-  wcex.hCursor       = LoadCursor(NULL, IDC_ARROW);
-  wcex.hbrBackground = (HBRUSH)(0);
-  wcex.lpszMenuName  = NULL;
-  wcex.lpszClassName = szWindowClass;
-  wcex.hIconSm       = LoadIcon(wcex.hInstance, IDI_APPLICATION);
-
-  if (!RegisterClassEx(&wcex))
-  {
-    printf("RegisterClassEx failed at %s:%d\n", __FILE__, __LINE__);
-    mGetLastError();
-    return -1;
-  }
-
-  HWND hwnd = CreateWindow(szWindowClass, szTitle, WS_OVERLAPPEDWINDOW | WS_EX_LAYERED, CW_USEDEFAULT, CW_USEDEFAULT, nWidth, nHeight, NULL, NULL, hInstance, NULL);
+  HWND hwnd = CreateWindowW(                //
+      KANKAKU_WINDOW_CLASS_NAME,            // lpClassName
+      KANKAKU_WINDOW_CLASS_NAME,            // lpWindowName
+      WS_OVERLAPPEDWINDOW | WS_EX_LAYERED,  // dwStyle
+      CW_USEDEFAULT,                        // x
+      CW_USEDEFAULT,                        // y
+      320,                                  // nWidth
+      240,                                  // nHeight
+      NULL,                                 // hWndParent
+      NULL,                                 // hMenu
+      hInstance,                            // hInstance
+      NULL                                  // lpParam
+  );
 
   if (!hwnd)
   {
-    printf("CreateWindow failed at %s:%d\n", __FILE__, __LINE__);
-    mGetLastError();
+    printf("CreateWindowW failed at %s:%d\n", __FILE__, __LINE__);
+    utils_print_win32_last_error();
     return -1;
   }
 
-  // make the window transparent
-  SetWindowLong(hwnd, GWL_EXSTYLE, GetWindowLong(hwnd, GWL_EXSTYLE) | WS_EX_LAYERED);
-  SetLayeredWindowAttributes(hwnd, RGB(0, 0, 0), 255, LWA_ALPHA | LWA_COLORKEY);
-
+  // we don't need show the window
+  // TODO find a way to terminate this GUI from console
   ShowWindow(hwnd, nCmdShow);
   UpdateWindow(hwnd);
 
-  HOOKPROC llMouseHookProc = mBlockMouseInputHookProc;
-  HHOOK llMouseHookHandle  = NULL;
-
-  // BOOL block_input_retval;
   MSG msg;
   while (GetMessage(&msg, NULL, 0, 0))
   {
     TranslateMessage(&msg);
     DispatchMessage(&msg);
-
-    if (g_app_state->call_block_input_flag != 0)
-    {
-      if (llMouseHookHandle == NULL)
-      {
-        llMouseHookHandle = SetWindowsHookEx(WH_MOUSE_LL, llMouseHookProc, NULL, 0);
-      }
-
-      SetCursor(NULL);
-
-      g_app_state->call_block_input_flag = 0;
-    }
-    else if (g_app_state->call_unblock_input_flag != 0)
-    {
-      if (llMouseHookHandle != NULL)
-      {
-        UnhookWindowsHookEx(llMouseHookHandle);
-        llMouseHookHandle = NULL;
-      }
-
-      g_app_state->call_unblock_input_flag = 0;
-    }
   }
 
   return (int)msg.wParam;
 }
 
+#define PIPE_OUT_BUFFER_SIZE 16777216  // 16 MB
+int kankaku_create_pipe_server(char* pipeName, HANDLE* outPipeHandlePtr)
+{
+  int retval        = 0;
+  HANDLE pipeHandle = INVALID_HANDLE_VALUE;
+  // https://docs.microsoft.com/en-us/windows/win32/api/winbase/nf-winbase-createnamedpipea
+  pipeHandle = CreateNamedPipeA(                                //
+      pipeName,                                                 // lpName
+      PIPE_ACCESS_OUTBOUND | FILE_FLAG_FIRST_PIPE_INSTANCE,     // dwOpenMode
+      PIPE_TYPE_BYTE | PIPE_WAIT | PIPE_REJECT_REMOTE_CLIENTS,  // dwPipeMode
+      1,                                                        // nMaxInstances
+      PIPE_OUT_BUFFER_SIZE,                                     // nOutBufferSize
+      0,                                                        // nInBufferSize
+      0,                                                        // nDefaultTimeOut
+      NULL                                                      // lpSecurityAttributes
+  );
+
+  if (pipeHandle == INVALID_HANDLE_VALUE)
+  {
+    fprintf(stderr, "%sCreateNamedPipeA failed at %s:%d%s\n", FG_BRIGHT_RED, __FILE__, __LINE__, RESET_COLOR);
+    utils_print_win32_last_error();
+    retval = -1;
+  }
+  else
+  {
+    // TODO move to another function
+    // https://docs.microsoft.com/en-us/windows/win32/api/namedpipeapi/nf-namedpipeapi-connectnamedpipe
+    BOOL cnpRetval = 0;
+    printf("waiting for client\n");
+    while (1)
+    {
+      cnpRetval = ConnectNamedPipe(pipeHandle, NULL);  // blocking function call until the client is connected
+      if (!cnpRetval)
+      {
+        if (!(GetLastError() == ERROR_PIPE_LISTENING))
+        {
+          break;
+        }
+      }
+      else
+      {
+        break;
+      }
+    }
+    if (!cnpRetval)
+    {
+      retval = -1;
+      fprintf(stderr, "%sConnectNamedPipe failed at %s:%d%s\n", FG_BRIGHT_RED, __FILE__, __LINE__, RESET_COLOR);
+      utils_print_win32_last_error();
+    }
+    else
+    {
+      (*outPipeHandlePtr) = pipeHandle;
+    }
+  }
+
+  return retval;
+}
+
 int main()
 {
-  g_app_state = (ApplicationState*)mMalloc(sizeof(ApplicationState), __FILE__, __LINE__);
+  int retval = 0;
 
-  g_app_state->device_info_list  = (HID_DEVICE_INFO_LIST){.Entries = NULL, .Size = 0};
-  g_app_state->previous_touches  = (TOUCH_DATA_LIST){.Entries = NULL, .Size = 0};
-  g_app_state->strokes           = (StrokeList){.Entries = NULL, .Size = 0};
-  g_app_state->tracking_touch_id = -1;
-  g_app_state->is_drawing        = 0;
+  // testing wip function
+  kankaku_hid_touchpad_list touchpadList;
+  retval = kankaku_touchpad_parse_available_devices(&touchpadList);
 
-  g_app_state->turn_off_drawing_key_code     = VK_ESCAPE;
-  g_app_state->turn_on_drawing_key_code      = VK_F3;
-  g_app_state->quit_application_key_code     = VK_Q_KEY;
-  g_app_state->export_writing_data_key_code  = VK_S_KEY;
-  g_app_state->clear_drawing_canvas_key_code = VK_C_KEY;
+  if (retval)
+  {
+    exit(-1);
+  }
 
-  g_app_state->call_block_input_flag   = 0;
-  g_app_state->call_unblock_input_flag = 0;
+  printf("number of touchpad devices: %ud\n", touchpadList.size);
 
-  return wWinMain(GetModuleHandle(NULL), NULL, GetCommandLine(), SW_SHOWNORMAL);
+  int selectedTouchpadIndex = -1;
+
+  if (touchpadList.size < 1)
+  {
+    printf("You have no compatible touchpad devices for this program.\n");
+    // TODO free resources?
+    return 0;
+  }
+  else if (touchpadList.size == 1)
+  {
+    selectedTouchpadIndex = 0;
+  }
+  else
+  {
+    printf("TODO ask user to select a touchpad device\n");
+    return 0;
+  }
+
+  kankaku_hid_touchpad hidTouchpad = touchpadList.entries[selectedTouchpadIndex];
+  gTouchpad                        = hidTouchpad;
+
+  char* pipeName = "\\\\.\\pipe\\kankaku";
+  printf("creating named pipe '%s'\n", pipeName);
+
+  HANDLE pipeHandle = NULL;
+  retval            = kankaku_create_pipe_server(pipeName, &pipeHandle);
+
+  if (retval)
+  {
+    exit(-1);
+  }
+
+  // TODO send data to client
+  kankaku_device_dimensions sampleDeviceDimensions = {.width = hidTouchpad.width, .height = hidTouchpad.height};
+
+  uint8_t* serializedData         = NULL;
+  size_t serializedDataBytesCount = 0;
+  kankaku_serialize_device_dimensions(sampleDeviceDimensions, &serializedData, &serializedDataBytesCount);
+
+  printf("serializedData: ");
+  for (int i = 0; i < serializedDataBytesCount; i++)
+  {
+    printf("%x", serializedData[i]);
+  }
+  printf("\n");
+
+  DWORD numberOfBytesWritten = 0;
+
+  BOOL wfRetval = WriteFile(            //
+      pipeHandle,                       // hFile
+      serializedData,                   // lpBuffer
+      (DWORD)serializedDataBytesCount,  // nNumberOfBytesToWrite
+      &numberOfBytesWritten,            // lpNumberOfBytesWritten
+      NULL                              // lpOverlapped
+  );
+
+  kankaku_utils_free(serializedData, serializedDataBytesCount, __FILE__, __LINE__);
+
+  if (!wfRetval)
+  {
+    retval = -1;
+    fprintf(stderr, "%sWriteFile failed at %s:%d%s\n", FG_BRIGHT_RED, __FILE__, __LINE__, RESET_COLOR);
+    utils_print_win32_last_error();
+  }
+  else
+  {
+    printf("sent device width and height\n");
+    // TODO check number of bytes written
+    FlushFileBuffers(pipeHandle);
+  }
+
+  gPipeHandle = pipeHandle;
+
+  if (!retval)
+  {
+    retval = main_winmain(GetModuleHandle(NULL), NULL, GetCommandLine(), SW_SHOWNORMAL);
+  }
+
+  // TODO clean up resources
+  DisconnectNamedPipe(pipeHandle);
+  CloseHandle(pipeHandle);
+
+  return retval;
 };

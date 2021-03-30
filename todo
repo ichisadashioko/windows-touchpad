@@ -1,0 +1,8 @@
+- list available touchpads
+- filter valid windows precision touchpads
+- tell user to select a touchpad device or automatically select the only device which is available
+- pin down the width and height of the device
+- wrap free() for memory tracking
+- hook keyboard for triggering shortcuts as our application will operate while not being focused
+- most of the exit() call will need to be refactored for proper error handling
+- refactor code to use stdint.h

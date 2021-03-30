@@ -18,39 +18,51 @@
     <ClCompile Include="main.c">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="point2d.c">
+    <ClCompile Include="kankaku_point2d.c">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="stroke.c">
+    <ClCompile Include="kankaku_stroke.c">
       <Filter>Source Files</Filter>
     </ClCompile>
     <ClCompile Include="termcolor.h">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="touchevents.c">
+    <ClCompile Include="kankaku_touchevents.c">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="touchpad.c">
+    <ClCompile Include="kankaku_touchpad.c">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="utils.c">
+    <ClCompile Include="kankaku_utils.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="kankaku_tensorflow.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="kankaku_serialization.c">
       <Filter>Source Files</Filter>
     </ClCompile>
   </ItemGroup>
   <ItemGroup>
-    <ClInclude Include="point2d.h">
+    <ClInclude Include="kankaku_point2d.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="stroke.h">
+    <ClInclude Include="kankaku_stroke.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="touchevents.h">
+    <ClInclude Include="kankaku_touchevents.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="touchpad.h">
+    <ClInclude Include="kankaku_touchpad.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="utils.h">
+    <ClInclude Include="kankaku_utils.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="kankaku_tensorflow.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="kankaku_serialization.h">
       <Filter>Header Files</Filter>
     </ClInclude>
   </ItemGroup>

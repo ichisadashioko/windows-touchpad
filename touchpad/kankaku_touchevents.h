@@ -25,6 +25,6 @@ struct TOUCH_DATA_LIST
 
 typedef struct TOUCH_DATA_LIST TOUCH_DATA_LIST;
 
-int mInterpretRawTouchInput(TOUCH_DATA_LIST* prevTouchesList, TOUCH_DATA curTouch, unsigned int* eventType);
+int kankaku_touchevents_interpret_event_type(TOUCH_DATA_LIST* prevTouchesList, TOUCH_DATA curTouch, unsigned int* eventType);
 
 #endif  // __TOUCHEVENTS_H__

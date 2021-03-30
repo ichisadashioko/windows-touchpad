@@ -18,8 +18,14 @@ jobs:
     - name: Add msbuild to PATH
       uses: microsoft/setup-msbuild@v1
 
+    - name: Download dependencies
+      run: python download_deps.py
+
     - name: Build
       run: msbuild windows-touchpad.sln
+
+    - name: Copy DLLs and assets
+      run: python build_scripts/copy_assets.py
 
     - name: Show build directory structure
       run: tree . /a /f
@@ -28,4 +34,4 @@ jobs:
       uses: actions/upload-artifact@v2.2.0
       with:
         name: windows-touchpad-binaries
-        path: Debug/*.exe
+        path: x64/Debug/*
