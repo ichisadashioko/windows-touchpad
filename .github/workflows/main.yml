@@ -7,7 +7,7 @@ jobs:
     - uses: actions/checkout@v2
     - name: Add msbuild to PATH
       uses: microsoft/setup-msbuild@v1
-    -       run: msbuild windows-touchpad.sln
+    - run: msbuild windows-touchpad.sln
     - run: tree . /a /f
     - uses: actions/upload-artifact@v2.2.0
       with:
