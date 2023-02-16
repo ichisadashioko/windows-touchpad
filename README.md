@@ -28,7 +28,7 @@ I am a fan of practicing writing those crazy difficult Japanese Kanji. As a Japa
 
 ## CI status
 
-![C/C++ CI](https://github.com/ichisadashioko/windows-touchpad/workflows/C/C++%20CI/badge.svg)
+![C/C++ CI](https://github.com/ichisadashioko/windows-touchpad/workflows/CI/badge.svg)
 
 ## Terminology
 
