@@ -1,31 +1,15 @@
 name: CI
-
-on:
-  push:
-    branches: [ master ]
-  pull_request:
-    branches: [ master ]
-
+on: workflow_dispatch
 jobs:
   build:
-
     runs-on: windows-latest
-
     steps:
-
     - uses: actions/checkout@v2
-
     - name: Add msbuild to PATH
       uses: microsoft/setup-msbuild@v1
-
-    - name: Build
-      run: msbuild windows-touchpad.sln
-
-    - name: Show build directory structure
-      run: tree . /a /f
-
-    - name: upload artifacts
-      uses: actions/upload-artifact@v2.2.0
+    -       run: msbuild windows-touchpad.sln
+    - run: tree . /a /f
+    - uses: actions/upload-artifact@v2.2.0
       with:
         name: windows-touchpad-binaries
         path: Debug/*.exe
