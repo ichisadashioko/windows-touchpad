@@ -9,7 +9,7 @@ jobs:
       uses: microsoft/setup-msbuild@v1
     - run: msbuild windows-touchpad.sln
     - run: tree . /a /f
-    - uses: actions/upload-artifact@v2.2.0
+    - uses: actions/upload-artifact@v4
       with:
         name: windows-touchpad-binaries
         path: Debug/*.exe
